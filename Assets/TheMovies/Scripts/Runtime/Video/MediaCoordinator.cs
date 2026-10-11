@@ -67,6 +67,11 @@ namespace TheMovies.Video
             m_Screen = screen;
             m_Library = library;
             m_Player.Prepared += OnPrepared;
+            m_Player.TextureChanged += () =>
+            {
+                m_Screen.SetVideoSize(m_Player.Width, m_Player.Height);
+                m_Screen.SetTexture(m_Player.Texture);
+            };
             m_Player.Failed += OnFailed;
             m_Library.Changed += () => m_RetryMissing = true;
 
@@ -292,6 +297,9 @@ namespace TheMovies.Video
                 return;
             }
 
+            if (m_Player.IsNative && SubtitleService.Instance != null)
+                SubtitleService.Instance.EmbeddedText = m_Player.EmbeddedSubtitle;
+
             if (!m_DurationReported && m_Player.Duration > 0)
             {
                 m_DurationReported = true;
@@ -333,7 +341,14 @@ namespace TheMovies.Video
 
             bool buffering = m_Player.IsStalled;
             float ahead = float.MaxValue, window = float.MaxValue;
-            if (IsStreaming && HostStreamService.Instance != null)
+            if (m_Player.IsNative)
+            {
+                // The own player knows exactly how much it has buffered.
+                double buffered = m_Player.BufferedAhead;
+                ahead = buffered >= float.MaxValue ? float.MaxValue : (float)buffered;
+                window = 8f;
+            }
+            else if (IsStreaming && HostStreamService.Instance != null)
             {
                 ahead = HostStreamService.Instance.BufferedSeconds(m_Player.Duration);
                 window = HostStreamService.Instance.ReadAheadSeconds(m_Player.Duration);
@@ -438,7 +453,8 @@ namespace TheMovies.Video
             m_Screen.SetTexture(null);
             // Streams: no speed correction (it distorts the sound when the player has to resample) and fewer,
             // larger corrective seeks (each seek means buffering again).
-            bool streamed = stream || entry.IsUrl || entry.IsNetwork;
+            // The own player changes speed without changing the pitch, so it may always use speed correction.
+            bool streamed = (stream || entry.IsUrl || entry.IsNetwork) && !(MoviePlayer.PreferNative && NativeVideoPlayer.Supported);
             m_Sync.Settings.AllowSpeedCorrection = !streamed;
             m_Sync.Settings.SeekThresholdWithoutSpeed = streamed ? 0.6 : 0.25;
             m_Player.Load(location);
@@ -506,6 +522,8 @@ namespace TheMovies.Video
 
         void OnPrepared()
         {
+            if (!string.IsNullOrEmpty(m_Player.Warning))
+                ReportProblem(m_Player.Warning);
             m_Screen.SetVideoSize(m_Player.Width, m_Player.Height);
             m_Screen.SetTexture(m_Player.Texture);
 

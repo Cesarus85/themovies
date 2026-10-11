@@ -55,3 +55,45 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    using NUnit.Framework;
+    using TheMovies.Core.Build;
+
+    public class GradleEditTests
+    {
+        const string Gradle =
+            "apply plugin: 'com.android.library'\n\n" +
+            "dependencies {\n    implementation fileTree(dir: 'libs', include: ['*.jar'])\n}\n\n" +
+            "android {\n    namespace \"com.unity3d.player\"\n}\n";
+
+        [Test]
+        public void AddsDependenciesOnce()
+        {
+            string once = GradleEdits.AddDependencies(Gradle, "androidx.media3:media3-exoplayer:1.4.1", "org.jellyfin.media3:media3-ffmpeg-decoder:1.4.1+1");
+            StringAssert.Contains("implementation 'androidx.media3:media3-exoplayer:1.4.1'", once);
+            StringAssert.Contains("implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.4.1+1'", once);
+            Assert.Less(once.IndexOf("media3-exoplayer"), once.IndexOf("android {"));
+            Assert.AreEqual(once, GradleEdits.AddDependencies(once, "androidx.media3:media3-exoplayer:1.4.1"));
+            // An existing different version is left alone.
+            Assert.AreEqual(once, GradleEdits.AddDependencies(once, "androidx.media3:media3-exoplayer:1.5.0"));
+            StringAssert.Contains("dependencies {", GradleEdits.AddDependencies("apply plugin: 'x'", "a:b:1"));
+        }
+
+        [Test]
+        public void SetsProperties()
+        {
+            Assert.AreEqual("a=1\nandroid.useAndroidX=true\n", GradleEdits.SetProperty("a=1", "android.useAndroidX", "true"));
+            Assert.AreEqual("android.useAndroidX=true\nb=2", GradleEdits.SetProperty("android.useAndroidX=false\nb=2", "android.useAndroidX", "true"));
+        }
+
+        [Test]
+        public void AddsRulesOnce()
+        {
+            string rule = "-keep class com.themovies.player.** { *; }";
+            string once = GradleEdits.AddRule("-keep class x", rule);
+            Assert.AreEqual(once, GradleEdits.AddRule(once, rule));
+        }
+    }
+}

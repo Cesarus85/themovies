@@ -30,6 +30,9 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
   wem die Datei fehlt
 - **Avatare** (Kopf, Hände, Name, Mundbewegung beim Sprechen) auf festen Plätzen nebeneinander
 - **Sprachchat** über Unity Vivox (optional)
+- **Eigener Video-Player** (ExoPlayer/Media3, siehe [docs/PLAYER.md](docs/PLAYER.md)): großer Puffer,
+  schnelles Spulen auch bei mehreren GB vom NAS, AC3/DTS/TrueHD-Ton, eingebettete Untertitel, Mipmaps gegen
+  Flimmern; braucht OpenGL ES 3 (sonst Unitys VideoPlayer)
 - **NAS & Netzlaufwerke**: Filme direkt von Windows-/Samba-Freigaben (**SMB 2/3**), **WebDAV** oder
   **DLNA/UPnP-Medienservern** abspielen – mit Netzwerksuche, Ordner-Navigation und Spulen; der Gastgeber
   kann NAS-Filme auch an Mitschauer weiterstreamen
@@ -99,7 +102,8 @@ Quest per USB anschließen und Videos in **`Movies`** oder **`Download`** ablege
 automatisch (über Name und Größe); falls nicht, gibt es im Menü den Knopf **„Datei zuordnen“**.
 
 - Empfohlen: **MP4 oder MKV mit H.264/H.265 (HEVC) und AAC-Ton**. Bis 4K läuft auf der Quest 3 flüssig.
-- **Kein Ton?** Viele 3D-Dateien haben AC3/DTS-Ton, den Android oft nicht abspielen kann. Ton ohne
+- **Kein Ton?** Mit dem eigenen Player (OpenGL ES 3) spielen AC3/DTS/TrueHD dank FFmpeg-Decoder. Nur mit
+  Unitys VideoPlayer gilt: Viele 3D-Dateien haben AC3/DTS-Ton, den Android oft nicht abspielen kann. Ton ohne
   Neukodierung des Bildes umwandeln:
   ```
   ffmpeg -i film.mkv -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -b:a 384k film.mp4
@@ -144,7 +148,9 @@ Nicht gefunden? **„NAS hinzufügen“** und die Adresse eintippen:
 | **WebDAV** | `https://nas:5006/filme`, `davs://cloud.example.de/remote.php/dav/files/ich/` | Basic/Digest-Anmeldung. Selbstsignierte Zertifikate werden nur bei Adressen im Heimnetz akzeptiert. |
 | **DLNA/UPnP** | wird automatisch gefunden | Ohne Anmeldung; die Wiedergabe läuft direkt vom Medienserver. |
 
-- **„Erst kopieren“ (Standard):** Ein Film vom NAS wird zuerst auf die Quest kopiert (Fortschritt,
+- **Streamen (Standard mit dem eigenen Player):** Film antippen – er läuft direkt vom NAS, Spulen lädt
+  gezielt nach. Unten in der Leiste lässt sich auf **„Erst kopieren“** umschalten.
+- **„Erst kopieren“ (Standard ohne eigenen Player):** Ein Film vom NAS wird zuerst auf die Quest kopiert (Fortschritt,
   MB/s und Restzeit im Menü; „Kopieren abbrechen“ möglich, ein abgebrochener Kopiervorgang wird beim
   nächsten Mal fortgesetzt) und dann lokal abgespielt – Spulen geht sofort, auch bei mehreren GB.
   Unitys Video-Player liest gestreamte Quellen unter Android nur langsam, daher ist das der verlässliche Weg.

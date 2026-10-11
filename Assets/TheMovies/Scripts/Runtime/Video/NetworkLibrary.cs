@@ -400,8 +400,12 @@ namespace TheMovies.Video
 
             m_Server ??= new LocalStreamServer();
             string location = entry.Location;
-            // ~40 MB ahead, ~80 MB cache, 3 parallel connections.
-            m_Streamer = new SourceStreamer(() => browser.OpenFile(location), entry.Size, capacityBlocks: 320, readAheadBlocks: 160);
+            // 3 parallel connections. The own player buffers up to a minute itself, so the proxy only needs a
+            // small window then; Unity's VideoPlayer gets ~40 MB ahead.
+            bool native = MoviePlayer.PreferNative && NativeVideoPlayer.Supported;
+            m_Streamer = native
+                ? new SourceStreamer(() => browser.OpenFile(location), entry.Size, capacityBlocks: 128, readAheadBlocks: 64)
+                : new SourceStreamer(() => browser.OpenFile(location), entry.Size, capacityBlocks: 320, readAheadBlocks: 160);
             string ext = Path.GetExtension(entry.FileName).ToLowerInvariant();
             if (ext.Length < 2 || ext.Length > 6) ext = ".mp4";
             m_RequestsAtServe = m_Server.RequestCount;
@@ -474,7 +478,8 @@ namespace TheMovies.Video
         /// <summary>Copy NAS movies to the headset before playing (reliable seeking) instead of streaming them.</summary>
         public bool CopyFirst
         {
-            get => PlayerPrefs.GetInt(k_CopyFirstKey, 1) == 1;
+            // Streaming is the default with the own player; Unity's VideoPlayer copes badly with big streams.
+            get => PlayerPrefs.GetInt(k_CopyFirstKey, MoviePlayer.PreferNative && NativeVideoPlayer.Supported ? 0 : 1) == 1;
             set
             {
                 PlayerPrefs.SetInt(k_CopyFirstKey, value ? 1 : 0);

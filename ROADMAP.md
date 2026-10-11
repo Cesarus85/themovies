@@ -30,6 +30,7 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der
 | 📋 | 5 | Weitere Säle | Heimkino (Sofa, Kamin), Autokino unter Sternen, Weltraum-Lounge; Auswahl in den Einstellungen, für alle synchron oder pro Person | mittel |
 | 📋 | 6 | 180°/360°-Videos | Innen texturierte Kugel/Halbkugel statt Leinwand, Formate mono/SBS/OU, Erkennung über Dateiname (`_180`, `_360`, `LR`, `TB`) | mittel |
 | 📋 | 7 | Handtracking | OpenXR Hand Interaction Profile, Pinch = Trigger, Strahl aus der Hand; Avatare mit Hand-Posen | mittel |
+| ✅ | – | Eigener Video-Player | ExoPlayer/Media3 über Java-Plugin, GL-Textur-Übergabe, FFmpeg-Ton, eingebettete Untertitel | groß |
 | ✅ | – | NAS / Netzlaufwerk | SMB 2/3, WebDAV, DLNA; Netzwerksuche (Bonjour/SSDP), Ordner-Navigation, Proxy mit Puffer, Untertitel vom NAS, Weiterstreamen an Mitschauer | groß |
 | 📋 | 8 | Mediathek (Jellyfin/Plex) | Login per Code, Bibliothek durchsuchen, Direct-Play-URL an alle verteilen | groß |
 | 📋 | 9 | Bildeinstellungen | Helligkeit/Kontrast/Sättigung im Leinwand-Shader, 3D-Tiefe über horizontalen Augen-Versatz | klein |
@@ -49,7 +50,7 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der
 - **Schärfere Schrift:** Menü und Untertitel auf TextMeshPro (SDF) umstellen.
 - **Netzwerk-Tests im Editor:** Multiplayer Play Mode + Unity Test Runner für Join/Leave, Host-Wechsel, Streaming.
 - **Logs:** Fehlerprotokoll im App-Ordner, damit Probleme von Mitschauern leichter nachvollziehbar sind.
-- **Eigener Android-Player für Streams:** ExoPlayer (Media3) über ein Java-Plugin statt Unitys VideoPlayer – bessere Puffer- und Spul-Logik für NAS/URL-Streams. Bild über eine OpenXR-Composition-Layer-Surface (XR Composition Layers, Android Surface) oder per Hardware-Buffer-Import in Vulkan.
+- **Eigener Player, Ausbau:** Ton-/Untertitelspur im Menü wählbar, SMB als direkte ExoPlayer-DataSource, Wiedergabe als OpenXR-Composition-Layer (Android Surface) – siehe [docs/PLAYER.md](docs/PLAYER.md).
 - **NAS auf der Quest messen:** Durchsatz SMB/WebDAV über WLAN mit 4K-Remux (Ziel ≥ 15 MB/s), ggf. mehrere Lese-Anfragen parallel.
 - **NAS-Zugangsdaten verschlüsseln:** Android Keystore statt Klartext in den App-Einstellungen.
 - **SMB 3.1.1 + Verschlüsselung:** Pre-Auth-Integrity und AES-GCM, damit auch „Verschlüsselung erzwingen“ funktioniert.

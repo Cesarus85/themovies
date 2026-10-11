@@ -138,6 +138,16 @@ namespace TheMovies.EditorTools
             }
         }
 
+        [MenuItem("The Movies/Grafik auf OpenGL ES 3 umstellen", priority = 32)]
+        public static void SwitchToGles()
+        {
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
+            EditorUtility.DisplayDialog("The Movies",
+                "Grafik-API für Android ist jetzt OpenGL ES 3. Damit läuft der eigene Video-Player (ExoPlayer) " +
+                "mit großem Puffer, schnellem Spulen, AC3/DTS-Ton und eingebetteten Untertiteln. Bitte neu bauen.", "OK");
+        }
+
         [MenuItem("The Movies/Mixed Reality (Passthrough) einrichten", priority = 31)]
         public static void SetupMixedReality()
         {
@@ -309,7 +319,8 @@ namespace TheMovies.EditorTools
             // http:// streams (and the local stream server on 127.0.0.1) need cleartext HTTP on Android.
             PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
-            PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan });
+            // OpenGL ES 3: the own video player (ExoPlayer) hands its frames over as GL textures.
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
 
             // 4x MSAA on all quality levels: text and edges look much better in VR.
             int current = QualitySettings.GetQualityLevel();

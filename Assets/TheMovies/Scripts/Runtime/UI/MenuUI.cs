@@ -1302,7 +1302,9 @@ namespace TheMovies.UI
             else
             {
                 m_TitleLabel.Text = media.Title.ToString();
-                string res = coordinator.Player.State == MovieState.Ready ? $"{coordinator.Player.Width}×{coordinator.Player.Height}" : string.Empty;
+                string res = coordinator.Player.State == MovieState.Ready
+                    ? $"{coordinator.Player.Width}×{coordinator.Player.Height}" + (coordinator.Player.IsNative ? "  ·  ExoPlayer" : "  ·  Unity-Player")
+                    : string.Empty;
                 string source = string.Empty;
                 if (coordinator.IsStreaming && HostStreamService.Instance != null)
                     source = $"  ·  Stream vom Gastgeber {HostStreamService.Instance.ReceiveRate / 1e6f:0.0} MB/s";

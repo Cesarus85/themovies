@@ -13,10 +13,14 @@ namespace TheMovies.EditorTools
     ///   on http://127.0.0.1, DLNA servers only speak http. Android blocks that by default ("Cannot read file").
     /// - The Quest only shows passthrough to apps declaring "com.oculus.feature.PASSTHROUGH" (normally added by
     ///   the Meta OpenXR package; added here if no manifest has it).
+    /// - The own video player (Plugins/Android/TheMoviesPlayer.java) needs ExoPlayer/Media3 and, for AC3/DTS/TrueHD
+    ///   sound, the FFmpeg audio decoder built by Jellyfin; its class must survive minification.
     /// </summary>
     sealed class AndroidManifestFixes : IPostGenerateGradleAndroidProject
     {
         const string k_Passthrough = "com.oculus.feature.PASSTHROUGH";
+        public const string Media3Version = "1.4.1";
+        public const string FfmpegDecoder = "org.jellyfin.media3:media3-ffmpeg-decoder:1.4.1+1";
 
         // After the XR packages' own manifest processing.
         public int callbackOrder => 10000;
@@ -83,6 +87,8 @@ namespace TheMovies.EditorTools
                 }
             }
 
+            AddPlayerDependencies(root, path);
+
             // Passthrough feature
             if (XRConfigurator.IsMetaOpenXrInstalled && File.Exists(libraryManifest))
             {
@@ -96,6 +102,42 @@ namespace TheMovies.EditorTools
                     Debug.Log("[TheMovies] Added " + k_Passthrough + " to the Android manifest.");
                 }
             }
+        }
+
+        static void AddPlayerDependencies(string root, string libraryPath)
+        {
+            string gradle = Path.Combine(libraryPath, "build.gradle");
+            if (!File.Exists(gradle))
+            {
+                Debug.LogWarning("[TheMovies] unityLibrary/build.gradle not found – the own video player will be missing.");
+                return;
+            }
+            var deps = new List<string>
+            {
+                "androidx.media3:media3-exoplayer:" + Media3Version,
+                "androidx.media3:media3-datasource:" + Media3Version,
+                "androidx.media3:media3-common:" + Media3Version,
+            };
+            if (PlayerBuildOptions.FfmpegAudio) deps.Add(FfmpegDecoder);
+            string text = File.ReadAllText(gradle);
+            string changed = GradleEdits.AddDependencies(text, deps.ToArray());
+            if (changed != text) File.WriteAllText(gradle, changed);
+
+            string properties = Path.Combine(root, "gradle.properties");
+            string props = File.Exists(properties) ? File.ReadAllText(properties) : string.Empty;
+            string newProps = GradleEdits.SetProperty(props, "android.useAndroidX", "true");
+            if (newProps != props) File.WriteAllText(properties, newProps);
+
+            const string keep = "-keep class com.themovies.player.** { *; }";
+            foreach (string name in new[] { "proguard-unity.txt", "proguard-user.txt" })
+            {
+                string rules = Path.Combine(libraryPath, name);
+                if (!File.Exists(rules)) continue;
+                string r = File.ReadAllText(rules);
+                string nr = GradleEdits.AddRule(r, keep);
+                if (nr != r) File.WriteAllText(rules, nr);
+            }
+            Debug.Log("[TheMovies] Video player: Media3 " + Media3Version + (PlayerBuildOptions.FfmpegAudio ? " + FFmpeg audio (AC3/DTS)" : string.Empty));
         }
 
         static string FindConfig(string root, string preferredModule, string name)

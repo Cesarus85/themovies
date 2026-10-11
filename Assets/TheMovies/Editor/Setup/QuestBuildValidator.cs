@@ -32,6 +32,11 @@ namespace TheMovies.EditorTools
                 Debug.Log("[TheMovies] Player Settings: 'Use 32-bit Display Buffer' enabled (alpha for passthrough).");
             }
 
+            var apis = PlayerSettings.GetGraphicsAPIs(BuildTarget.Android);
+            if (apis.Length == 0 || apis[0] != UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3)
+                Debug.LogWarning("[TheMovies] Grafik-API ist nicht OpenGL ES 3 – der eigene Video-Player (ExoPlayer) ist dann aus und " +
+                                 "Unitys VideoPlayer wird verwendet. Umstellen: Menü The Movies > Grafik auf OpenGL ES 3 umstellen.");
+
             // Ticks that got lost (controller profiles, passthrough …) are set again before they go missing in the APK.
             var repaired = XRConfigurator.RepairQuest();
             if (repaired.Count > 0)

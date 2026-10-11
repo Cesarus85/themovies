@@ -39,6 +39,9 @@ namespace TheMovies.Video
         /// <summary>Increases with every <see cref="Clear"/>; lets asynchronous loaders detect that the movie changed.</summary>
         public int LoadToken => m_LoadToken;
 
+        /// <summary>Subtitle text from the movie file itself (own player), used when there is no .srt file.</summary>
+        public string EmbeddedText { get; set; }
+
         /// <summary>Name of the loaded subtitle source for the menu.</summary>
         public string TrackName { get; private set; } = string.Empty;
 
@@ -72,6 +75,7 @@ namespace TheMovies.Video
         public void Clear()
         {
             m_LoadToken++;
+            EmbeddedText = null;
             m_Track = null;
             TrackData = null;
             TrackName = string.Empty;
@@ -133,6 +137,8 @@ namespace TheMovies.Video
             string text = null;
             if (Enabled && m_Track != null && m_TimeProvider != null)
                 text = m_Track.TextAt(m_TimeProvider());
+            else if (Enabled && m_Track == null && !string.IsNullOrEmpty(EmbeddedText))
+                text = EmbeddedText;
             if (text != m_Shown)
                 Show(text);
         }

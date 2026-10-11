@@ -137,6 +137,7 @@ namespace UnityEditor
         public static void SetScriptingBackend(Build.NamedBuildTarget buildTarget, ScriptingImplementation backend) { }
         public static void SetUseDefaultGraphicsAPIs(BuildTarget platform, bool automatic) { }
         public static void SetGraphicsAPIs(BuildTarget platform, GraphicsDeviceType[] apis) { }
+        public static GraphicsDeviceType[] GetGraphicsAPIs(BuildTarget platform) => new GraphicsDeviceType[0];
 
         public static class Android
         {
