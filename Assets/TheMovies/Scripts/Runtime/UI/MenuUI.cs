@@ -667,6 +667,13 @@ namespace TheMovies.UI
             m_JoinLan.Interactable = idle;
             m_SoloButton.Interactable = idle;
             m_SoloButton.Label = LocalAuthority.Instance.Media.IsEmpty ? "Allein schauen" : "Weiter allein schauen";
+            bool flatOnQuest = Application.platform == RuntimePlatform.Android && XRRig.Instance != null && !XRRig.Instance.XRActive;
+            if (flatOnQuest)
+            {
+                m_MainStatus.Text = "VR ist nicht aktiv: Im Unity-Projekt OpenXR + 'Meta Quest Support' für Android aktivieren (README).";
+                m_MainStatus.Color = UIStyle.Error;
+                return;
+            }
             m_MainStatus.Text = sessions.Status.Length > 0
                 ? sessions.Status
                 : SessionManager.OnlineAvailable ? "Bereit." : "Online-Modus: Paket 'Multiplayer Services' fehlt – LAN geht trotzdem.";

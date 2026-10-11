@@ -123,6 +123,10 @@ namespace UnityEditor
 
 namespace UnityEditor.Build
 {
+    public interface IOrderedCallback { int callbackOrder { get; } }
+    public interface IPreprocessBuildWithReport : IOrderedCallback { void OnPreprocessBuild(Reporting.BuildReport report); }
+    public class BuildFailedException : System.Exception { public BuildFailedException(string message) : base(message) { } }
+
     public readonly struct NamedBuildTarget
     {
         public static readonly NamedBuildTarget Android = default;
@@ -136,6 +140,7 @@ namespace UnityEditor.Build.Reporting
     public struct BuildSummary
     {
         public BuildResult result => default;
+        public BuildTarget platform => default;
         public ulong totalSize => 0;
     }
     public class BuildReport { public BuildSummary summary => default; }

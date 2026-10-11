@@ -112,6 +112,27 @@ namespace TheMovies.EditorTools
             }
         }
 
+        [MenuItem("The Movies/VR-Einrichtung prüfen", priority = 30)]
+        public static void CheckXR()
+        {
+            var state = XRConfigurator.CheckQuest(out string problem);
+            if (state == XRConfigurator.Readiness.Ready)
+            {
+                EditorUtility.DisplayDialog("The Movies", "Alles bereit: OpenXR und Meta Quest Support sind für Android aktiv.", "OK");
+                return;
+            }
+
+            string text = state == XRConfigurator.Readiness.Unknown
+                ? "Die XR-Einstellungen konnten nicht automatisch geprüft werden."
+                : problem;
+            if (EditorUtility.DisplayDialog("The Movies", text + "\n\nJetzt automatisch einrichten?", "Einrichten", "Abbrechen"))
+            {
+                string result = XRConfigurator.Configure();
+                XRConfigurator.CheckQuest(out problem);
+                EditorUtility.DisplayDialog("The Movies", result + (problem != null ? "\n\nNoch offen: " + problem : string.Empty), "OK");
+            }
+        }
+
         [MenuItem("The Movies/Szene öffnen", priority = 40)]
         public static void OpenScene()
         {

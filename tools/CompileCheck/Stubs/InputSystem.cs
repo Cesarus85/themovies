@@ -41,6 +41,28 @@ namespace UnityEngine.InputSystem
         public class Vector2Control : InputControl { public Vector2 ReadValue() => default; }
     }
 
+    public class Pointer
+    {
+        public static Pointer current => null;
+        public Controls.Vector2Control position => null;
+        public Controls.ButtonControl press => null;
+    }
+
+    namespace Controls
+    {
+        public class TouchControl : InputControl
+        {
+            public ButtonControl press => null;
+            public Vector2Control position => null;
+        }
+    }
+
+    public class Touchscreen : Pointer
+    {
+        public static new Touchscreen current => null;
+        public Controls.TouchControl primaryTouch => null;
+    }
+
     public class Mouse
     {
         public static Mouse current => null;

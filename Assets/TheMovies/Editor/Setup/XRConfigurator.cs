@@ -65,6 +65,81 @@ namespace TheMovies.EditorTools
             }
         }
 
+        public enum Readiness
+        {
+            Ready,
+            NotReady,
+
+            /// <summary>The XR package APIs could not be inspected (unknown version); don't block anything.</summary>
+            Unknown,
+        }
+
+        /// <summary>Checks whether an Android build would start in VR: OpenXR loader active and Meta Quest Support enabled.</summary>
+        public static Readiness CheckQuest(out string problem)
+        {
+            problem = null;
+            try
+            {
+                var perTargetType = FindType("UnityEngine.XR.Management.XRGeneralSettingsPerBuildTarget");
+                var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
+                if (perTargetType == null)
+                {
+                    problem = "Paket 'XR Plug-in Management' fehlt.";
+                    return Readiness.NotReady;
+                }
+                if (openXrSettingsType == null)
+                {
+                    problem = "Paket 'OpenXR Plugin' fehlt.";
+                    return Readiness.NotReady;
+                }
+
+                string key = "com.unity.xr.management.loader_settings";
+                if (!EditorBuildSettings.TryGetConfigObject(key, out Object perTarget) || perTarget == null)
+                {
+                    problem = "XR Plug-in Management ist noch nicht eingerichtet.";
+                    return Readiness.NotReady;
+                }
+
+                var t = perTarget.GetType();
+                var settings = t.GetMethod("SettingsForBuildTarget", new[] { typeof(BuildTargetGroup) })?.Invoke(perTarget, new object[] { BuildTargetGroup.Android });
+                var manager = settings?.GetType().GetProperty("Manager")?.GetValue(settings);
+                var loaders = manager?.GetType().GetProperty("activeLoaders")?.GetValue(manager) as System.Collections.IEnumerable;
+                if (settings == null || manager == null || loaders == null)
+                {
+                    problem = "Für Android ist kein XR-Plug-in ausgewählt.";
+                    return settings == null ? Readiness.NotReady : Readiness.Unknown;
+                }
+
+                bool openXr = false;
+                foreach (var loader in loaders)
+                    if (loader != null && loader.GetType().Name == "OpenXRLoader")
+                        openXr = true;
+                if (!openXr)
+                {
+                    problem = "Für Android ist 'OpenXR' nicht angehakt.";
+                    return Readiness.NotReady;
+                }
+
+                var openXrSettings = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static)
+                    ?.Invoke(null, new object[] { BuildTargetGroup.Android });
+                var features = openXrSettings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(openXrSettings, null) as Array;
+                if (features == null) return Readiness.Unknown;
+                foreach (var feature in features)
+                {
+                    if (feature == null || feature.GetType().Name != "MetaQuestFeature") continue;
+                    if (feature.GetType().GetProperty("enabled")?.GetValue(feature) is bool on && on)
+                        return Readiness.Ready;
+                }
+                problem = "OpenXR-Feature 'Meta Quest Support' ist für Android nicht aktiviert.";
+                return Readiness.NotReady;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[TheMovies] XR check failed: " + e.Message);
+                return Readiness.Unknown;
+            }
+        }
+
         static Object GetOrCreatePerTargetSettings(Type perTargetType)
         {
             string key = "com.unity.xr.management.loader_settings";

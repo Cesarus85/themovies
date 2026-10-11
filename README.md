@@ -65,6 +65,17 @@ synchronisiert nur Start, Pause und Position – dadurch volle Bildqualität bei
 
 Die Mitschauer installieren dieselbe APK auf ihrer Quest.
 
+## Problemlösung
+
+**Die App öffnet sich auf der Quest als flaches Fenster** – dann war VR beim Bauen nicht aktiv:
+
+1. *Edit → Project Settings → XR Plug-in Management*, Reiter **Android** (Robotersymbol): **OpenXR** anhaken.
+2. Darunter *OpenXR*, Reiter Android: Feature **Meta Quest Support** anhaken; bei *Enabled Interaction
+   Profiles* mit **+** das **Oculus Touch Controller Profile** hinzufügen.
+3. *XR Plug-in Management → Project Validation*, Reiter Android: **Fix All** klicken.
+4. Neu bauen und installieren. (*The Movies → VR-Einrichtung prüfen* zeigt, ob alles passt; ein Android-Build
+   bricht jetzt mit einer Erklärung ab, statt eine flache App zu erzeugen.)
+
 ## Filme auf die Quest kopieren
 
 Quest per USB anschließen und Videos in **`Movies`** oder **`Download`** ablegen

@@ -301,11 +301,10 @@ namespace TheMovies.XR
 
             m_LeftPointer.Tick(false, default, false, false, false);
             m_RightPointer.Tick(false, default, false, false, false);
-            if (mouse != null)
-            {
-                Ray ray = Camera.ScreenPointToRay(mouse.position.ReadValue());
-                m_MousePointer.Tick(true, ray, mouse.leftButton.isPressed, true, false);
-            }
+            if (TryGetScreenPointer(out Vector2 screenPos, out bool pressed))
+                m_MousePointer.Tick(true, Camera.ScreenPointToRay(screenPos), pressed, true, false);
+            else
+                m_MousePointer.Tick(false, default, false, false, false);
 
             if (keyboard != null)
             {
@@ -318,6 +317,41 @@ namespace TheMovies.XR
                 if (keyboard.rightArrowKey.wasPressedThisFrame)
                     SeekStepRequested?.Invoke(10);
             }
+        }
+
+        /// <summary>
+        /// Mouse on a PC; touch or the system laser when the app runs as a flat 2D window on the Quest
+        /// (which happens when XR is not enabled in the build).
+        /// </summary>
+        static bool TryGetScreenPointer(out Vector2 position, out bool pressed)
+        {
+            var touch = Touchscreen.current;
+            if (touch != null && touch.primaryTouch.press.isPressed)
+            {
+                position = touch.primaryTouch.position.ReadValue();
+                pressed = true;
+                return true;
+            }
+
+            var pointer = Pointer.current;
+            if (pointer != null)
+            {
+                position = pointer.position.ReadValue();
+                pressed = pointer.press.isPressed;
+                return true;
+            }
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+            position = Input.mousePosition;
+            pressed = Input.GetMouseButton(0) || Input.touchCount > 0;
+            if (Input.touchCount > 0)
+                position = Input.GetTouch(0).position;
+            return true;
+#else
+            position = default;
+            pressed = false;
+            return false;
+#endif
         }
 
         /// <summary>World space poses for the avatar network sync.</summary>

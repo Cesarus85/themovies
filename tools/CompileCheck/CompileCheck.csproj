@@ -13,7 +13,7 @@
     <Nullable>disable</Nullable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <NoWarn>CS0067;CS0649;CS0169;CS0414;CS1998;CS0618</NoWarn>
-    <DefineConstants>$(DefineConstants);UNITY_EDITOR;UNITY_2021_3_OR_NEWER;UNITY_6000_0_OR_NEWER</DefineConstants>
+    <DefineConstants>$(DefineConstants);UNITY_EDITOR;ENABLE_LEGACY_INPUT_MANAGER;UNITY_2021_3_OR_NEWER;UNITY_6000_0_OR_NEWER</DefineConstants>
     <DefineConstants Condition="'$(AllPackages)' == 'true'">$(DefineConstants);THEMOVIES_UGS;THEMOVIES_MPS;THEMOVIES_VIVOX</DefineConstants>
     <DefineConstants Condition="'$(Android)' == 'true'">$(DefineConstants.Replace('UNITY_EDITOR;', ''));UNITY_ANDROID</DefineConstants>
   </PropertyGroup>
