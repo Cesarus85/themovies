@@ -47,8 +47,8 @@ Unity Render-Thread (GL.IssuePluginEvent) ◄───────────�
 - **OpenGL ES 3** als Grafik-API (Menü *The Movies → Grafik auf OpenGL ES 3 umstellen*). Mit Vulkan fällt die
   App auf Unitys VideoPlayer zurück (Hinweis im Menü). Ein Vulkan-Weg (AHardwareBuffer-Import) wäre möglich,
   braucht aber ein natives C++-Plugin.
-- Gradle lädt beim Bauen `androidx.media3:media3-exoplayer:1.4.1` und
-  `org.jellyfin.media3:media3-ffmpeg-decoder:1.4.1+1` (abschaltbar: *The Movies → Player: AC3-, DTS- und
+- Gradle lädt beim Bauen `androidx.media3:media3-exoplayer:1.5.0` und
+  `org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1` (abschaltbar: *The Movies → Player: AC3-, DTS- und
   TrueHD-Ton (FFmpeg)*).
 - HDR10/Dolby Vision werden als SDR gezeigt (Tonemapping macht der Decoder).
 

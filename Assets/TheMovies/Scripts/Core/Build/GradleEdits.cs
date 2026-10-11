@@ -26,6 +26,20 @@ namespace TheMovies.Core.Build
             return buildGradle.Insert(insertAt, sb.ToString());
         }
 
+        /// <summary>The compileSdk of a build.gradle ("compileSdk 34", "compileSdkVersion = 34"), or -1.</summary>
+        public static int CompileSdk(string buildGradle)
+        {
+            var m = Regex.Match(buildGradle, @"compileSdk(Version)?\s*=?\s*(\d+)");
+            return m.Success ? int.Parse(m.Groups[2].Value) : -1;
+        }
+
+        /// <summary>Raises compileSdk to <paramref name="sdk"/> if it is lower (the target SDK stays as it is).</summary>
+        public static string RaiseCompileSdk(string buildGradle, int sdk)
+        {
+            return Regex.Replace(buildGradle, @"(compileSdk(Version)?\s*=?\s*)(\d+)",
+                m => int.Parse(m.Groups[3].Value) < sdk ? m.Groups[1].Value + sdk : m.Value);
+        }
+
         /// <summary>Sets key=value in gradle.properties (replaces an existing value).</summary>
         public static string SetProperty(string properties, string key, string value)
         {

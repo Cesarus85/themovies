@@ -19,8 +19,8 @@ namespace TheMovies.EditorTools
     sealed class AndroidManifestFixes : IPostGenerateGradleAndroidProject
     {
         const string k_Passthrough = "com.oculus.feature.PASSTHROUGH";
-        public const string Media3Version = "1.4.1";
-        public const string FfmpegDecoder = "org.jellyfin.media3:media3-ffmpeg-decoder:1.4.1+1";
+        public const string Media3Version = "1.5.0";
+        public const string FfmpegDecoder = "org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1";
 
         // After the XR packages' own manifest processing.
         public int callbackOrder => 10000;
@@ -123,6 +123,23 @@ namespace TheMovies.EditorTools
             string changed = GradleEdits.AddDependencies(text, deps.ToArray());
             if (changed != text) File.WriteAllText(gradle, changed);
 
+            // Media3 must be compiled against API 35+; the target API (storage access) stays unchanged.
+            int sdk = HighestInstalledPlatform();
+            if (sdk > 0 && sdk < k_MinCompileSdk)
+                Debug.LogWarning($"[TheMovies] Android SDK platform {k_MinCompileSdk}+ fehlt (höchste installierte: {sdk}). " +
+                                 "Bitte im Unity Hub die Android-SDK-Module aktualisieren.");
+            int compileSdk = sdk >= k_MinCompileSdk ? sdk : k_MinCompileSdk;
+            foreach (string module in Directory.GetDirectories(root))
+            {
+                string moduleGradle = Path.Combine(module, "build.gradle");
+                if (!File.Exists(moduleGradle)) continue;
+                string g = File.ReadAllText(moduleGradle);
+                int current = GradleEdits.CompileSdk(g);
+                if (current < 0 || current >= k_MinCompileSdk) continue;
+                File.WriteAllText(moduleGradle, GradleEdits.RaiseCompileSdk(g, compileSdk));
+                Debug.Log($"[TheMovies] {Path.GetFileName(module)}: compileSdk {current} → {compileSdk} (für Media3).");
+            }
+
             string properties = Path.Combine(root, "gradle.properties");
             string props = File.Exists(properties) ? File.ReadAllText(properties) : string.Empty;
             string newProps = GradleEdits.SetProperty(props, "android.useAndroidX", "true");
@@ -138,6 +155,34 @@ namespace TheMovies.EditorTools
                 if (nr != r) File.WriteAllText(rules, nr);
             }
             Debug.Log("[TheMovies] Video player: Media3 " + Media3Version + (PlayerBuildOptions.FfmpegAudio ? " + FFmpeg audio (AC3/DTS)" : string.Empty));
+        }
+
+        const int k_MinCompileSdk = 35;
+
+        static int HighestInstalledPlatform()
+        {
+            try
+            {
+                string sdkRoot = AndroidExternalToolsSettings.sdkRootPath;
+                string platforms = Path.Combine(sdkRoot ?? string.Empty, "platforms");
+                if (!Directory.Exists(platforms)) return -1;
+                int best = -1;
+                foreach (string dir in Directory.GetDirectories(platforms))
+                {
+                    string name = Path.GetFileName(dir); // android-35, android-36, android-36-ext…
+                    if (!name.StartsWith("android-")) continue;
+                    string number = name.Substring(8);
+                    int dash = number.IndexOf('-');
+                    if (dash >= 0) number = number.Substring(0, dash);
+                    if (int.TryParse(number, out int api) && api > best && File.Exists(Path.Combine(dir, "android.jar")))
+                        best = api;
+                }
+                return best;
+            }
+            catch (System.Exception)
+            {
+                return -1;
+            }
         }
 
         static string FindConfig(string root, string preferredModule, string name)

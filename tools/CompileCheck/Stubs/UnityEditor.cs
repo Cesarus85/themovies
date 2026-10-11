@@ -221,6 +221,11 @@ namespace UnityEditor.PackageManager.Requests
 
 namespace UnityEditor.Android
 {
+    public static class AndroidExternalToolsSettings
+    {
+        public static string sdkRootPath { get; set; }
+    }
+
     public interface IPostGenerateGradleAndroidProject
     {
         int callbackOrder { get; }

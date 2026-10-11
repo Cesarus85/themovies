@@ -71,14 +71,25 @@ namespace TheMovies.Tests
         [Test]
         public void AddsDependenciesOnce()
         {
-            string once = GradleEdits.AddDependencies(Gradle, "androidx.media3:media3-exoplayer:1.4.1", "org.jellyfin.media3:media3-ffmpeg-decoder:1.4.1+1");
-            StringAssert.Contains("implementation 'androidx.media3:media3-exoplayer:1.4.1'", once);
-            StringAssert.Contains("implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.4.1+1'", once);
+            string once = GradleEdits.AddDependencies(Gradle, "androidx.media3:media3-exoplayer:1.5.0", "org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1");
+            StringAssert.Contains("implementation 'androidx.media3:media3-exoplayer:1.5.0'", once);
+            StringAssert.Contains("implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1'", once);
             Assert.Less(once.IndexOf("media3-exoplayer"), once.IndexOf("android {"));
-            Assert.AreEqual(once, GradleEdits.AddDependencies(once, "androidx.media3:media3-exoplayer:1.4.1"));
-            // An existing different version is left alone.
             Assert.AreEqual(once, GradleEdits.AddDependencies(once, "androidx.media3:media3-exoplayer:1.5.0"));
+            // An existing different version is left alone.
+            Assert.AreEqual(once, GradleEdits.AddDependencies(once, "androidx.media3:media3-exoplayer:1.6.1"));
             StringAssert.Contains("dependencies {", GradleEdits.AddDependencies("apply plugin: 'x'", "a:b:1"));
+        }
+
+        [Test]
+        public void RaisesCompileSdk()
+        {
+            Assert.AreEqual(32, GradleEdits.CompileSdk("android {\n    compileSdk 32\n    defaultConfig { targetSdk 32 }\n}"));
+            Assert.AreEqual("android {\n    compileSdk 35\n    defaultConfig { targetSdk 32 }\n}",
+                GradleEdits.RaiseCompileSdk("android {\n    compileSdk 32\n    defaultConfig { targetSdk 32 }\n}", 35));
+            Assert.AreEqual("compileSdkVersion = 35", GradleEdits.RaiseCompileSdk("compileSdkVersion = 34", 35));
+            Assert.AreEqual("compileSdk 36", GradleEdits.RaiseCompileSdk("compileSdk 36", 35));
+            Assert.AreEqual(-1, GradleEdits.CompileSdk("android {}"));
         }
 
         [Test]
