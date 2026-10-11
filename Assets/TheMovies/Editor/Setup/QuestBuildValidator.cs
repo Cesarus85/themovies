@@ -26,6 +26,10 @@ namespace TheMovies.EditorTools
                 Debug.Log("[TheMovies] Player Settings: 'Allow downloads over HTTP' set to 'Always allowed'.");
             }
 
+            // Mixed reality: the passthrough feature fails the OpenXR validation without "Meta Quest: Session".
+            if (XRConfigurator.EnsureMetaSession() > 0)
+                Debug.Log("[TheMovies] OpenXR feature 'Meta Quest: Session' enabled (required by the other Meta Quest features).");
+
             if (XRConfigurator.CheckQuest(out string problem, out string details) == XRConfigurator.Readiness.NotReady)
             {
                 Debug.LogWarning("[TheMovies] Möglicherweise startet die App auf der Quest nur als flaches Fenster: " + problem +

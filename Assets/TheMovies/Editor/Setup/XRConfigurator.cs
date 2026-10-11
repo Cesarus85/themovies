@@ -219,34 +219,72 @@ namespace TheMovies.EditorTools
         public static bool IsMetaOpenXrInstalled => IsPackageInstalled(MetaOpenXrPackage);
 
         /// <summary>Enables the Meta OpenXR session and passthrough camera features for Android (mixed reality).</summary>
-        public static int EnablePassthroughFeatures()
+        public static int EnablePassthroughFeatures() =>
+            SetMetaFeatures(name => name.StartsWith("Meta Quest: Session", StringComparison.OrdinalIgnoreCase) ||
+                                    name.StartsWith("Meta Quest: Camera", StringComparison.OrdinalIgnoreCase) ||
+                                    name.IndexOf("Passthrough", StringComparison.OrdinalIgnoreCase) >= 0,
+                onlyIfAnyMetaEnabled: false);
+
+        /// <summary>
+        /// Every "Meta Quest: …" feature from the Meta OpenXR package needs "Meta Quest: Session"; turns it on
+        /// if another one is enabled (otherwise the OpenXR build validation fails).
+        /// </summary>
+        public static int EnsureMetaSession() =>
+            SetMetaFeatures(name => name.StartsWith("Meta Quest: Session", StringComparison.OrdinalIgnoreCase), onlyIfAnyMetaEnabled: true);
+
+        static int SetMetaFeatures(Func<string, bool> wanted, bool onlyIfAnyMetaEnabled)
         {
-            var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
-            if (openXrSettingsType == null) return 0;
-            var get = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static);
-            var settings = get?.Invoke(null, new object[] { BuildTargetGroup.Android });
-            var features = settings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
+            var features = AndroidFeatures(out var settings);
             if (features == null) return 0;
-            int enabled = 0;
+
+            if (onlyIfAnyMetaEnabled)
+            {
+                bool anyMeta = false;
+                foreach (var feature in features)
+                    if (feature != null && DisplayName(feature).StartsWith("Meta Quest:", StringComparison.OrdinalIgnoreCase) && IsEnabled(feature))
+                        anyMeta = true;
+                if (!anyMeta) return 0;
+            }
+
+            int changed = 0;
             foreach (var feature in features)
             {
-                if (feature == null) continue;
-                var type = feature.GetType();
-                string ns = type.Namespace ?? string.Empty;
-                bool meta = ns.IndexOf("Meta", StringComparison.Ordinal) >= 0;
-                bool wanted = type.Name == "ARSessionFeature" || type.Name == "ARCameraFeature" ||
-                              (meta && (type.Name.Contains("Session") || type.Name.Contains("Camera") || type.Name.Contains("Passthrough")));
-                if (!wanted) continue;
-                var prop = type.GetProperty("enabled");
+                if (feature == null || !wanted(DisplayName(feature)) || IsEnabled(feature)) continue;
+                var prop = feature.GetType().GetProperty("enabled");
                 if (prop == null) continue;
                 prop.SetValue(feature, true);
                 if (feature is Object o) EditorUtility.SetDirty(o);
-                enabled++;
+                changed++;
             }
-            if (settings is Object s) EditorUtility.SetDirty(s);
-            AssetDatabase.SaveAssets();
-            return enabled;
+            if (changed > 0)
+            {
+                if (settings is Object s) EditorUtility.SetDirty(s);
+                AssetDatabase.SaveAssets();
+            }
+            return changed;
         }
+
+        static Array AndroidFeatures(out object settings)
+        {
+            settings = null;
+            var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
+            if (openXrSettingsType == null) return null;
+            var get = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static);
+            settings = get?.Invoke(null, new object[] { BuildTargetGroup.Android });
+            return settings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
+        }
+
+        /// <summary>The name shown in the OpenXR settings ("Meta Quest: Session"), falling back to the class name.</summary>
+        static string DisplayName(object feature)
+        {
+            var type = feature.GetType();
+            object value = type.GetField("nameUi", BindingFlags.Public | BindingFlags.Instance)?.GetValue(feature) ??
+                           type.GetProperty("nameUi", BindingFlags.Public | BindingFlags.Instance)?.GetValue(feature);
+            return value as string ?? type.Name;
+        }
+
+        static bool IsEnabled(object feature) =>
+            feature.GetType().GetProperty("enabled")?.GetValue(feature) is bool on && on;
 
         static int EnableFeatures(Type openXrSettingsType, BuildTargetGroup group, string[] featureTypeNames)
         {
