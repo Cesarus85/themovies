@@ -147,6 +147,7 @@ namespace TheMovies.Net
                 m_Session = await MultiplayerService.Instance.CreateSessionAsync(options);
                 m_SessionIsHost = true;
                 HookSession();
+                if (AbandonIfCancelled()) return;
                 RoomCode = m_Session.Code ?? string.Empty;
                 // The session starts the NetworkManager as host; OnServerStarted finishes the setup.
                 if (m_Network.IsListening) SetConnected();
@@ -177,6 +178,7 @@ namespace TheMovies.Net
                 m_Session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
                 m_SessionIsHost = false;
                 HookSession();
+                if (AbandonIfCancelled()) return;
                 RoomCode = code;
                 // Connected once OnClientConnected fires for the local client.
                 if (m_Network.IsConnectedClient) SetConnected();
@@ -318,6 +320,14 @@ namespace TheMovies.Net
         }
 
 #if THEMOVIES_MPS
+        /// <summary>The connection failed or was left while the session request was still running.</summary>
+        bool AbandonIfCancelled()
+        {
+            if (State != ConnectionState.Offline) return false;
+            _ = Shutdown();
+            return true;
+        }
+
         void HookSession()
         {
             m_Session.RemovedFromSession += OnRemovedFromSession;

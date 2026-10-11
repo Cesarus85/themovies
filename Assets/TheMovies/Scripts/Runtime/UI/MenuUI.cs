@@ -79,6 +79,7 @@ namespace TheMovies.UI
         readonly MediaEntry[] m_RowEntries = new MediaEntry[k_BrowserRows];
         int m_BrowserPageIndex;
         bool m_BrowserAssignMode;
+        UIButton m_UrlButton;
 
         sealed class KeyboardRequest
         {
@@ -326,19 +327,21 @@ namespace TheMovies.UI
         GameObject BuildBrowserPage()
         {
             var p = Page("Browser Page");
-            m_BrowserTitle = Label(p, string.Empty, k_Left, 0.258f, 0.028f, 46, TextAnchor.MiddleLeft, UIStyle.Accent);
+            m_BrowserTitle = Label(p, string.Empty, k_Left, 0.258f, 0.028f, 40, TextAnchor.MiddleLeft, UIStyle.Accent);
             m_BrowserInfo = Label(p, string.Empty, k_Left, 0.222f, 0.015f, 95, TextAnchor.MiddleLeft, UIStyle.TextDim);
             for (int i = 0; i < k_BrowserRows; i++)
             {
                 int index = i;
                 m_Rows[i] = Button(p, string.Empty, 0, 0.17f - i * 0.058f, k_Width - 0.06f, 0.05f, () => PickRow(index), 0.019f);
             }
-            Row(p, -0.255f, 0.05f, 0.012f,
-                ("Zurück", 0.16f, () => ShowPage(m_SessionPage)),
-                ("Vorherige", 0.16f, () => TurnPage(-1)),
-                ("Nächste", 0.16f, () => TurnPage(1)),
-                ("Aktualisieren", 0.18f, () => m_App.Media.Library.Refresh()));
-            m_PageLabel = Label(p, string.Empty, k_Right, -0.255f, 0.017f, 12, TextAnchor.MiddleRight, UIStyle.TextDim);
+            var bottom = Row(p, -0.255f, 0.05f, 0.012f,
+                ("Zurück", 0.13f, () => ShowPage(m_SessionPage)),
+                ("Vorherige", 0.13f, () => TurnPage(-1)),
+                ("Nächste", 0.13f, () => TurnPage(1)),
+                ("Aktualisieren", 0.15f, () => m_App.Media.Library.Refresh()),
+                ("Adresse eingeben", 0.18f, EnterStreamUrl));
+            m_UrlButton = bottom[4];
+            m_PageLabel = Label(p, string.Empty, k_Right, 0.258f, 0.018f, 12, TextAnchor.MiddleRight, UIStyle.TextDim);
             return p;
         }
 
@@ -436,6 +439,32 @@ namespace TheMovies.UI
                     m_App.Settings.LastLanHost = host;
                     m_App.Settings.Save();
                     m_App.Sessions.JoinLan(host);
+                },
+            });
+        }
+
+        void EnterStreamUrl()
+        {
+            OpenKeyboard(new KeyboardRequest
+            {
+                Title = "Stream-Adresse (http/https)",
+                Hint = "Alle im Kino brauchen Zugriff auf diese Adresse. Mehrere Adressen: urls.txt verwenden.",
+                Initial = "https://",
+                MaxLength = 300,
+                AllowLowercase = true,
+                AllowSpace = false,
+                Accepts = c => c > ' ' && c < 127,
+                Submit = url =>
+                {
+                    if (!MediaMatcher.LooksLikeUrl(url))
+                    {
+                        m_App.Media.ReportProblem("Ungültige Adresse: " + url);
+                        return;
+                    }
+                    var parsed = PlaylistParser.Parse(url);
+                    var entry = new MediaEntry { Title = parsed.Count > 0 ? parsed[0].Title : url, Location = url, IsUrl = true };
+                    if (!m_App.Media.Select(entry, out string error))
+                        m_App.Media.ReportProblem(error);
                 },
             });
         }
@@ -564,6 +593,8 @@ namespace TheMovies.UI
                 : entries.Count == 0
                     ? "Keine Filme gefunden. Lege Videos in Movies/ oder Download/ ab, Streams in urls.txt."
                     : "Gesucht in Movies, Download und " + MediaLibrary.AppMoviesFolder;
+
+            m_UrlButton.gameObject.SetActive(!m_BrowserAssignMode);
 
             int pages = Mathf.Max(1, Mathf.CeilToInt(entries.Count / (float)k_BrowserRows));
             m_BrowserPageIndex = Mathf.Clamp(m_BrowserPageIndex, 0, pages - 1);

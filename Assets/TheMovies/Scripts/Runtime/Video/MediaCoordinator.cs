@@ -34,6 +34,7 @@ namespace TheMovies.Video
         string m_PendingSelectionKey;
         bool m_FormatRefined;
         bool m_RetryMissing;
+        float m_ReportedProblemUntil;
         readonly Dictionary<string, MediaEntry> m_Assignments = new Dictionary<string, MediaEntry>();
 
         public ParticipantMediaState LocalState { get; private set; } = ParticipantMediaState.NoMovie;
@@ -85,6 +86,13 @@ namespace TheMovies.Video
             if (media.IsEmpty || entry == null) return;
             m_Assignments[media.Key.ToString()] = entry;
             m_LoadedVersion = -1;
+        }
+
+        /// <summary>Shows a message in the problem line of the menu.</summary>
+        public void ReportProblem(string message)
+        {
+            Problem = message ?? string.Empty;
+            m_ReportedProblemUntil = Time.unscaledTime + 8f;
         }
 
         public void TogglePlay()
@@ -168,7 +176,8 @@ namespace TheMovies.Video
                     m_LoadedVersion = 0;
                 }
                 LocalState = ParticipantMediaState.NoMovie;
-                Problem = string.Empty;
+                if (Time.unscaledTime > m_ReportedProblemUntil)
+                    Problem = string.Empty;
                 UpdateLights(false);
                 return;
             }
