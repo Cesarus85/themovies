@@ -1,0 +1,21 @@
+{
+    "name": "TheMovies.Editor",
+    "rootNamespace": "TheMovies.EditorTools",
+    "references": [
+        "TheMovies.Core",
+        "TheMovies.Runtime",
+        "Unity.Netcode.Runtime",
+        "Unity.Networking.Transport"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

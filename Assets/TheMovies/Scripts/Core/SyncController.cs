@@ -61,6 +61,9 @@ namespace TheMovies.Core
         /// <summary>Minimum time between two corrective seeks while playing.</summary>
         public double SeekCooldown = 2.0;
 
+        /// <summary>If seeks keep missing (e.g. a decoder that snaps to keyframes) the cooldown doubles up to this.</summary>
+        public double MaxSeekCooldown = 16.0;
+
         /// <summary>Upper bound for the seek-ahead compensation.</summary>
         public double MaxSeekLead = 1.5;
 
@@ -79,17 +82,23 @@ namespace TheMovies.Core
 
         bool m_Correcting;
         double m_LastSeekAt = double.NegativeInfinity;
+        double m_Cooldown;
 
         public SyncController(SyncSettings settings = null)
         {
             Settings = settings ?? new SyncSettings();
+            m_Cooldown = Settings.SeekCooldown;
         }
+
+        /// <summary>Current minimum time between corrective seeks (grows while seeks do not fix the drift).</summary>
+        public double CurrentSeekCooldown => m_Cooldown;
 
         /// <summary>Forget correction state, e.g. after loading another movie.</summary>
         public void Reset()
         {
             m_Correcting = false;
             m_LastSeekAt = double.NegativeInfinity;
+            m_Cooldown = Settings.SeekCooldown;
         }
 
         public SyncCommand Update(in PlaybackTimeline timeline, double hostNow, in LocalPlayerState local)
@@ -129,11 +138,19 @@ namespace TheMovies.Core
                 return cmd;
             }
 
-            bool cooledDown = hostNow - m_LastSeekAt >= s.SeekCooldown;
+            bool cooledDown = hostNow - m_LastSeekAt >= m_Cooldown;
             bool canSpeed = s.AllowSpeedCorrection && local.CanSetSpeed;
+
+            // Back in sync: forget about earlier unsuccessful seeks.
+            if (absDrift < s.SoftCorrectionStart)
+                m_Cooldown = s.SeekCooldown;
 
             if (absDrift > s.HardSeekThreshold && (cooledDown || absDrift > s.HardSeekThreshold * 4))
             {
+                // Another big correction soon after the last one means seeking does not land precisely here.
+                if (hostNow - m_LastSeekAt < m_Cooldown * 2)
+                    m_Cooldown = Math.Min(m_Cooldown * 2, s.MaxSeekCooldown);
+
                 double lead = Math.Min(Math.Max(local.SeekLatency, 0), s.MaxSeekLead);
                 double seekTarget = target + lead;
                 if (local.Duration > 0)
@@ -158,6 +175,8 @@ namespace TheMovies.Core
             }
             else if (absDrift > s.SeekThresholdWithoutSpeed && cooledDown)
             {
+                if (hostNow - m_LastSeekAt < m_Cooldown * 2)
+                    m_Cooldown = Math.Min(m_Cooldown * 2, s.MaxSeekCooldown);
                 double lead = Math.Min(Math.Max(local.SeekLatency, 0), s.MaxSeekLead);
                 RequestSeek(ref cmd, target + lead, hostNow);
             }

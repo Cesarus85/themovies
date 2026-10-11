@@ -1,0 +1,69 @@
+// Shows a video texture on the cinema screen. Each eye samples its own part of the frame
+// (side-by-side or top/bottom packed 3D), selected via unity_StereoEyeIndex.
+// Works with Single Pass Instanced / Multiview and in the Built-in and Universal render pipelines.
+Shader "TheMovies/StereoVideo"
+{
+    Properties
+    {
+        _MainTex ("Video", 2D) = "black" {}
+        _LeftEyeST ("Left eye scale/offset", Vector) = (1, 1, 0, 0)
+        _RightEyeST ("Right eye scale/offset", Vector) = (1, 1, 0, 0)
+        _Brightness ("Brightness", Float) = 1
+        _IdleColor ("Color without video", Color) = (0.08, 0.08, 0.09, 1)
+        _HasVideo ("Has video", Float) = 0
+    }
+    SubShader
+    {
+        Tags { "RenderType" = "Opaque" "Queue" = "Geometry" }
+        Cull Off
+        Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+
+            sampler2D _MainTex;
+            float4 _LeftEyeST;
+            float4 _RightEyeST;
+            float _Brightness;
+            fixed4 _IdleColor;
+            float _HasVideo;
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct v2f
+            {
+                float4 pos : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            v2f vert(appdata v)
+            {
+                v2f o;
+                UNITY_SETUP_INSTANCE_ID(v);
+                UNITY_INITIALIZE_OUTPUT(v2f, o);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+                o.pos = UnityObjectToClipPos(v.vertex);
+                o.uv = v.uv;
+                return o;
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
+                float4 st = unity_StereoEyeIndex == 0 ? _LeftEyeST : _RightEyeST;
+                float2 uv = i.uv * st.xy + st.zw;
+                fixed3 video = tex2D(_MainTex, uv).rgb * _Brightness;
+                return fixed4(lerp(_IdleColor.rgb, video, saturate(_HasVideo)), 1);
+            }
+            ENDCG
+        }
+    }
+}

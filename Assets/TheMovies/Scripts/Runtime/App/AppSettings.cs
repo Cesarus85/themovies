@@ -1,0 +1,50 @@
+using UnityEngine;
+
+namespace TheMovies.App
+{
+    /// <summary>Per-device preferences, stored in PlayerPrefs.</summary>
+    public sealed class AppSettings
+    {
+        const string k_Name = "tm.name";
+        const string k_ScreenSize = "tm.screenSize";
+        const string k_Volume = "tm.volume";
+        const string k_Muted = "tm.muted";
+        const string k_LastRoom = "tm.lastRoom";
+        const string k_LastHost = "tm.lastHost";
+        const string k_LightsOnWhenPaused = "tm.lightsPaused";
+
+        public string Name;
+        public int ScreenSize;
+        public float Volume;
+        public bool MicMuted;
+        public string LastRoomCode;
+        public string LastLanHost;
+        public bool LightsOnWhenPaused;
+
+        public static AppSettings Load()
+        {
+            return new AppSettings
+            {
+                Name = PlayerPrefs.GetString(k_Name, "Gast " + Random.Range(100, 1000)),
+                ScreenSize = PlayerPrefs.GetInt(k_ScreenSize, 2),
+                Volume = PlayerPrefs.GetFloat(k_Volume, 0.8f),
+                MicMuted = PlayerPrefs.GetInt(k_Muted, 0) == 1,
+                LastRoomCode = PlayerPrefs.GetString(k_LastRoom, string.Empty),
+                LastLanHost = PlayerPrefs.GetString(k_LastHost, "192.168."),
+                LightsOnWhenPaused = PlayerPrefs.GetInt(k_LightsOnWhenPaused, 1) == 1,
+            };
+        }
+
+        public void Save()
+        {
+            PlayerPrefs.SetString(k_Name, Name ?? string.Empty);
+            PlayerPrefs.SetInt(k_ScreenSize, ScreenSize);
+            PlayerPrefs.SetFloat(k_Volume, Volume);
+            PlayerPrefs.SetInt(k_Muted, MicMuted ? 1 : 0);
+            PlayerPrefs.SetString(k_LastRoom, LastRoomCode ?? string.Empty);
+            PlayerPrefs.SetString(k_LastHost, LastLanHost ?? string.Empty);
+            PlayerPrefs.SetInt(k_LightsOnWhenPaused, LightsOnWhenPaused ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
+}

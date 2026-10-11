@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Compile check for the Unity scripts outside of Unity:
+      dotnet build tools/CompileCheck            (desktop defines)
+      dotnet build tools/CompileCheck -p:Android=true -p:AllPackages=true
+    UnityEngine comes from the UnityEngine.Modules reference package; packages that are not on NuGet
+    (Netcode, Services, Input System, UnityEditor) are covered by API stubs in Stubs/ that mirror the
+    real signatures used by this project. This catches typos and type errors, it does not replace Unity.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS0067;CS0649;CS0169;CS0414;CS1998;CS0618</NoWarn>
+    <DefineConstants>$(DefineConstants);UNITY_EDITOR;UNITY_2021_3_OR_NEWER;UNITY_6000_0_OR_NEWER</DefineConstants>
+    <DefineConstants Condition="'$(AllPackages)' == 'true'">$(DefineConstants);THEMOVIES_UGS;THEMOVIES_MPS;THEMOVIES_VIVOX</DefineConstants>
+    <DefineConstants Condition="'$(Android)' == 'true'">$(DefineConstants.Replace('UNITY_EDITOR;', ''));UNITY_ANDROID</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/TheMovies/Scripts/**/*.cs" />
+    <Compile Include="../../Assets/TheMovies/Editor/**/*.cs" Condition="'$(Android)' != 'true'" />
+    <Compile Include="Stubs/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

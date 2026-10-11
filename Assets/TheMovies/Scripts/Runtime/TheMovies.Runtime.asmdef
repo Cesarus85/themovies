@@ -1,0 +1,40 @@
+{
+    "name": "TheMovies.Runtime",
+    "rootNamespace": "TheMovies",
+    "references": [
+        "TheMovies.Core",
+        "Unity.Netcode.Runtime",
+        "Unity.Networking.Transport",
+        "Unity.Collections",
+        "Unity.InputSystem",
+        "Unity.Services.Core",
+        "Unity.Services.Authentication",
+        "Unity.Services.Multiplayer",
+        "Unity.Services.Vivox"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.services.authentication",
+            "expression": "3.0.0",
+            "define": "THEMOVIES_UGS"
+        },
+        {
+            "name": "com.unity.services.multiplayer",
+            "expression": "1.0.0",
+            "define": "THEMOVIES_MPS"
+        },
+        {
+            "name": "com.unity.services.vivox",
+            "expression": "16.0.0",
+            "define": "THEMOVIES_VIVOX"
+        }
+    ],
+    "noEngineReferences": false
+}

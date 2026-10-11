@@ -168,6 +168,20 @@ namespace TheMovies.Tests
         }
 
         [Test]
+        public void RepeatedMissedSeeksBackOff()
+        {
+            var sync = new SyncController();
+            var t = new PlaybackTimeline().WithPlay(0, 0);
+            Assert.IsTrue(sync.Update(t, 100, Local(97, true)).Seek);       // first correction
+            Assert.IsTrue(sync.Update(t, 102.5, Local(100, true)).Seek);    // landed 2.5 s off again
+            Assert.AreEqual(4.0, sync.CurrentSeekCooldown, 1e-9);
+            Assert.IsFalse(sync.Update(t, 105, Local(103, true)).Seek, "waits for the longer cooldown");
+            Assert.IsTrue(sync.Update(t, 107, Local(105, true)).Seek);
+            sync.Update(t, 110, Local(110.01, true));                       // in sync again
+            Assert.AreEqual(2.0, sync.CurrentSeekCooldown, 1e-9);
+        }
+
+        [Test]
         public void WithoutSpeedControlSeeksEarlier()
         {
             var sync = new SyncController();
