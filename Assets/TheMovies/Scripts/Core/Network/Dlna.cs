@@ -177,11 +177,13 @@ namespace TheMovies.Core.Network
             {
                 if (!(node is XmlElement e)) continue;
                 string title = First(e, "title")?.InnerText.Trim() ?? "?";
+                string art = First(e, "albumArtURI")?.InnerText.Trim();
+                if (art != null && !MediaMatcher.LooksLikeUrl(art)) art = null;
                 if (e.LocalName == "container")
                 {
                     string id = e.GetAttribute("id");
                     if (id.Length > 0)
-                        result.Add(new NetworkItem { Name = title, Location = id, IsFolder = true });
+                        result.Add(new NetworkItem { Name = title, Location = id, IsFolder = true, Poster = art });
                 }
                 else if (e.LocalName == "item")
                 {
@@ -205,11 +207,15 @@ namespace TheMovies.Core.Network
                     string url = best.InnerText.Trim();
                     if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) continue;
                     long.TryParse(best.GetAttribute("size"), out long size);
+                    int.TryParse((First(e, "date")?.InnerText ?? string.Empty).Split('-')[0], out int year);
                     result.Add(new NetworkItem
                     {
                         Name = FileNameFor(title, uri, bestMime),
+                        Title = MediaMatcher.IsVideoFile(title) ? null : title,
                         Location = url,
                         Size = size,
+                        Poster = art,
+                        Year = year > 1800 && year < 2200 ? year : 0,
                     });
                 }
             }

@@ -16,6 +16,12 @@ namespace TheMovies.Core.Network
 
         /// <summary>UPnP/DLNA media server.</summary>
         Dlna,
+
+        /// <summary>Jellyfin or Emby server (login with user name and password).</summary>
+        Jellyfin,
+
+        /// <summary>Plex account (login by code on plex.tv/link; the token is kept in <see cref="NetworkSource.Password"/>).</summary>
+        Plex,
     }
 
     /// <summary>A NAS or network folder the user added (or that was found in the local network).</summary>
@@ -24,7 +30,7 @@ namespace TheMovies.Core.Network
         public NetworkSourceKind Kind;
         public string Name = string.Empty;
 
-        /// <summary>smb://host[:port][/share[/path]], http(s)://… (WebDAV) or the DLNA device description URL.</summary>
+        /// <summary>smb://host[:port][/share[/path]], http(s)://… (WebDAV, Jellyfin), the DLNA device description URL or <see cref="PlexServers.AccountAddress"/>.</summary>
         public string Address = string.Empty;
 
         public string User = string.Empty;
@@ -36,7 +42,22 @@ namespace TheMovies.Core.Network
         public string Key => (Kind + ":" + Address).ToLowerInvariant();
 
         /// <summary>Location of the top folder, as understood by the source's browser.</summary>
-        public string RootLocation => Kind == NetworkSourceKind.Dlna ? Dlna.RootObjectId : Address;
+        public string RootLocation
+        {
+            get
+            {
+                switch (Kind)
+                {
+                    case NetworkSourceKind.Dlna: return Dlna.RootObjectId;
+                    case NetworkSourceKind.Jellyfin:
+                    case NetworkSourceKind.Plex: return string.Empty;
+                    default: return Address;
+                }
+            }
+        }
+
+        /// <summary>Media servers with their own library (posters, titles, search).</summary>
+        public bool IsMediaServer => Kind == NetworkSourceKind.Jellyfin || Kind == NetworkSourceKind.Plex;
 
         public bool HasLogin => !string.IsNullOrEmpty(User);
 
@@ -48,6 +69,8 @@ namespace TheMovies.Core.Network
                 {
                     case NetworkSourceKind.Smb: return "SMB";
                     case NetworkSourceKind.WebDav: return "WebDAV";
+                    case NetworkSourceKind.Jellyfin: return "Jellyfin";
+                    case NetworkSourceKind.Plex: return "Plex";
                     default: return "DLNA";
                 }
             }
@@ -57,7 +80,8 @@ namespace TheMovies.Core.Network
 
         /// <summary>
         /// Interprets what the user typed: "\\nas\filme", "smb://nas/filme", "nas/filme" or "nas" (SMB),
-        /// "http(s)://…" or "dav(s)://…" (WebDAV).
+        /// "http(s)://…" or "dav(s)://…" (WebDAV; <see cref="NetworkLibrary"/> checks whether it is a Jellyfin server),
+        /// "jellyfin://host" and "plex".
         /// </summary>
         public static bool TryParse(string input, out NetworkSource source, out string error)
         {
@@ -71,6 +95,20 @@ namespace TheMovies.Core.Network
             }
 
             string lower = input.ToLowerInvariant();
+            if (lower == "plex" || lower == "plex.tv" || lower.StartsWith("plex://", StringComparison.Ordinal))
+            {
+                source = PlexServers.NewAccountSource();
+                return true;
+            }
+            var kind = NetworkSourceKind.WebDav;
+            foreach (string prefix in new[] { "jellyfin://", "emby://" })
+            {
+                if (!lower.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                kind = NetworkSourceKind.Jellyfin;
+                string rest = input.Substring(prefix.Length);
+                input = (rest.IndexOf(':') < 0 ? "http://" + rest.TrimEnd('/') + ":" + Jellyfin.DefaultPort : "http://" + rest);
+                lower = input.ToLowerInvariant();
+            }
             if (lower.StartsWith("dav://", StringComparison.Ordinal)) input = "http://" + input.Substring(6);
             else if (lower.StartsWith("davs://", StringComparison.Ordinal)) input = "https://" + input.Substring(7);
             else if (lower.StartsWith("webdav://", StringComparison.Ordinal)) input = "http://" + input.Substring(9);
@@ -85,9 +123,10 @@ namespace TheMovies.Core.Network
                 }
                 string url = uri.GetLeftPart(UriPartial.Path);
                 if (!url.EndsWith("/", StringComparison.Ordinal)) url += "/";
+                if (uri.Port == Jellyfin.DefaultPort || uri.Port == Jellyfin.DefaultHttpsPort) kind = NetworkSourceKind.Jellyfin;
                 source = new NetworkSource
                 {
-                    Kind = NetworkSourceKind.WebDav,
+                    Kind = kind,
                     Address = url,
                     Name = uri.Host + Uri.UnescapeDataString(uri.AbsolutePath).TrimEnd('/'),
                 };
@@ -119,6 +158,20 @@ namespace TheMovies.Core.Network
 
         public bool IsFolder;
         public long Size;
+
+        /// <summary>Title to show instead of the file name (media servers, .nfo), null if unknown.</summary>
+        public string Title;
+
+        /// <summary>Release year, 0 if unknown.</summary>
+        public int Year;
+
+        /// <summary>Poster image: an http(s) URL or a location <see cref="INetworkBrowser.ReadSmallFile"/> accepts; null if none is known.</summary>
+        public string Poster;
+
+        /// <summary>Kodi .nfo file next to the movie (title, year, poster), null if none.</summary>
+        public string Nfo;
+
+        public string DisplayTitle => !string.IsNullOrEmpty(Title) ? Title : IsFolder ? Name : System.IO.Path.GetFileNameWithoutExtension(Name);
 
         public override string ToString() => IsFolder ? Name + "/" : Name;
     }
@@ -271,7 +324,7 @@ namespace TheMovies.Core.Network
                 if (f.Length < 6 || f[0] != Version) continue;
                 try
                 {
-                    if (!int.TryParse(f[1], out int kind) || kind < 0 || kind > (int)NetworkSourceKind.Dlna) continue;
+                    if (!int.TryParse(f[1], out int kind) || kind < 0 || kind > (int)NetworkSourceKind.Plex) continue;
                     var s = new NetworkSource
                     {
                         Kind = (NetworkSourceKind)kind,

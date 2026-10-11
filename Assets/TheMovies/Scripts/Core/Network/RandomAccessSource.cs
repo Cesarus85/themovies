@@ -249,11 +249,12 @@ namespace TheMovies.Core.Network
                 handler.Credentials = new NetworkCredential(user, password ?? string.Empty);
                 handler.PreAuthenticate = true;
             }
-            if (uri.Scheme == Uri.UriSchemeHttps && NetAddress.IsLocalHost(uri.Host))
+            if (uri == null || uri.Scheme == Uri.UriSchemeHttps)
             {
                 try
                 {
-                    handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+                    handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+                        errors == System.Net.Security.SslPolicyErrors.None || NetAddress.IsLocalHost(message.RequestUri?.Host);
                 }
                 catch (PlatformNotSupportedException)
                 {
@@ -265,6 +266,44 @@ namespace TheMovies.Core.Network
             var client = new HttpClient(handler) { Timeout = Timeout };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("TheMovies/1.0");
             return client;
+        }
+
+        /// <summary>Client for talking to several servers (media servers in the local network and on the internet).</summary>
+        public static HttpClient CreateClient() => CreateClient(null, null, null);
+
+        /// <summary>Downloads a small file (poster, subtitles); null if it is larger than <paramref name="maxBytes"/>.</summary>
+        public static byte[] ReadSmall(HttpClient http, string url, int maxBytes)
+        {
+            using (var response = http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult())
+            {
+                ThrowIfFailed(response);
+                if (response.Content.Headers.ContentLength > maxBytes) return null;
+                byte[] data = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                return data.Length > maxBytes ? null : data;
+            }
+        }
+
+        /// <summary>GET (or POST with a JSON body) and parse the JSON answer.</summary>
+        public static object Json(HttpClient http, string url, string postBody = null)
+        {
+            using (var request = new HttpRequestMessage(postBody == null ? HttpMethod.Get : HttpMethod.Post, url))
+            {
+                request.Headers.Accept.ParseAdd("application/json");
+                if (postBody != null) request.Content = new StringContent(postBody, System.Text.Encoding.UTF8, "application/json");
+                using (var response = http.SendAsync(request).GetAwaiter().GetResult())
+                {
+                    ThrowIfFailed(response);
+                    string text = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                    try
+                    {
+                        return TheMovies.Core.Json.Parse(text);
+                    }
+                    catch (FormatException)
+                    {
+                        throw new IOException("Unerwartete Antwort vom Server (kein JSON).");
+                    }
+                }
+            }
         }
 
         public static void ThrowIfFailed(HttpResponseMessage response)

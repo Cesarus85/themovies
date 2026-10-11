@@ -27,14 +27,32 @@ namespace TheMovies.Core.Network
         string DirectUrl(string location);
     }
 
+    /// <summary>A browser that can search the whole library (media servers).</summary>
+    public interface ISearchableBrowser
+    {
+        List<NetworkItem> Search(string text);
+    }
+
     public static class NetworkBrowser
     {
+        /// <summary>
+        /// True if the video player can open a media server address itself: plain HTTP or HTTPS with an official
+        /// certificate. HTTPS in the local network usually has a self-signed one and goes through the local proxy.
+        /// </summary>
+        public static bool PlayableDirectly(string url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+            return uri.Scheme == Uri.UriSchemeHttp || (uri.Scheme == Uri.UriSchemeHttps && !NetAddress.IsLocalHost(uri.Host));
+        }
+
         public static INetworkBrowser Create(NetworkSource source)
         {
             switch (source.Kind)
             {
                 case NetworkSourceKind.Smb: return new SmbBrowser(source);
                 case NetworkSourceKind.WebDav: return new WebDavBrowser(source);
+                case NetworkSourceKind.Jellyfin: return new JellyfinBrowser(source);
+                case NetworkSourceKind.Plex: return new PlexBrowser(source);
                 default: return new DlnaBrowser(source);
             }
         }
@@ -65,18 +83,29 @@ namespace TheMovies.Core.Network
                     return new SmbFileSource(address, source.User, source.Password);
                 case NetworkSourceKind.WebDav:
                     return new HttpRangeSource(location, source.User, source.Password);
+                // Jellyfin/Plex addresses carry their access token; DLNA needs no login.
                 default:
                     return new HttpRangeSource(location);
             }
         }
 
-        /// <summary>Searches the local network for NAS devices (Bonjour "_smb._tcp") and DLNA media servers.</summary>
+        /// <summary>Searches the local network for NAS devices (Bonjour "_smb._tcp"), DLNA, Jellyfin/Emby and Plex servers.</summary>
         public static List<NetworkSource> Discover(int timeoutMs)
         {
             var smb = Task.Run(() =>
             {
                 try { return Mdns.Discover("_smb._tcp.local", timeoutMs); }
                 catch (Exception) { return new List<MdnsService>(); }
+            });
+            var jellyfin = Task.Run(() =>
+            {
+                try { return Jellyfin.Discover(timeoutMs); }
+                catch (Exception) { return new List<NetworkSource>(); }
+            });
+            var plex = Task.Run(() =>
+            {
+                try { return PlexServers.Discover(timeoutMs); }
+                catch (Exception) { return new List<string>(); }
             });
             var dlna = Task.Run(() =>
             {
@@ -133,6 +162,18 @@ namespace TheMovies.Core.Network
             foreach (var p in probes)
                 if (p.Result != null && !result.Exists(r => r.Kind == NetworkSourceKind.Smb && r.Address == p.Result.Address))
                     result.Add(p.Result);
+
+            // Media servers first: they have the nicer library.
+            var servers = new List<NetworkSource>(jellyfin.Result);
+            if (plex.Result.Count > 0)
+            {
+                var account = PlexServers.NewAccountSource();
+                account.Name = "Plex – " + string.Join(", ", plex.Result);
+                account.User = string.Empty;
+                account.Discovered = true;
+                servers.Add(account);
+            }
+            result.InsertRange(0, servers);
             return result;
         }
     }
@@ -284,16 +325,7 @@ namespace TheMovies.Core.Network
 
         public List<NetworkItem> List(string location) => WebDav.List(m_Http, location);
 
-        public byte[] ReadSmallFile(string location, int maxBytes)
-        {
-            using (var response = m_Http.GetAsync(location, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult())
-            {
-                NetHttp.ThrowIfFailed(response);
-                if (response.Content.Headers.ContentLength > maxBytes) return null;
-                byte[] data = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
-                return data.Length > maxBytes ? null : data;
-            }
-        }
+        public byte[] ReadSmallFile(string location, int maxBytes) => NetHttp.ReadSmall(m_Http, location, maxBytes);
 
         public IRandomAccessSource OpenFile(string location) => NetworkBrowser.OpenFile(Source, location);
 
@@ -331,7 +363,9 @@ namespace TheMovies.Core.Network
             return Dlna.Browse(m_Http, m_Device, string.IsNullOrEmpty(location) ? Dlna.RootObjectId : location);
         }
 
-        public byte[] ReadSmallFile(string location, int maxBytes) => null;
+        /// <summary>Only for album art URLs (posters).</summary>
+        public byte[] ReadSmallFile(string location, int maxBytes) =>
+            MediaMatcher.LooksLikeUrl(location) ? NetHttp.ReadSmall(m_Http, location, maxBytes) : null;
 
         public IRandomAccessSource OpenFile(string location) => NetworkBrowser.OpenFile(Source, location);
 

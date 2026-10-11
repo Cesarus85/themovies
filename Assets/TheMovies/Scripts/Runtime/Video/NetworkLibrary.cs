@@ -11,9 +11,10 @@ using UnityEngine;
 namespace TheMovies.Video
 {
     /// <summary>
-    /// Movies on a NAS or network drive: the saved sources (SMB shares, WebDAV folders, DLNA servers), the
-    /// network search, folder browsing for the menu and playback. Files that need a login (SMB, WebDAV) are fed
-    /// to the video player through a local HTTP proxy; DLNA files are played from their URL directly.
+    /// Movies on a NAS, network drive or media server: the saved sources (SMB shares, WebDAV folders, DLNA,
+    /// Jellyfin/Emby, Plex), the network search, folder browsing for the menu and playback. Files that need a
+    /// login (SMB, WebDAV) are fed to the video player through a local HTTP proxy; DLNA, Jellyfin and Plex files
+    /// are played from their URL directly (HTTPS with a self-signed certificate goes through the proxy too).
     /// All network work runs on worker threads; results are applied on the main thread.
     /// </summary>
     public sealed class NetworkLibrary : MonoBehaviour
@@ -30,6 +31,7 @@ namespace TheMovies.Video
         readonly ConcurrentQueue<Action> m_MainThread = new ConcurrentQueue<Action>();
         readonly Stack<(string location, string title)> m_Path = new Stack<(string, string)>();
         int m_BrowseToken;
+        const string k_SearchPrefix = "\u0001search:";
 
         LocalStreamServer m_Server;
         SourceStreamer m_Streamer;
@@ -102,6 +104,12 @@ namespace TheMovies.Video
         void Awake()
         {
             Instance = this;
+            string device = SystemInfo.deviceUniqueIdentifier;
+            if (!string.IsNullOrEmpty(device) && device != SystemInfo.unsupportedIdentifier)
+            {
+                Jellyfin.DeviceId = "themovies-" + device;
+                PlexServers.ClientId = "themovies-" + device;
+            }
             m_Saved.AddRange(NetworkSourceStore.Deserialize(PlayerPrefs.GetString(k_PrefsKey, string.Empty)));
         }
 
@@ -165,7 +173,7 @@ namespace TheMovies.Video
             if (e is System.Net.Sockets.SocketException) return "Keine Verbindung: " + e.Message;
             if (e is System.Net.Http.HttpRequestException) return "Keine Verbindung: " + (e.InnerException?.Message ?? e.Message);
             if (e is TaskCanceledException) return "Zeitüberschreitung – ist das Gerät erreichbar?";
-            if (e is System.Xml.XmlException) return "Unerwartete Antwort vom Server.";
+            if (e is System.Xml.XmlException || e is FormatException) return "Unerwartete Antwort vom Server.";
             return e.Message;
         }
 
@@ -328,7 +336,9 @@ namespace TheMovies.Video
             Error = string.Empty;
             LoginRejected = false;
             Changed?.Invoke();
-            RunAsync(browser, () => browser.List(location), (items, error) =>
+            RunAsync(browser, () => location.StartsWith(k_SearchPrefix, StringComparison.Ordinal) && browser is ISearchableBrowser searchable
+                ? searchable.Search(location.Substring(k_SearchPrefix.Length))
+                : browser.List(location), (items, error) =>
             {
                 if (token != m_BrowseToken) return;
                 IsBusy = false;
@@ -342,23 +352,25 @@ namespace TheMovies.Video
                     return;
                 }
                 if (push) m_Path.Push((location, title));
-                Items = Sorted(items);
+                Items = Sorted(items, source.IsMediaServer);
                 onSuccess?.Invoke();
                 Changed?.Invoke();
             });
         }
 
-        /// <summary>Folders first, then movies; other files are hidden.</summary>
-        static List<NetworkItem> Sorted(List<NetworkItem> items)
+        /// <summary>Folders first, then movies; other files are hidden (after their posters/.nfo were assigned).</summary>
+        static List<NetworkItem> Sorted(List<NetworkItem> items, bool keepOrder)
         {
+            Artwork.AttachSidecars(items);
             var result = new List<NetworkItem>();
             foreach (var i in items)
                 if (i.IsFolder || MediaMatcher.IsVideoFile(i.Name))
                     result.Add(i);
+            if (keepOrder) return result; // media servers sort by title themselves (articles, series order)
             result.Sort((a, b) =>
             {
                 if (a.IsFolder != b.IsFolder) return a.IsFolder ? -1 : 1;
-                return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+                return string.Compare(a.DisplayTitle, b.DisplayTitle, StringComparison.OrdinalIgnoreCase);
             });
             return result;
         }
@@ -368,12 +380,140 @@ namespace TheMovies.Video
             if (Current == null || item == null || item.IsFolder) return null;
             return new MediaEntry
             {
-                Title = Path.GetFileNameWithoutExtension(item.Name),
+                Title = item.DisplayTitle,
                 Name = item.Name,
+                Poster = item.Poster,
                 Location = item.Location,
                 Size = item.Size,
                 SourceId = Current.Key,
             };
+        }
+
+        /// <summary>The current source searches its whole library itself (Jellyfin, Plex).</summary>
+        public bool CanSearchServer => Current != null && Current.IsMediaServer && !IsBusy;
+
+        /// <summary>Searches the library of the current media server; the results are shown like a folder.</summary>
+        public void SearchServer(string text)
+        {
+            text = (text ?? string.Empty).Trim();
+            if (!CanSearchServer || text.Length == 0) return;
+            Navigate(k_SearchPrefix + text, "Suche „" + text + "“", push: true, null);
+        }
+
+        /// <summary>
+        /// Checks what answers at an http(s) address the user typed: Jellyfin/Emby (→ <see cref="NetworkSourceKind.Jellyfin"/>),
+        /// Plex (→ account login by code) or anything else (WebDAV). Calls back on the main thread.
+        /// </summary>
+        public void Identify(NetworkSource source, Action<NetworkSource> done)
+        {
+            if (source.Kind != NetworkSourceKind.WebDav)
+            {
+                done(source);
+                return;
+            }
+            RunAsync(new object(), () =>
+            {
+                using (var http = NetHttp.CreateClient(new Uri(source.Address), null, null))
+                {
+                    http.Timeout = TimeSpan.FromSeconds(4);
+                    try
+                    {
+                        if (Jellyfin.IsServerInfo(NetHttp.Json(http, source.Address + "System/Info/Public"), out string name))
+                            return new NetworkSource { Kind = NetworkSourceKind.Jellyfin, Address = source.Address, Name = name.Length > 0 ? name : source.Name };
+                    }
+                    catch (Exception)
+                    {
+                    }
+                    try
+                    {
+                        if (NetHttp.Json(http, source.Address + "identity").Path("MediaContainer").Str("machineIdentifier").Length > 0)
+                            return PlexServers.NewAccountSource();
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+                return source;
+            }, (result, error) => done(result ?? source));
+        }
+
+        // ---------------- Plex login by code ----------------
+
+        /// <summary>Code to enter on plex.tv/link while the Plex login runs, empty otherwise.</summary>
+        public string PlexCode { get; private set; } = string.Empty;
+
+        public bool IsLinkingPlex { get; private set; }
+        int m_PlexLinkToken;
+
+        /// <summary>Gets a code from plex.tv, waits (up to 10 minutes) until it was entered, then adds and opens the account.</summary>
+        public void StartPlexLink()
+        {
+            int token = ++m_PlexLinkToken;
+            IsLinkingPlex = true;
+            PlexCode = string.Empty;
+            Error = string.Empty;
+            Changed?.Invoke();
+            var gate = new object();
+            var http = PlexServers.CreateClient();
+            RunAsync(gate, () => PlexServers.CreatePin(http), (pin, error) =>
+            {
+                if (token != m_PlexLinkToken)
+                {
+                    http.Dispose();
+                    return;
+                }
+                if (error != null || string.IsNullOrEmpty(pin.code))
+                {
+                    http.Dispose();
+                    IsLinkingPlex = false;
+                    Error = "Plex: " + (error != null ? Describe(error) : "kein Code erhalten");
+                    Changed?.Invoke();
+                    return;
+                }
+                PlexCode = pin.code;
+                Changed?.Invoke();
+                RunAsync(gate, () =>
+                {
+                    var until = DateTime.UtcNow.AddMinutes(10);
+                    while (DateTime.UtcNow < until && token == m_PlexLinkToken)
+                    {
+                        System.Threading.Thread.Sleep(2000);
+                        try
+                        {
+                            string authToken = PlexServers.CheckPin(http, pin.id);
+                            if (authToken != null) return authToken;
+                        }
+                        catch (IOException)
+                        {
+                            // Keep waiting (network hiccup)
+                        }
+                    }
+                    return null;
+                }, (authToken, pollError) =>
+                {
+                    http.Dispose();
+                    if (token != m_PlexLinkToken) return;
+                    IsLinkingPlex = false;
+                    PlexCode = string.Empty;
+                    if (authToken == null)
+                    {
+                        Error = pollError != null ? "Plex: " + Describe(pollError) : "Der Plex-Code ist abgelaufen – bitte noch einmal verbinden.";
+                        Changed?.Invoke();
+                        return;
+                    }
+                    var account = PlexServers.NewAccountSource();
+                    account.Password = authToken;
+                    AddAndOpen(account);
+                });
+            });
+        }
+
+        public void CancelPlexLink()
+        {
+            m_PlexLinkToken++;
+            IsLinkingPlex = false;
+            PlexCode = string.Empty;
+            Changed?.Invoke();
         }
 
         // ---------------- Playback ----------------
@@ -420,7 +560,7 @@ namespace TheMovies.Video
         public string DescribePlaybackFailure(MediaEntry entry)
         {
             if (entry == null || !entry.IsNetwork) return string.Empty;
-            if (m_Streamer == null) return "direkt vom Medienserver (DLNA)";
+            if (m_Streamer == null) return "direkt vom Medienserver";
             int requests = m_Server.RequestCount - m_RequestsAtServe;
             if (m_Streamer.Error != null) return "NAS: " + m_Streamer.Error;
             if (requests == 0) return "Der Player hat den lokalen NAS-Proxy nicht erreicht (HTTP blockiert?)";

@@ -28,6 +28,9 @@ namespace TheMovies.Core
         /// <summary>File name when it can't be taken from <see cref="Location"/> (network items).</summary>
         public string Name;
 
+        /// <summary>Poster image (URL, local path or network location), null if none is known.</summary>
+        public string Poster;
+
         /// <summary>File on a NAS / network share. Treated like a local file for matching (others look for the same file name).</summary>
         public bool IsNetwork => SourceId != null;
 

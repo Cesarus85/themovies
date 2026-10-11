@@ -207,3 +207,32 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    using System;
+    using NUnit.Framework;
+    using TheMovies.Core;
+
+    public class JsonTests
+    {
+        [Test]
+        public void ParsesNestedDocuments()
+        {
+            var doc = Json.Parse("{\"Items\":[{\"Name\":\"M\\u00fcnchen \\\"3D\\\"\",\"Id\":\"a1\",\"IsFolder\":false,\"ProductionYear\":2009," +
+                                 "\"MediaSources\":[{\"Size\":4294967296,\"Path\":\"/m/Avatar.mkv\"}]},{\"Name\":\"Serie\",\"IsFolder\":true}],\"TotalRecordCount\":2,\"x\":null}");
+            var items = doc.Array("Items");
+            Assert.AreEqual(2, items.Count);
+            Assert.AreEqual("München \"3D\"", items[0].Str("Name"));
+            Assert.AreEqual(2009, items[0].Long("ProductionYear"));
+            Assert.AreEqual(4294967296L, items[0].Array("MediaSources")[0].Long("Size"));
+            Assert.IsTrue(items[1].Bool("IsFolder"));
+            Assert.AreEqual(2, doc.Long("TotalRecordCount"));
+            Assert.IsNull(doc.Get("x"));
+            Assert.AreEqual(string.Empty, doc.Path("Nope.Deeper").Str("x"));
+            Assert.AreEqual("{\"Username\":" + Json.Quote("a\"b") + "}", "{\"Username\":\"a\\\"b\"}");
+            Assert.Throws<FormatException>(() => Json.Parse("{\"a\":}"));
+            Assert.Throws<FormatException>(() => Json.Parse("[1,2"));
+        }
+    }
+}

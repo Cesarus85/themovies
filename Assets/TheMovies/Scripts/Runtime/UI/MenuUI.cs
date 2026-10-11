@@ -550,7 +550,7 @@ namespace TheMovies.UI
                 ("Vorherige", 0.13f, () => TurnPage(-1)),
                 ("Nächste", 0.13f, () => TurnPage(1)),
                 ("Im Netz suchen", 0.17f, NetworkPrimary),
-                ("NAS hinzufügen", 0.17f, NetworkSecondary));
+                ("Hinzufügen", 0.17f, NetworkSecondary));
             return p;
         }
 
@@ -839,15 +839,10 @@ namespace TheMovies.UI
                     PickEntry(entry);
                     break;
                 case NetworkSource source when library != null:
-                    if (library.IsSaved(source) || source.Kind != NetworkSourceKind.Smb)
-                    {
-                        if (library.IsSaved(source)) library.OpenSource(source);
-                        else library.AddAndOpen(source.Clone());
-                    }
-                    else
-                    {
-                        AskLogin(source.Clone());
-                    }
+                    if (library.IsSaved(source)) library.OpenSource(source);
+                    else if (source.Kind == NetworkSourceKind.Plex) library.StartPlexLink();
+                    else if (source.Kind == NetworkSourceKind.Smb || source.Kind == NetworkSourceKind.Jellyfin) AskLogin(source.Clone());
+                    else library.AddAndOpen(source.Clone());
                     m_BrowserPageIndex = 0;
                     RefreshBrowser();
                     break;
@@ -909,7 +904,9 @@ namespace TheMovies.UI
         {
             var library = NetworkLibrary.Instance;
             if (library == null) return;
-            if (library.Current == null) library.Discover();
+            if (library.Current == null && library.IsLinkingPlex) library.CancelPlexLink();
+            else if (library.Current == null) library.Discover();
+            else if (library.Error.Length > 0 && library.Current.Kind == NetworkSourceKind.Plex) library.StartPlexLink();
             else if (library.Error.Length > 0 && library.Current.Kind != NetworkSourceKind.Dlna) AskLogin(library.Current.Clone());
             else if (library.Error.Length > 0) library.Reload();
             else library.CopyFirst = !library.CopyFirst;
@@ -970,8 +967,8 @@ namespace TheMovies.UI
         {
             OpenKeyboard(new KeyboardRequest
             {
-                Title = "Adresse von NAS oder Netzlaufwerk",
-                Hint = "z. B. smb://192.168.1.10/filme · smb://diskstation · https://nas:5006/filme (WebDAV)",
+                Title = "Adresse von NAS, Netzlaufwerk oder Medienserver",
+                Hint = "smb://192.168.1.10/filme · https://nas:5006/filme (WebDAV) · http://nas:8096 (Jellyfin) · plex",
                 Initial = "smb://",
                 MaxLength = 200,
                 AllowLowercase = true,
@@ -986,7 +983,19 @@ namespace TheMovies.UI
                         m_BrowserInfo.Text = error;
                         return;
                     }
-                    AskLogin(source);
+                    var library = NetworkLibrary.Instance;
+                    if (library == null) return;
+                    if (source.Kind == NetworkSourceKind.Plex)
+                    {
+                        library.StartPlexLink();
+                        return;
+                    }
+                    m_BrowserInfo.Text = "Prüfe " + source.Address + " …";
+                    library.Identify(source, found =>
+                    {
+                        if (found.Kind == NetworkSourceKind.Plex) library.StartPlexLink();
+                        else AskLogin(found);
+                    });
                 },
             });
         }
@@ -994,15 +1003,17 @@ namespace TheMovies.UI
         /// <summary>Asks for user name and password, then tries the source and saves it if it works.</summary>
         void AskLogin(NetworkSource source)
         {
+            bool mediaServer = source.Kind == NetworkSourceKind.Jellyfin;
             OpenKeyboard(new KeyboardRequest
             {
                 Title = $"Benutzername für {TextUtil.Ellipsize(source.Name, 28)}",
-                Hint = "Leer lassen für Gastzugang. Mit Domäne: DOMÄNE\\name (\\ über Umschalt).",
+                Hint = mediaServer ? "Dein Benutzer auf dem Jellyfin/Emby-Server."
+                    : "Leer lassen für Gastzugang. Mit Domäne: DOMÄNE\\name (\\ über Umschalt).",
                 Initial = source.User,
                 MaxLength = 64,
                 AllowLowercase = true,
                 AllowSpace = true,
-                AllowEmpty = true,
+                AllowEmpty = !mediaServer,
                 ReturnPage = m_BrowserPage,
                 Accepts = c => c > ' ' && c != '•',
                 Submit = user =>
@@ -1080,14 +1091,18 @@ namespace TheMovies.UI
             {
                 var sources = library.Sources;
                 foreach (var src in sources) items.Add(src);
-                m_BrowserInfo.Text = library.Error.Length > 0 ? library.Error
+                if (library.IsLinkingPlex)
+                    m_BrowserTitle.Text = library.PlexCode.Length > 0 ? "Plex-Code:  " + library.PlexCode : "Mit Plex verbinden …";
+                m_BrowserInfo.Text = library.IsLinkingPlex
+                        ? library.PlexCode.Length > 0 ? $"Am Handy/PC {PlexServers.LinkPage} öffnen und den Code eingeben – danach geht es hier von selbst weiter." : "Hole einen Code von plex.tv …"
+                    : library.Error.Length > 0 ? library.Error
                     : library.IsDiscovering ? "Suche NAS und Medienserver im WLAN …"
-                    : sources.Count == 0 ? "Nichts gefunden. Über „NAS hinzufügen“ die Adresse eingeben (SMB oder WebDAV)."
-                    : "Freigaben (SMB), WebDAV-Ordner und DLNA-Medienserver";
-                m_NetworkBar[3].Label = "Im Netz suchen";
+                    : sources.Count == 0 ? "Nichts gefunden. Über „Hinzufügen“ die Adresse eingeben (SMB, WebDAV, Jellyfin oder „plex“)."
+                    : "Freigaben (SMB), WebDAV, DLNA, Jellyfin/Emby und Plex";
+                m_NetworkBar[3].Label = library.IsLinkingPlex ? "Abbrechen" : "Im Netz suchen";
                 m_NetworkBar[3].Highlighted = false;
-                m_NetworkBar[3].Interactable = !library.IsDiscovering;
-                m_NetworkBar[4].Label = "NAS hinzufügen";
+                m_NetworkBar[3].Interactable = !library.IsDiscovering || library.IsLinkingPlex;
+                m_NetworkBar[4].Label = "Hinzufügen";
                 m_NetworkBar[4].Interactable = true;
             }
             else
@@ -1097,7 +1112,7 @@ namespace TheMovies.UI
                 m_BrowserInfo.Text = library.IsBusy ? $"Verbinde mit {library.Current.Address} …"
                     : copy.Length > 0 ? copy
                     : library.Error.Length > 0
-                        ? library.Error + (library.LoginRejected || (library.CurrentFailed && library.Current.Kind == NetworkSourceKind.Smb) ? "  → „Anmelden“" : string.Empty)
+                        ? library.Error + (library.LoginRejected || (library.CurrentFailed && library.Current.Kind != NetworkSourceKind.Dlna && library.Current.Kind != NetworkSourceKind.WebDav) ? "  → „Anmelden“" : string.Empty)
                     : library.Items.Count == 0 ? "Keine Filme oder Ordner hier."
                     : library.PathLabel;
                 bool failed = library.Error.Length > 0;
@@ -1152,15 +1167,16 @@ namespace TheMovies.UI
                 case NetworkSource source:
                     label.Append(TextUtil.Ellipsize(source.Name, 40)).Append("   ·  ").Append(source.KindLabel);
                     if (library != null && !library.IsSaved(source)) label.Append("  ·  gefunden");
-                    else if (source.HasLogin) label.Append("  ·  ").Append(TextUtil.Ellipsize(source.User, 16));
+                    else if (source.HasLogin && source.Kind != NetworkSourceKind.Plex) label.Append("  ·  ").Append(TextUtil.Ellipsize(source.User, 16));
                     break;
                 case NetworkItem networkItem when networkItem.IsFolder:
-                    label.Append(TextUtil.Ellipsize(networkItem.Name, 56)).Append("  ›");
+                    label.Append(TextUtil.Ellipsize(networkItem.DisplayTitle, 56)).Append("  ›");
                     break;
                 case NetworkItem file:
                 {
                     var format = StereoFormats.Detect(file.Name);
-                    label.Append(TextUtil.Ellipsize(System.IO.Path.GetFileNameWithoutExtension(file.Name), 48));
+                    label.Append(TextUtil.Ellipsize(file.DisplayTitle, 48));
+                    if (file.Year > 0) label.Append(" (").Append(file.Year).Append(')');
                     if (file.Size > 0) label.Append("   ·  ").Append(TextUtil.FormatSize(file.Size));
                     if (format.IsStereo()) label.Append("   ·  ").Append(format.DisplayName());
                     break;
