@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using TheMovies.App;
 using TheMovies.Core;
+using TheMovies.Core.Network;
 using TheMovies.Net;
 using TheMovies.Video;
 using TheMovies.World;
@@ -51,7 +52,7 @@ namespace TheMovies.UI
         UILabel m_KeyTitle;
         UILabel m_KeyInput;
         UILabel m_KeyHint;
-        readonly List<(UIButton button, char key)> m_Keys = new List<(UIButton, char)>();
+        readonly List<(UIButton button, char key, char shifted)> m_Keys = new List<(UIButton, char, char)>();
         UIButton m_ShiftButton;
         UIButton m_SpaceButton;
         KeyboardRequest m_KeyRequest;
@@ -91,10 +92,15 @@ namespace TheMovies.UI
         UILabel m_BrowserInfo;
         UILabel m_PageLabel;
         readonly UIButton[] m_Rows = new UIButton[k_BrowserRows];
-        readonly MediaEntry[] m_RowEntries = new MediaEntry[k_BrowserRows];
+        readonly object[] m_RowItems = new object[k_BrowserRows];
         int m_BrowserPageIndex;
         bool m_BrowserAssignMode;
-        UIButton m_UrlButton;
+        bool m_BrowserNetwork;
+        bool m_SearchedNetwork;
+        UIButton m_TabLocal, m_TabNetwork;
+        UIButton[] m_LocalBar;
+        UIButton[] m_NetworkBar;
+        float m_RemoveConfirmUntil;
 
         sealed class KeyboardRequest
         {
@@ -104,6 +110,13 @@ namespace TheMovies.UI
             public int MaxLength;
             public bool AllowLowercase;
             public bool AllowSpace;
+            public bool AllowEmpty;
+
+            /// <summary>Shows dots instead of the text (passwords).</summary>
+            public bool Secret;
+
+            /// <summary>Page to return to after OK/cancel; null = main or session page.</summary>
+            public GameObject ReturnPage;
             public Func<char, bool> Accepts;
             public Action<string> Submit;
         }
@@ -332,7 +345,9 @@ namespace TheMovies.UI
             UIFactory.CreateQuad(p.transform, "Input", new Vector3(0, 0.185f, -UIStyle.Layer), new Vector2(0.8f, 0.07f), UIStyle.PanelInset, UIFactory.WidgetMaterial);
             m_KeyInput = Label(p, string.Empty, 0, 0.185f, 0.036f, 34, TextAnchor.MiddleCenter);
 
+            // Second line of each row: what the key types with "Umschalt" (letters: upper case).
             string[] rows = { "1234567890", "QWERTZUIOP", "ASDFGHJKLÖ", "YXCVBNMÄÜ.", "-_:/@&?=%+" };
+            string[] shifted = { "!\"§$%&/()=", "QWERTZUIOP", "ASDFGHJKLÖ", "YXCVBNMÄÜ,", "#*;\\<>~'ß$" };
             float keyW = 0.074f, step = 0.081f, keyH = 0.055f;
             for (int r = 0; r < rows.Length; r++)
             {
@@ -342,8 +357,9 @@ namespace TheMovies.UI
                 for (int i = 0; i < row.Length; i++)
                 {
                     char c = row[i];
+                    char alt = i < shifted[r].Length ? shifted[r][i] : c;
                     var b = Button(p, c.ToString(), x0 + i * step, y, keyW, keyH, () => TypeKey(c), 0.026f);
-                    m_Keys.Add((b, c));
+                    m_Keys.Add((b, c, alt));
                 }
             }
 
@@ -491,21 +507,28 @@ namespace TheMovies.UI
         GameObject BuildBrowserPage()
         {
             var p = Page("Browser Page");
-            m_BrowserTitle = Label(p, string.Empty, k_Left, 0.258f, 0.028f, 40, TextAnchor.MiddleLeft, UIStyle.Accent);
-            m_BrowserInfo = Label(p, string.Empty, k_Left, 0.222f, 0.015f, 95, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            m_BrowserTitle = Label(p, string.Empty, k_Left, 0.258f, 0.028f, 28, TextAnchor.MiddleLeft, UIStyle.Accent);
+            m_TabLocal = Button(p, "Dieses Gerät", 0.185f, 0.258f, 0.17f, 0.045f, () => SetBrowserTab(false), 0.017f);
+            m_TabNetwork = Button(p, "Netzwerk", 0.355f, 0.258f, 0.15f, 0.045f, () => SetBrowserTab(true), 0.017f);
+            m_BrowserInfo = Label(p, string.Empty, k_Left, 0.212f, 0.015f, 82, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            m_PageLabel = Label(p, string.Empty, k_Right, 0.212f, 0.016f, 12, TextAnchor.MiddleRight, UIStyle.TextDim);
             for (int i = 0; i < k_BrowserRows; i++)
             {
                 int index = i;
-                m_Rows[i] = Button(p, string.Empty, 0, 0.17f - i * 0.058f, k_Width - 0.06f, 0.05f, () => PickRow(index), 0.019f);
+                m_Rows[i] = Button(p, string.Empty, 0, 0.165f - i * 0.058f, k_Width - 0.06f, 0.05f, () => PickRow(index), 0.019f);
             }
-            var bottom = Row(p, -0.255f, 0.05f, 0.012f,
-                ("Zurück", 0.13f, () => ShowPage(m_SessionPage)),
+            m_LocalBar = Row(p, -0.255f, 0.05f, 0.012f,
+                ("Zurück", 0.13f, BrowserBack),
                 ("Vorherige", 0.13f, () => TurnPage(-1)),
                 ("Nächste", 0.13f, () => TurnPage(1)),
                 ("Aktualisieren", 0.15f, () => m_App.Media.Library.Refresh()),
                 ("Adresse eingeben", 0.18f, EnterStreamUrl));
-            m_UrlButton = bottom[4];
-            m_PageLabel = Label(p, string.Empty, k_Right, 0.258f, 0.018f, 12, TextAnchor.MiddleRight, UIStyle.TextDim);
+            m_NetworkBar = Row(p, -0.255f, 0.05f, 0.012f,
+                ("Zurück", 0.13f, BrowserBack),
+                ("Vorherige", 0.13f, () => TurnPage(-1)),
+                ("Nächste", 0.13f, () => TurnPage(1)),
+                ("Im Netz suchen", 0.17f, NetworkPrimary),
+                ("NAS hinzufügen", 0.17f, NetworkSecondary));
             return p;
         }
 
@@ -631,9 +654,10 @@ namespace TheMovies.UI
             m_Shift = false;
             m_KeyTitle.Text = request.Title;
             m_KeyHint.Text = request.Hint;
-            foreach (var (button, key) in m_Keys)
-                button.Interactable = request.Accepts(key) || (request.AllowLowercase && request.Accepts(char.ToLowerInvariant(key)));
-            m_ShiftButton.Interactable = request.AllowLowercase;
+            foreach (var (button, key, alt) in m_Keys)
+                button.Interactable = request.Accepts(key) || request.Accepts(alt) ||
+                                      (request.AllowLowercase && request.Accepts(char.ToLowerInvariant(key)));
+            m_ShiftButton.Interactable = true;
             m_SpaceButton.Interactable = request.AllowSpace;
             UpdateKeyLabels();
             ShowPage(m_KeyboardPage);
@@ -642,8 +666,19 @@ namespace TheMovies.UI
         void TypeKey(char c)
         {
             if (m_KeyRequest == null || m_KeyText.Length >= m_KeyRequest.MaxLength) return;
-            if (c != ' ' && m_KeyRequest.AllowLowercase && !m_Shift)
+            if (m_Shift && !char.IsLetter(c))
+            {
+                foreach (var (_, key, alt) in m_Keys)
+                    if (key == c && m_KeyRequest.Accepts(alt))
+                    {
+                        c = alt;
+                        break;
+                    }
+            }
+            else if (c != ' ' && m_KeyRequest.AllowLowercase && !m_Shift)
+            {
                 c = char.ToLowerInvariant(c);
+            }
             if (c == ' ' && !m_KeyRequest.AllowSpace) return;
             if (c != ' ' && !m_KeyRequest.Accepts(c)) return;
             m_KeyText.Append(c);
@@ -652,13 +687,19 @@ namespace TheMovies.UI
                 m_Shift = false;
                 UpdateKeyLabels();
             }
-            m_KeyInput.Text = m_KeyText + "_";
+            ShowKeyInput();
         }
 
         void Backspace()
         {
             if (m_KeyText.Length > 0) m_KeyText.Length--;
-            m_KeyInput.Text = m_KeyText + "_";
+            ShowKeyInput();
+        }
+
+        void ShowKeyInput()
+        {
+            string text = m_KeyRequest != null && m_KeyRequest.Secret ? new string('•', m_KeyText.Length) : m_KeyText.ToString();
+            m_KeyInput.Text = text + "_";
         }
 
         void ToggleShift()
@@ -670,25 +711,32 @@ namespace TheMovies.UI
         void UpdateKeyLabels()
         {
             bool lower = m_KeyRequest != null && m_KeyRequest.AllowLowercase && !m_Shift;
-            foreach (var (button, key) in m_Keys)
-                button.Label = (lower ? char.ToLowerInvariant(key) : key).ToString();
+            foreach (var (button, key, alt) in m_Keys)
+            {
+                char shown = char.IsLetter(key) ? (lower ? char.ToLowerInvariant(key) : key) : (m_Shift ? alt : key);
+                button.Label = shown.ToString();
+            }
             m_ShiftButton.Highlighted = m_Shift;
-            m_KeyInput.Text = m_KeyText + "_";
+            ShowKeyInput();
         }
+
+        GameObject KeyboardReturnPage(KeyboardRequest request) =>
+            request?.ReturnPage ?? (m_Solo || m_App.Sessions.State != ConnectionState.Offline ? m_SessionPage : m_MainPage);
 
         void CancelKeyboard()
         {
+            var request = m_KeyRequest;
             m_KeyRequest = null;
-            ShowPage(m_Solo || m_App.Sessions.State != ConnectionState.Offline ? m_SessionPage : m_MainPage);
+            ShowPage(KeyboardReturnPage(request));
         }
 
         void SubmitKeyboard()
         {
             var request = m_KeyRequest;
             m_KeyRequest = null;
-            string text = m_KeyText.ToString().Trim();
-            ShowPage(m_Solo || m_App.Sessions.State != ConnectionState.Offline ? m_SessionPage : m_MainPage);
-            if (request != null && text.Length > 0)
+            string text = request != null && request.Secret ? m_KeyText.ToString() : m_KeyText.ToString().Trim();
+            ShowPage(KeyboardReturnPage(request));
+            if (request != null && (text.Length > 0 || request.AllowEmpty))
                 request.Submit(text);
         }
 
@@ -700,19 +748,88 @@ namespace TheMovies.UI
             m_BrowserPageIndex = 0;
             m_App.Media.Library.Refresh();
             ShowPage(m_BrowserPage);
+            SetBrowserTab(m_BrowserNetwork);
+        }
+
+        void SetBrowserTab(bool network)
+        {
+            m_BrowserNetwork = network;
+            m_BrowserPageIndex = 0;
+            var library = NetworkLibrary.Instance;
+            if (network && !m_SearchedNetwork && library != null)
+            {
+                m_SearchedNetwork = true;
+                library.Discover();
+            }
             RefreshBrowser();
+        }
+
+        void BrowserBack()
+        {
+            var library = NetworkLibrary.Instance;
+            if (m_BrowserNetwork && library != null && library.Current != null)
+            {
+                library.Back();
+                m_BrowserPageIndex = 0;
+                RefreshBrowser();
+                return;
+            }
+            ShowPage(m_SessionPage);
+        }
+
+        int BrowserItemCount()
+        {
+            var library = NetworkLibrary.Instance;
+            if (!m_BrowserNetwork) return m_App.Media.Library.Entries.Count;
+            if (library == null) return 0;
+            return library.Current != null ? library.Items.Count : library.Sources.Count;
         }
 
         void TurnPage(int delta)
         {
-            int pages = Mathf.Max(1, Mathf.CeilToInt(m_App.Media.Library.Entries.Count / (float)k_BrowserRows));
+            int pages = Mathf.Max(1, Mathf.CeilToInt(BrowserItemCount() / (float)k_BrowserRows));
             m_BrowserPageIndex = Mathf.Clamp(m_BrowserPageIndex + delta, 0, pages - 1);
             RefreshBrowser();
         }
 
         void PickRow(int index)
         {
-            var entry = m_RowEntries[index];
+            var library = NetworkLibrary.Instance;
+            switch (m_RowItems[index])
+            {
+                case MediaEntry entry:
+                    PickEntry(entry);
+                    break;
+                case NetworkSource source when library != null:
+                    if (library.IsSaved(source) || source.Kind != NetworkSourceKind.Smb)
+                    {
+                        if (library.IsSaved(source)) library.OpenSource(source);
+                        else library.AddAndOpen(source.Clone());
+                    }
+                    else
+                    {
+                        AskLogin(source.Clone());
+                    }
+                    m_BrowserPageIndex = 0;
+                    RefreshBrowser();
+                    break;
+                case NetworkItem item when library != null:
+                    if (item.IsFolder)
+                    {
+                        library.OpenFolder(item);
+                        m_BrowserPageIndex = 0;
+                        RefreshBrowser();
+                    }
+                    else
+                    {
+                        PickEntry(library.ToEntry(item));
+                    }
+                    break;
+            }
+        }
+
+        void PickEntry(MediaEntry entry)
+        {
             if (entry == null) return;
             if (m_BrowserAssignMode)
             {
@@ -726,47 +843,219 @@ namespace TheMovies.UI
             ShowPage(m_SessionPage);
         }
 
-        void RefreshBrowser()
+        /// <summary>"Im Netz suchen" in the source list, "Aktualisieren" inside a source.</summary>
+        void NetworkPrimary()
         {
-            var library = m_App.Media.Library;
-            var entries = library.Entries;
-            if (m_BrowserAssignMode)
+            var library = NetworkLibrary.Instance;
+            if (library == null) return;
+            if (library.Current != null) library.Reload();
+            else library.Discover();
+            RefreshBrowser();
+        }
+
+        /// <summary>"NAS hinzufügen" in the source list, "Quelle entfernen" (with confirmation) inside a saved source.</summary>
+        void NetworkSecondary()
+        {
+            var library = NetworkLibrary.Instance;
+            if (library == null) return;
+            if (library.Current == null)
             {
-                string wanted = Playback.Current.Media.Title.ToString();
-                m_BrowserTitle.Text = "Eigene Datei für: " + wanted;
+                EnterNasAddress();
+                return;
+            }
+            if (!library.IsSaved(library.Current)) return;
+            if (Time.unscaledTime < m_RemoveConfirmUntil)
+            {
+                m_RemoveConfirmUntil = 0;
+                library.Remove(library.Current);
+                m_BrowserPageIndex = 0;
             }
             else
             {
+                m_RemoveConfirmUntil = Time.unscaledTime + 3f;
+            }
+            RefreshBrowser();
+        }
+
+        void EnterNasAddress()
+        {
+            OpenKeyboard(new KeyboardRequest
+            {
+                Title = "Adresse von NAS oder Netzlaufwerk",
+                Hint = "z. B. smb://192.168.1.10/filme · smb://diskstation · https://nas:5006/filme (WebDAV)",
+                Initial = "smb://",
+                MaxLength = 200,
+                AllowLowercase = true,
+                AllowSpace = true,
+                ReturnPage = m_BrowserPage,
+                Accepts = c => c > ' ' && c != '•',
+                Submit = text =>
+                {
+                    if (!NetworkSource.TryParse(text, out var source, out string error))
+                    {
+                        m_App.Media.ReportProblem(error);
+                        m_BrowserInfo.Text = error;
+                        return;
+                    }
+                    AskLogin(source);
+                },
+            });
+        }
+
+        /// <summary>Asks for user name and password, then tries the source and saves it if it works.</summary>
+        void AskLogin(NetworkSource source)
+        {
+            OpenKeyboard(new KeyboardRequest
+            {
+                Title = $"Benutzername für {TextUtil.Ellipsize(source.Name, 28)}",
+                Hint = "Leer lassen für Gastzugang. Mit Domäne: DOMÄNE\\name (\\ über Umschalt).",
+                Initial = source.User,
+                MaxLength = 64,
+                AllowLowercase = true,
+                AllowSpace = true,
+                AllowEmpty = true,
+                ReturnPage = m_BrowserPage,
+                Accepts = c => c > ' ' && c != '•',
+                Submit = user =>
+                {
+                    source.User = user;
+                    if (user.Length == 0)
+                    {
+                        source.Password = string.Empty;
+                        StartAddingSource(source);
+                        return;
+                    }
+                    OpenKeyboard(new KeyboardRequest
+                    {
+                        Title = $"Passwort für {TextUtil.Ellipsize(user, 30)}",
+                        Hint = "Wird nur auf dieser Brille gespeichert. Sonderzeichen über Umschalt.",
+                        MaxLength = 128,
+                        AllowLowercase = true,
+                        AllowSpace = true,
+                        AllowEmpty = true,
+                        Secret = true,
+                        ReturnPage = m_BrowserPage,
+                        Accepts = c => c >= ' ' && c != '•',
+                        Submit = password =>
+                        {
+                            source.Password = password;
+                            StartAddingSource(source);
+                        },
+                    });
+                },
+            });
+        }
+
+        void StartAddingSource(NetworkSource source)
+        {
+            m_BrowserNetwork = true;
+            m_BrowserPageIndex = 0;
+            NetworkLibrary.Instance?.AddAndOpen(source);
+            RefreshBrowser();
+        }
+
+        void RefreshBrowser()
+        {
+            var library = NetworkLibrary.Instance;
+            bool network = m_BrowserNetwork && library != null;
+            m_TabLocal.Highlighted = !network;
+            m_TabNetwork.Highlighted = network;
+            foreach (var b in m_LocalBar) b.gameObject.SetActive(!network);
+            foreach (var b in m_NetworkBar) b.gameObject.SetActive(network);
+            m_LocalBar[4].gameObject.SetActive(!network && !m_BrowserAssignMode);
+
+            if (m_BrowserAssignMode)
+                m_BrowserTitle.Text = "Eigene Datei für: " + Playback.Current.Media.Title;
+            else if (network && library.Current != null)
+                m_BrowserTitle.Text = library.Current.Name;
+            else
                 m_BrowserTitle.Text = "Film wählen";
+
+            var items = new List<object>();
+            if (!network)
+            {
+                var local = m_App.Media.Library;
+                foreach (var e in local.Entries) items.Add(e);
+                m_BrowserInfo.Text = local.IsScanning
+                    ? "Suche Filme …"
+                    : local.Entries.Count == 0
+                        ? "Keine Filme gefunden. Lege Videos in Movies/ oder Download/ ab, Streams in urls.txt."
+                        : "Gesucht in Movies, Download und " + MediaLibrary.AppMoviesFolder;
+            }
+            else if (library.Current == null)
+            {
+                var sources = library.Sources;
+                foreach (var src in sources) items.Add(src);
+                m_BrowserInfo.Text = library.Error.Length > 0 ? library.Error
+                    : library.IsDiscovering ? "Suche NAS und Medienserver im WLAN …"
+                    : sources.Count == 0 ? "Nichts gefunden. Über „NAS hinzufügen“ die Adresse eingeben (SMB oder WebDAV)."
+                    : "Freigaben (SMB), WebDAV-Ordner und DLNA-Medienserver";
+                m_NetworkBar[3].Label = "Im Netz suchen";
+                m_NetworkBar[3].Interactable = !library.IsDiscovering;
+                m_NetworkBar[4].Label = "NAS hinzufügen";
+                m_NetworkBar[4].Interactable = true;
+            }
+            else
+            {
+                foreach (var item in library.Items) items.Add(item);
+                m_BrowserInfo.Text = library.IsBusy ? "Verbinde …"
+                    : library.Error.Length > 0 ? library.Error
+                    : library.Items.Count == 0 ? "Keine Filme oder Ordner hier."
+                    : library.PathLabel;
+                m_NetworkBar[3].Label = "Aktualisieren";
+                m_NetworkBar[3].Interactable = !library.IsBusy;
+                bool saved = library.IsSaved(library.Current);
+                m_NetworkBar[4].Label = Time.unscaledTime < m_RemoveConfirmUntil ? "Wirklich entfernen?" : "Quelle entfernen";
+                m_NetworkBar[4].Interactable = saved;
             }
 
-            m_BrowserInfo.Text = library.IsScanning
-                ? "Suche Filme …"
-                : entries.Count == 0
-                    ? "Keine Filme gefunden. Lege Videos in Movies/ oder Download/ ab, Streams in urls.txt."
-                    : "Gesucht in Movies, Download und " + MediaLibrary.AppMoviesFolder;
-
-            m_UrlButton.gameObject.SetActive(!m_BrowserAssignMode);
-
-            int pages = Mathf.Max(1, Mathf.CeilToInt(entries.Count / (float)k_BrowserRows));
+            int pages = Mathf.Max(1, Mathf.CeilToInt(items.Count / (float)k_BrowserRows));
             m_BrowserPageIndex = Mathf.Clamp(m_BrowserPageIndex, 0, pages - 1);
             m_PageLabel.Text = $"{m_BrowserPageIndex + 1} / {pages}";
 
             for (int i = 0; i < k_BrowserRows; i++)
             {
                 int idx = m_BrowserPageIndex * k_BrowserRows + i;
-                var entry = idx < entries.Count ? entries[idx] : null;
-                m_RowEntries[i] = entry;
-                m_Rows[i].gameObject.SetActive(entry != null);
-                if (entry == null) continue;
-
-                var format = entry.FormatHint ?? StereoFormats.Detect(entry.FileName);
-                var label = new StringBuilder(TextUtil.Ellipsize(entry.Title, 48));
-                if (entry.IsUrl) label.Append("   ·  Stream");
-                else if (entry.Size > 0) label.Append("   ·  ").Append(TextUtil.FormatSize(entry.Size));
-                if (format.IsStereo()) label.Append("   ·  ").Append(format.DisplayName());
-                m_Rows[i].Label = label.ToString();
+                object item = idx < items.Count ? items[idx] : null;
+                m_RowItems[i] = item;
+                m_Rows[i].gameObject.SetActive(item != null);
+                if (item != null)
+                    m_Rows[i].Label = RowLabel(item, library);
             }
+        }
+
+        static string RowLabel(object item, NetworkLibrary library)
+        {
+            var label = new StringBuilder();
+            switch (item)
+            {
+                case MediaEntry entry:
+                {
+                    var format = entry.FormatHint ?? StereoFormats.Detect(entry.FileName);
+                    label.Append(TextUtil.Ellipsize(entry.Title, 48));
+                    if (entry.IsUrl) label.Append("   ·  Stream");
+                    else if (entry.Size > 0) label.Append("   ·  ").Append(TextUtil.FormatSize(entry.Size));
+                    if (format.IsStereo()) label.Append("   ·  ").Append(format.DisplayName());
+                    break;
+                }
+                case NetworkSource source:
+                    label.Append(TextUtil.Ellipsize(source.Name, 40)).Append("   ·  ").Append(source.KindLabel);
+                    if (library != null && !library.IsSaved(source)) label.Append("  ·  gefunden");
+                    else if (source.HasLogin) label.Append("  ·  ").Append(TextUtil.Ellipsize(source.User, 16));
+                    break;
+                case NetworkItem networkItem when networkItem.IsFolder:
+                    label.Append(TextUtil.Ellipsize(networkItem.Name, 56)).Append("  ›");
+                    break;
+                case NetworkItem file:
+                {
+                    var format = StereoFormats.Detect(file.Name);
+                    label.Append(TextUtil.Ellipsize(System.IO.Path.GetFileNameWithoutExtension(file.Name), 48));
+                    if (file.Size > 0) label.Append("   ·  ").Append(TextUtil.FormatSize(file.Size));
+                    if (format.IsStereo()) label.Append("   ·  ").Append(format.DisplayName());
+                    break;
+                }
+            }
+            return label.ToString();
         }
 
         // ---------------- Per-frame refresh ----------------

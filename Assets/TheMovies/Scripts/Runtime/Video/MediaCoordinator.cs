@@ -324,12 +324,19 @@ namespace TheMovies.Video
                 ResumeOffer = null;
 
             bool buffering = m_Player.IsStalled;
-            if (IsStreaming && !cmd.ReachedEnd && HostStreamService.Instance != null)
+            float ahead = float.MaxValue;
+            if (IsStreaming && HostStreamService.Instance != null)
+                ahead = HostStreamService.Instance.BufferedSeconds(m_Player.Time, m_Player.Duration);
+            else if (CurrentEntry != null && CurrentEntry.IsNetwork && NetworkLibrary.Instance != null && NetworkLibrary.Instance.IsProxyStreaming)
+                ahead = NetworkLibrary.Instance.BufferedSeconds(m_Player.Time, m_Player.Duration);
+            if (!cmd.ReachedEnd)
             {
-                // Report "buffering" early so the host waits, and only "ready" again with some reserve.
-                float ahead = HostStreamService.Instance.BufferedSeconds(m_Player.Time, m_Player.Duration);
+                // Report "buffering" early so the others wait, and only "ready" again with some reserve.
                 buffering |= ahead < (timeline.Playing ? 1.0f : 6f);
             }
+            string nasError = CurrentEntry != null && CurrentEntry.IsNetwork ? NetworkLibrary.Instance?.StreamError : null;
+            if (buffering && nasError != null)
+                ReportProblem("NAS: " + TextUtil.Ellipsize(nasError, 70));
             LocalState = buffering ? ParticipantMediaState.Buffering : ParticipantMediaState.Ready;
         }
 
@@ -385,11 +392,33 @@ namespace TheMovies.Video
                 return;
             }
 
+            string location = entry.Location;
+            if (entry.IsNetwork)
+            {
+                // NAS file: played through the local proxy (SMB, WebDAV) or straight from the server (DLNA).
+                string error = "Netzwerkquellen nicht verfügbar.";
+                location = null;
+                if (NetworkLibrary.Instance != null)
+                    location = NetworkLibrary.Instance.Resolve(entry, out error);
+                if (location == null)
+                {
+                    UnloadMovie();
+                    CurrentEntry = null;
+                    LocalState = ParticipantMediaState.Missing;
+                    Problem = error;
+                    return;
+                }
+            }
+            else
+            {
+                NetworkLibrary.Instance?.StopPlayback();
+            }
+
             CurrentEntry = entry;
             Problem = string.Empty;
             LocalState = ParticipantMediaState.Loading;
             m_Screen.SetTexture(null);
-            m_Player.Load(entry.Location);
+            m_Player.Load(location);
             LoadSubtitles(entry, media, stream);
         }
 
@@ -405,6 +434,16 @@ namespace TheMovies.Video
                 {
                     if (v == m_LoadedVersion && data != null)
                         subtitles.SetTrack(data, "vom Gastgeber");
+                });
+            }
+            else if (entry.IsNetwork)
+            {
+                subtitles.Clear();
+                int token = subtitles.LoadToken;
+                NetworkLibrary.Instance?.LoadSubtitles(entry, (data, name) =>
+                {
+                    if (token == subtitles.LoadToken && CurrentEntry == entry)
+                        subtitles.SetTrack(data, name);
                 });
             }
             else if (entry.IsUrl)
@@ -428,6 +467,7 @@ namespace TheMovies.Video
                 IsStreaming = false;
             }
             m_Player.Unload();
+            NetworkLibrary.Instance?.StopPlayback();
             m_Screen.SetTexture(null);
             CurrentEntry = null;
         }

@@ -73,8 +73,19 @@ namespace TheMovies.Core.Streaming
         }
     }
 
+    /// <summary>Block-wise random access to a file whose blocks may arrive later (see <see cref="RemoteBlockCache"/>).</summary>
+    public interface IBlockSource
+    {
+        long TotalSize { get; }
+        int BlockSize { get; }
+        int BlockIndexOf(long byteOffset);
+
+        /// <returns>The block data, or null on timeout or when the source was closed.</returns>
+        byte[] WaitForBlock(int index, int timeoutMs);
+    }
+
     /// <summary>
-    /// Minimal HTTP/1.1 server on 127.0.0.1 that serves one remote file out of a <see cref="RemoteBlockCache"/>,
+    /// Minimal HTTP/1.1 server on 127.0.0.1 that serves one remote file out of an <see cref="IBlockSource"/>,
     /// with byte range support so a video player can seek. Each connection is handled on its own thread
     /// and answers with "Connection: close".
     /// </summary>
@@ -87,7 +98,7 @@ namespace TheMovies.Core.Streaming
         readonly object m_Lock = new object();
         volatile bool m_Disposed;
         string m_Path;
-        RemoteBlockCache m_Cache;
+        IBlockSource m_Cache;
         string m_ContentType = "application/octet-stream";
 
         public LocalStreamServer()
@@ -105,7 +116,7 @@ namespace TheMovies.Core.Streaming
         public int RequestCount;
 
         /// <summary>Serves <paramref name="cache"/> under <paramref name="path"/> (e.g. "/media/3/movie.mp4"). Returns the URL.</summary>
-        public string Serve(string path, RemoteBlockCache cache, string contentType)
+        public string Serve(string path, IBlockSource cache, string contentType)
         {
             lock (m_Lock)
             {
@@ -140,6 +151,8 @@ namespace TheMovies.Core.Streaming
                     return "video/quicktime";
                 case ".ts":
                     return "video/mp2t";
+                case ".avi":
+                    return "video/x-msvideo";
                 default:
                     return "application/octet-stream";
             }
@@ -188,7 +201,7 @@ namespace TheMovies.Core.Streaming
                     Interlocked.Increment(ref RequestCount);
 
                     string servedPath;
-                    RemoteBlockCache cache;
+                    IBlockSource cache;
                     string contentType;
                     lock (m_Lock)
                     {
@@ -238,7 +251,7 @@ namespace TheMovies.Core.Streaming
             }
         }
 
-        static void WriteBody(Stream stream, RemoteBlockCache cache, long start, long end)
+        static void WriteBody(Stream stream, IBlockSource cache, long start, long end)
         {
             long position = start;
             while (position <= end)

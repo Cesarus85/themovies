@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using TheMovies.Core.Network;
 using TheMovies.Core.Streaming;
 using Unity.Collections;
 using Unity.Netcode;
@@ -12,6 +16,7 @@ namespace TheMovies.Net
     /// unchanged in blocks over the existing Netcode connection (so it also works through Relay without
     /// port forwarding); on the receiving side a local HTTP server feeds the blocks to the video player,
     /// which can then seek freely. The normal sync keeps everyone at the same position.
+    /// The host reads the blocks on a worker thread, so a movie on a NAS can be passed on without stalling frames.
     /// </summary>
     public sealed class HostStreamService : MonoBehaviour
     {
@@ -25,11 +30,11 @@ namespace TheMovies.Net
 
         public static HostStreamService Instance { get; private set; }
 
-        /// <summary>Host side: returns the local file path for a media version, or null if it must not be served.</summary>
-        public static Func<int, string> HostFileProvider;
+        /// <summary>Host side: opens the file of a media version (not yet connected), or returns null if it must not be served.</summary>
+        public static Func<int, IRandomAccessSource> HostSourceProvider;
 
-        /// <summary>Host side: returns the subtitle file for a media version, or null.</summary>
-        public static Func<int, string> HostSubtitleProvider;
+        /// <summary>Host side: returns the subtitle file (.srt bytes) for a media version, or null.</summary>
+        public static Func<int, byte[]> HostSubtitleProvider;
 
         /// <summary>Client side: called with the host's subtitle file (null if it has none).</summary>
         Action<int, byte[]> m_SubtitleCallback;
@@ -37,8 +42,21 @@ namespace TheMovies.Net
         bool m_Registered;
 
         // Host
-        FileStream m_File;
-        string m_FilePath;
+        sealed class HostedFile
+        {
+            public int Version;
+            public IRandomAccessSource Source;
+            public bool Opened;
+            public bool Failed;
+            public DateTime RetryAfter;
+        }
+
+        HostedFile m_Hosted;
+        readonly object m_ReadLock = new object();
+        readonly Queue<(HostedFile file, ulong client, int index)> m_ReadQueue = new Queue<(HostedFile, ulong, int)>();
+        readonly ConcurrentQueue<(ulong client, int version, int index, byte[] data)> m_ReadDone = new ConcurrentQueue<(ulong, int, int, byte[])>();
+        Thread m_Reader;
+        bool m_ReaderStop;
 
         // Client
         LocalStreamServer m_Server;
@@ -64,6 +82,11 @@ namespace TheMovies.Net
         {
             StopStream();
             CloseFile();
+            lock (m_ReadLock)
+            {
+                m_ReaderStop = true;
+                Monitor.PulseAll(m_ReadLock);
+            }
             m_Server?.Dispose();
             if (Instance == this) Instance = null;
         }
@@ -89,10 +112,13 @@ namespace TheMovies.Net
                 m_Registered = false;
                 StopStream();
                 CloseFile();
+                while (m_ReadDone.TryDequeue(out _)) { }
             }
 
             if (m_Registered && m_Cache != null && !m_Network.IsServer && m_Network.IsConnectedClient)
                 SendRequests();
+            if (m_Registered && m_Network.IsServer)
+                SendReadBlocks();
 
             UpdateRate();
         }
@@ -216,9 +242,9 @@ namespace TheMovies.Net
             byte[] data = null;
             try
             {
-                string path = HostSubtitleProvider?.Invoke(version);
-                if (!string.IsNullOrEmpty(path) && new FileInfo(path).Length <= k_MaxSubtitleBytes)
-                    data = File.ReadAllBytes(path);
+                data = HostSubtitleProvider?.Invoke(version);
+                if (data != null && data.Length > k_MaxSubtitleBytes)
+                    data = null;
             }
             catch (Exception e)
             {
@@ -244,7 +270,93 @@ namespace TheMovies.Net
             reader.ReadValueSafe(out int version);
             reader.ReadValueSafe(out int index);
 
-            byte[] block = ReadBlock(version, index);
+            if (m_Hosted == null || m_Hosted.Version != version)
+            {
+                CloseFile();
+                IRandomAccessSource source = null;
+                try
+                {
+                    source = HostSourceProvider?.Invoke(version);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[TheMovies] Could not open the movie for streaming: {e.Message}");
+                }
+                m_Hosted = new HostedFile { Version = version, Source = source, Failed = source == null };
+            }
+            if (m_Hosted.Failed)
+            {
+                SendBlock(sender, version, index, null);
+                return;
+            }
+
+            lock (m_ReadLock)
+            {
+                m_ReadQueue.Enqueue((m_Hosted, sender, index));
+                Monitor.Pulse(m_ReadLock);
+            }
+            if (m_Reader == null)
+            {
+                m_Reader = new Thread(ReadLoop) { IsBackground = true, Name = "TheMovies host stream reader" };
+                m_Reader.Start();
+            }
+        }
+
+        /// <summary>Worker thread: reads requested blocks from the hosted file.</summary>
+        void ReadLoop()
+        {
+            while (true)
+            {
+                (HostedFile file, ulong client, int index) job;
+                lock (m_ReadLock)
+                {
+                    while (m_ReadQueue.Count == 0 && !m_ReaderStop)
+                        Monitor.Wait(m_ReadLock);
+                    if (m_ReaderStop) return;
+                    job = m_ReadQueue.Dequeue();
+                }
+
+                byte[] block = null;
+                lock (job.file)
+                {
+                    var source = job.file.Source;
+                    bool waiting = DateTime.UtcNow < job.file.RetryAfter;
+                    for (int attempt = 0; attempt < 2 && !waiting && source != null && !job.file.Failed; attempt++)
+                    {
+                        try
+                        {
+                            if (!job.file.Opened)
+                            {
+                                source.Open();
+                                job.file.Opened = true;
+                            }
+                            block = SourceReader.ReadBlock(source, job.index, RemoteBlockCache.DefaultBlockSize);
+                            break;
+                        }
+                        catch (Exception e)
+                        {
+                            // Reconnect once (NAS connections time out while paused).
+                            Debug.LogWarning($"[TheMovies] Could not read stream block {job.index}: {e.Message}");
+                            try { source.Dispose(); } catch (Exception) { }
+                            job.file.Opened = false;
+                        }
+                    }
+                    if (block == null && !waiting)
+                        job.file.RetryAfter = DateTime.UtcNow.AddSeconds(3);
+                }
+                m_ReadDone.Enqueue((job.client, job.file.Version, job.index, block));
+            }
+        }
+
+        void SendReadBlocks()
+        {
+            while (m_ReadDone.TryDequeue(out var done))
+                SendBlock(done.client, done.version, done.index, done.data);
+        }
+
+        void SendBlock(ulong client, int version, int index, byte[] block)
+        {
+            if (!m_Network.ConnectedClients.ContainsKey(client)) return;
             int length = block?.Length ?? -1;
             using (var writer = new FastBufferWriter(12 + Math.Max(0, length), Allocator.Temp))
             {
@@ -253,49 +365,25 @@ namespace TheMovies.Net
                 writer.WriteValueSafe(length);
                 if (block != null)
                     writer.WriteBytesSafe(block, length);
-                m_Network.CustomMessagingManager.SendNamedMessage(k_DataMessage, sender, writer, NetworkDelivery.ReliableFragmentedSequenced);
-            }
-        }
-
-        byte[] ReadBlock(int version, int index)
-        {
-            string path = HostFileProvider?.Invoke(version);
-            if (string.IsNullOrEmpty(path)) return null;
-            try
-            {
-                if (m_File == null || m_FilePath != path)
-                {
-                    CloseFile();
-                    m_File = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024);
-                    m_FilePath = path;
-                }
-                long offset = (long)index * RemoteBlockCache.DefaultBlockSize;
-                if (index < 0 || offset >= m_File.Length) return null;
-                int length = (int)Math.Min(RemoteBlockCache.DefaultBlockSize, m_File.Length - offset);
-                var block = new byte[length];
-                m_File.Seek(offset, SeekOrigin.Begin);
-                int read = 0;
-                while (read < length)
-                {
-                    int n = m_File.Read(block, read, length - read);
-                    if (n <= 0) return null;
-                    read += n;
-                }
-                return block;
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[TheMovies] Could not read stream block {index}: {e.Message}");
-                CloseFile();
-                return null;
+                m_Network.CustomMessagingManager.SendNamedMessage(k_DataMessage, client, writer, NetworkDelivery.ReliableFragmentedSequenced);
             }
         }
 
         void CloseFile()
         {
-            m_File?.Dispose();
-            m_File = null;
-            m_FilePath = null;
+            var hosted = m_Hosted;
+            m_Hosted = null;
+            if (hosted?.Source == null) return;
+            hosted.Failed = true;
+            // Let a running read finish first; dispose off the main thread so a slow NAS can't stall a frame.
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                lock (hosted)
+                {
+                    try { hosted.Source.Dispose(); }
+                    catch (Exception) { }
+                }
+            });
         }
 
         static string SafeExtension(string fileName)

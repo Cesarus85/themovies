@@ -199,4 +199,41 @@ namespace TheMovies.Core
             }
         }
     }
+
+    /// <summary>Finds the subtitle file that belongs to a movie among the files of its folder.</summary>
+    public static class SubtitleFiles
+    {
+        /// <summary>"Movie.srt" first, then "Movie.de.srt", "Movie.ger.srt" … (German before English before others, forced last).</summary>
+        /// <returns>The chosen file name, or null.</returns>
+        public static string PickSidecar(string videoFileName, IEnumerable<string> fileNames)
+        {
+            string name = System.IO.Path.GetFileNameWithoutExtension(videoFileName ?? string.Empty);
+            if (name.Length == 0 || fileNames == null) return null;
+            string best = null;
+            int bestRank = int.MaxValue;
+            foreach (string file in fileNames)
+            {
+                if (file == null || !file.EndsWith(".srt", StringComparison.OrdinalIgnoreCase)) continue;
+                int rank;
+                if (string.Equals(file, name + ".srt", StringComparison.OrdinalIgnoreCase)) rank = -1;
+                else if (file.StartsWith(name + ".", StringComparison.OrdinalIgnoreCase)) rank = LanguageRank(file);
+                else continue;
+                if (rank < bestRank || (rank == bestRank && string.Compare(file, best, StringComparison.OrdinalIgnoreCase) < 0))
+                {
+                    best = file;
+                    bestRank = rank;
+                }
+            }
+            return best;
+        }
+
+        static int LanguageRank(string fileName)
+        {
+            string lower = fileName.ToLowerInvariant();
+            if (lower.Contains(".forced.")) return 3;
+            if (lower.Contains(".de.") || lower.Contains(".deu.") || lower.Contains(".ger.") || lower.Contains("german")) return 0;
+            if (lower.Contains(".en.") || lower.Contains(".eng.")) return 1;
+            return 2;
+        }
+    }
 }

@@ -1,0 +1,4 @@
+<linker>
+  <!-- HttpClient (WebDAV and DLNA on a NAS) picks its platform handler via reflection; keep it at any stripping level. -->
+  <assembly fullname="System.Net.Http" preserve="all"/>
+</linker>

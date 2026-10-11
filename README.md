@@ -30,6 +30,9 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
   wem die Datei fehlt
 - **Avatare** (Kopf, Hände, Name, Mundbewegung beim Sprechen) auf festen Plätzen nebeneinander
 - **Sprachchat** über Unity Vivox (optional)
+- **NAS & Netzlaufwerke**: Filme direkt von Windows-/Samba-Freigaben (**SMB 2/3**), **WebDAV** oder
+  **DLNA/UPnP-Medienservern** abspielen – mit Netzwerksuche, Ordner-Navigation und Spulen; der Gastgeber
+  kann NAS-Filme auch an Mitschauer weiterstreamen
 - **Untertitel** aus `.srt`-Dateien (neben dem Film, bei Streams auch vom Gastgeber), pro Person ein-/ausschaltbar
 - **Weiterschauen**: Die App merkt sich, wo ihr aufgehört habt, und bietet beim nächsten Mal „Fortsetzen“ an
 - **Reaktionen**: 😂 😮 ❤️ ⭐ über dem eigenen Avatar und **Popcorn werfen** 🍿
@@ -125,6 +128,32 @@ Die Datei wird unverändert übertragen, daher gilt:
 - Unity Relay ist bis zu einem Freikontingent kostenlos; ganze Filme über Relay zu streamen kann dieses
   Kontingent aufbrauchen (Übersicht im Unity Cloud Dashboard).
 
+### Vom NAS / Netzlaufwerk
+
+Im Menü *Film wählen → Netzwerk*. Beim ersten Öffnen sucht die App im WLAN nach NAS-Geräten
+(Bonjour „_smb._tcp“, z. B. Synology/QNAP) und DLNA-Medienservern. Gefundenes erscheint mit „gefunden“;
+antippen, Benutzer und Passwort eingeben (leer = Gast) – klappt die Anmeldung, wird die Quelle gespeichert.
+Nicht gefunden? **„NAS hinzufügen“** und die Adresse eintippen:
+
+| Protokoll | Beispiele | Hinweise |
+| --- | --- | --- |
+| **SMB** (Windows-Freigabe, Samba, NAS) | `smb://192.168.1.10/filme`, `smb://diskstation`, `smb://nas:4455/video/3D` | SMB 2.0 bis 3.0.2, NTLMv2-Anmeldung, Signierung. Ohne Freigabename zeigt die App die Freigaben des Servers. Domänen-Konten als `DOMÄNE\name`. |
+| **WebDAV** | `https://nas:5006/filme`, `davs://cloud.example.de/remote.php/dav/files/ich/` | Basic/Digest-Anmeldung. Selbstsignierte Zertifikate werden nur bei Adressen im Heimnetz akzeptiert. |
+| **DLNA/UPnP** | wird automatisch gefunden | Ohne Anmeldung; die Wiedergabe läuft direkt vom Medienserver. |
+
+- Spulen funktioniert überall; die App liest bei SMB/WebDAV über einen kleinen Zwischenspeicher
+  (ca. 12 MB Vorlauf) und meldet „puffert“, damit die anderen warten, falls das WLAN mal nicht reicht.
+- **Untertitel** (`Film.srt`, `Film.de.srt` …) werden auch im NAS-Ordner gefunden.
+- **Mitschauer**: Für die anderen ist ein NAS-Film wie eine lokale Datei – wer denselben Film hat, nimmt
+  seinen eigenen; alle anderen bekommen ihn vom Gastgeber gestreamt (wie oben).
+- Klappt ein Gerätename wie `smb://diskstation` nicht, die **IP-Adresse** des NAS verwenden
+  (steht in der NAS-Oberfläche oder im Router).
+- **Nicht unterstützt**: SMB-Verschlüsselung („Verschlüsselung erzwingen“ – am NAS auf „optional“ stellen),
+  SMB 1, Kerberos-only-Domänen, NFS/FTP.
+- Zugangsdaten werden nur auf der Brille gespeichert (in den App-Einstellungen, nicht im
+  per USB sichtbaren Ordner), aber nicht verschlüsselt – am NAS am besten einen eigenen
+  Nur-Lese-Benutzer für die Filme anlegen. Quelle löschen: Quelle öffnen → „Quelle entfernen“.
+
 ### Streams aus dem Netz
 
 Statt Dateien gehen auch **http(s)-Adressen** (z. B. direkter Link von deinem NAS/Medienserver),
@@ -183,27 +212,38 @@ Die Logik steckt in `Assets/TheMovies/Scripts/Core` (ohne Unity-Abhängigkeit) u
 ## Tests und Prüfungen ohne Unity
 
 ```
-dotnet test tools/CoreTests            # Unit-Tests der Sync-Logik (laufen auch im Unity Test Runner)
+dotnet test tools/CoreTests            # Unit-Tests (Sync, Streaming, SMB/WebDAV/DLNA-Parser; auch im Unity Test Runner)
 dotnet build tools/CompileCheck        # Kompiliert alle Skripte gegen UnityEngine-Referenzen + API-Stubs
 dotnet build tools/CompileCheck -p:Android=true -p:AllPackages=true
+```
+
+Integrationstests gegen echte Server (werden sonst übersprungen): Samba-Freigabe `filme` (Benutzer
+`tester`/`geheim`, mit `film.mp4`, `film.srt` und Ordner `Ordner mit Ä`), Gast-Freigabe `gast`, und ein
+WebDAV-Ordner mit `Filme/film.mp4` + `film.srt`:
+
+```
+THEMOVIES_SMB=127.0.0.1:4455 THEMOVIES_DAV=http://127.0.0.1:8089/dav/ dotnet test tools/CoreTests --filter Category=Integration
 ```
 
 ## Projektaufbau
 
 ```
 Assets/TheMovies/
-  Scripts/Core/        Sync-Logik ohne Unity: Uhrenabgleich, Zeitleiste, Drift-Korrektur, 3D-Formate, Dateisuche
+  Scripts/Core/        Logik ohne Unity: Uhrenabgleich, Zeitleiste, Drift-Korrektur, 3D-Formate, Dateisuche
+    Streaming/         Block-Cache, lokaler HTTP-Server mit Range-Support, Quellen-Streamer
+    Network/           SMB2/3-Client (NTLMv2, Signierung, Freigabeliste), WebDAV, DLNA/SSDP, mDNS
   Scripts/Runtime/
     App/               AppController (Einstiegspunkt), Einstellungen
     Net/               SessionManager (Online/LAN), CinemaSync (gemeinsame Zeitleiste), NetworkPlayer, Sprachchat
-    Video/             MoviePlayer (Unity VideoPlayer), MediaCoordinator (Sync anwenden), MediaLibrary
+    Video/             MoviePlayer (Unity VideoPlayer), MediaCoordinator (Sync anwenden), MediaLibrary,
+                       NetworkLibrary (NAS-Quellen, Suche, Proxy-Wiedergabe)
     World/             Kinosaal, Leinwand mit 3D-Shader, Avatare
     XR/                Kamera-Rig, Controller, Laserpointer, PC-Steuerung
     UI/                3D-Menü (Hauptmenü, Tastatur, Steuerung, Filmauswahl)
   Resources/Shaders/   Stereo-Video-, Unlit-, Text- und Menü-Shader (Single Pass Instanced)
   Editor/              Menü „The Movies“: Projekt einrichten, APK bauen
   Tests/Editor/        NUnit-Tests
-tools/                 dotnet-Projekte für Tests und Compile-Check
+tools/                 dotnet-Projekte für Tests (inkl. NAS-Integrationstests) und Compile-Check
 ```
 
 Szene und Prefabs werden vom Setup-Menü erzeugt (nicht im Repository). Die `.meta`-Dateien, die Unity

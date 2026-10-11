@@ -33,6 +33,12 @@ namespace TheMovies.Video
         public bool Enabled { get; set; } = true;
         public bool HasTrack => m_Track != null && m_Track.Count > 0;
 
+        /// <summary>The raw .srt file of the loaded track (sent to participants who stream from the host).</summary>
+        public byte[] TrackData { get; private set; }
+
+        /// <summary>Increases with every <see cref="Clear"/>; lets asynchronous loaders detect that the movie changed.</summary>
+        public int LoadToken => m_LoadToken;
+
         /// <summary>Name of the loaded subtitle source for the menu.</summary>
         public string TrackName { get; private set; } = string.Empty;
 
@@ -67,6 +73,7 @@ namespace TheMovies.Video
         {
             m_LoadToken++;
             m_Track = null;
+            TrackData = null;
             TrackName = string.Empty;
             Show(null);
         }
@@ -99,10 +106,11 @@ namespace TheMovies.Video
 
         public void SetTrack(byte[] data, string name)
         {
-            if (data == null || data.Length == 0) return;
+            if (data == null || data.Length == 0 || data.Length > k_MaxBytes) return;
             var track = SrtParser.Parse(SrtParser.Decode(data));
             if (track.Count == 0) return;
             m_Track = track;
+            TrackData = data;
             TrackName = name ?? string.Empty;
             m_Shown = null;
         }
@@ -160,30 +168,16 @@ namespace TheMovies.Video
             try
             {
                 string dir = Path.GetDirectoryName(videoPath);
-                string name = Path.GetFileNameWithoutExtension(videoPath);
-                if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(name) || !Directory.Exists(dir)) return null;
-                string exact = Path.Combine(dir, name + ".srt");
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
+                string exact = Path.Combine(dir, Path.GetFileNameWithoutExtension(videoPath) + ".srt");
                 if (File.Exists(exact)) return exact;
-                var candidates = Directory.GetFiles(dir, "*.srt")
-                    .Where(f => Path.GetFileName(f).StartsWith(name + ".", StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(f => GermanRank(Path.GetFileName(f)))
-                    .ThenBy(f => f, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                return candidates.Count > 0 ? candidates[0] : null;
+                string name = SubtitleFiles.PickSidecar(Path.GetFileName(videoPath), Directory.GetFiles(dir, "*.srt").Select(Path.GetFileName));
+                return name != null ? Path.Combine(dir, name) : null;
             }
             catch (Exception)
             {
                 return null;
             }
-        }
-
-        static int GermanRank(string fileName)
-        {
-            string lower = fileName.ToLowerInvariant();
-            if (lower.Contains(".forced.")) return 3;
-            if (lower.Contains(".de.") || lower.Contains(".deu.") || lower.Contains(".ger.") || lower.Contains("german")) return 0;
-            if (lower.Contains(".en.") || lower.Contains(".eng.")) return 1;
-            return 2;
         }
 
         static string SubtitleUrlFor(string url)

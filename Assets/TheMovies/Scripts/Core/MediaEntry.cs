@@ -5,7 +5,7 @@ using System.Text;
 
 namespace TheMovies.Core
 {
-    /// <summary>A playable item: a local file or a stream URL.</summary>
+    /// <summary>A playable item: a local file, a stream URL or a file on a NAS / network share.</summary>
     public sealed class MediaEntry
     {
         /// <summary>Display name.</summary>
@@ -22,10 +22,19 @@ namespace TheMovies.Core
         /// <summary>Format override from a playlist entry; null means auto detection.</summary>
         public StereoFormat? FormatHint;
 
+        /// <summary>Key of the network source (NAS) the file lives on; null for files on this device and stream URLs.</summary>
+        public string SourceId;
+
+        /// <summary>File name when it can't be taken from <see cref="Location"/> (network items).</summary>
+        public string Name;
+
+        /// <summary>File on a NAS / network share. Treated like a local file for matching (others look for the same file name).</summary>
+        public bool IsNetwork => SourceId != null;
+
         /// <summary>The key other participants use to find their own copy: file name for files, URL for streams.</summary>
         public string MatchKey => IsUrl ? Location : FileName;
 
-        public string FileName => IsUrl ? Location : Path.GetFileName(Location);
+        public string FileName => IsUrl ? Location : Name ?? Path.GetFileName(Location);
 
         public override string ToString() => $"{Title} ({Location})";
     }

@@ -1,3 +1,4 @@
+using TheMovies.Core.Network;
 using TheMovies.Net;
 using TheMovies.Platform;
 using TheMovies.UI;
@@ -64,17 +65,22 @@ namespace TheMovies.App
 
             Menu = MenuUI.Create(this);
 
+            NetworkLibrary.Create();
             HostStreamService.Create();
-            HostStreamService.HostFileProvider = version =>
+            HostStreamService.HostSourceProvider = version =>
             {
                 var media = Playback.Current.Media;
                 var entry = Media.CurrentEntry;
-                return media.Version == version && media.HostStream && entry != null && !entry.IsUrl ? entry.Location : null;
+                if (media.Version != version || !media.HostStream || entry == null || entry.IsUrl || Media.IsStreaming) return null;
+                return entry.IsNetwork ? NetworkLibrary.Instance.OpenForHosting(entry) : new LocalFileSource(entry.Location);
             };
             HostStreamService.HostSubtitleProvider = version =>
             {
-                string file = HostStreamService.HostFileProvider(version);
-                return file != null ? SubtitleService.FindSidecar(file) : null;
+                var media = Playback.Current.Media;
+                var entry = Media.CurrentEntry;
+                if (media.Version != version || entry == null || entry.IsUrl) return null;
+                // Whatever this device shows: the sidecar of a local file or the one found on the NAS.
+                return Subtitles.TrackData;
             };
 
             NetworkPlayer.LocalNameProvider = () => Settings.Name;

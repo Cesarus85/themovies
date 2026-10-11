@@ -10,7 +10,7 @@ namespace TheMovies.Core.Streaming
     /// <see cref="TakeRequests"/> which blocks to fetch next and delivers them via <see cref="OnBlockReceived"/>.
     /// Blocks a reader is waiting for come first, then read-ahead from the latest read position.
     /// </summary>
-    public sealed class RemoteBlockCache
+    public sealed class RemoteBlockCache : IBlockSource
     {
         public const int DefaultBlockSize = 256 * 1024;
 
