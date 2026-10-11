@@ -73,8 +73,8 @@ Die Mitschauer installieren dieselbe APK auf ihrer Quest.
 2. Darunter *OpenXR*, Reiter Android: Feature **Meta Quest Support** anhaken; bei *Enabled Interaction
    Profiles* mit **+** das **Oculus Touch Controller Profile** hinzufügen.
 3. *XR Plug-in Management → Project Validation*, Reiter Android: **Fix All** klicken.
-4. Neu bauen und installieren. (*The Movies → VR-Einrichtung prüfen* zeigt, ob alles passt; ein Android-Build
-   bricht jetzt mit einer Erklärung ab, statt eine flache App zu erzeugen.)
+4. Neu bauen und installieren. (*The Movies → VR-Einrichtung prüfen* zeigt, was gefunden wurde; beim Android-Build
+   erscheint eine Warnung in der Console, falls etwas zu fehlen scheint. Maßgeblich sind die Haken in den Project Settings.)
 
 ## Filme auf die Quest kopieren
 

@@ -75,9 +75,13 @@ namespace TheMovies.EditorTools
         }
 
         /// <summary>Checks whether an Android build would start in VR: OpenXR loader active and Meta Quest Support enabled.</summary>
-        public static Readiness CheckQuest(out string problem)
+        public static Readiness CheckQuest(out string problem) => CheckQuest(out problem, out _);
+
+        /// <param name="details">What was found (loaders, Meta features), for the diagnostics dialog.</param>
+        public static Readiness CheckQuest(out string problem, out string details)
         {
             problem = null;
+            details = string.Empty;
             try
             {
                 var perTargetType = FindType("UnityEditor.XR.Management.XRGeneralSettingsPerBuildTarget");
@@ -105,7 +109,8 @@ namespace TheMovies.EditorTools
                 var t = perTarget.GetType();
                 var settings = t.GetMethod("SettingsForBuildTarget", new[] { typeof(BuildTargetGroup) })?.Invoke(perTarget, new object[] { BuildTargetGroup.Android });
                 var manager = settings?.GetType().GetProperty("Manager")?.GetValue(settings);
-                var loaders = manager?.GetType().GetProperty("activeLoaders")?.GetValue(manager) as System.Collections.IEnumerable;
+                var loaders = (manager?.GetType().GetProperty("activeLoaders")?.GetValue(manager) ??
+                               manager?.GetType().GetProperty("loaders")?.GetValue(manager)) as System.Collections.IEnumerable;
                 if (settings == null || manager == null || loaders == null)
                 {
                     problem = "Für Android ist kein XR-Plug-in ausgewählt.";
@@ -113,9 +118,15 @@ namespace TheMovies.EditorTools
                 }
 
                 bool openXr = false;
+                var loaderNames = new System.Collections.Generic.List<string>();
                 foreach (var loader in loaders)
-                    if (loader != null && loader.GetType().Name == "OpenXRLoader")
+                {
+                    if (loader == null) continue;
+                    loaderNames.Add(loader.GetType().Name);
+                    if (IsOrDerivesFrom(loader.GetType(), "OpenXR"))
                         openXr = true;
+                }
+                details = "Android-Loader: " + (loaderNames.Count > 0 ? string.Join(", ", loaderNames) : "(keine)");
                 if (!openXr)
                 {
                     problem = "Für Android ist 'OpenXR' nicht angehakt.";
@@ -126,12 +137,29 @@ namespace TheMovies.EditorTools
                     ?.Invoke(null, new object[] { BuildTargetGroup.Android });
                 var features = openXrSettings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(openXrSettings, null) as Array;
                 if (features == null) return Readiness.Unknown;
+                bool sawQuestFeature = false;
+                var metaFeatures = new System.Collections.Generic.List<string>();
                 foreach (var feature in features)
                 {
-                    if (feature == null || feature.GetType().Name != "MetaQuestFeature") continue;
-                    if (feature.GetType().GetProperty("enabled")?.GetValue(feature) is bool on && on)
-                        return Readiness.Ready;
+                    if (feature == null) continue;
+                    string name = feature.GetType().Name;
+                    if (name.IndexOf("Meta", StringComparison.OrdinalIgnoreCase) < 0 &&
+                        name.IndexOf("Oculus", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    bool on = feature.GetType().GetProperty("enabled")?.GetValue(feature) is bool b && b;
+                    metaFeatures.Add(name + (on ? " ✓" : " –"));
+                    if (name == "MetaQuestFeature")
+                    {
+                        sawQuestFeature = true;
+                        if (on)
+                        {
+                            details += "\nMeta/Oculus-Features: " + string.Join(", ", metaFeatures);
+                            return Readiness.Ready;
+                        }
+                    }
                 }
+                details += "\nMeta/Oculus-Features: " + (metaFeatures.Count > 0 ? string.Join(", ", metaFeatures) : "(keine)");
+                if (!sawQuestFeature)
+                    return Readiness.Unknown; // feature renamed in this OpenXR version: can't tell
                 problem = "OpenXR-Feature 'Meta Quest Support' ist für Android nicht aktiviert.";
                 return Readiness.NotReady;
             }
@@ -213,6 +241,14 @@ namespace TheMovies.EditorTools
             var m = type.GetMethod(method, new[] { typeof(BuildTargetGroup) });
             if (m == null) throw new MissingMethodException(type.Name, method);
             return m.Invoke(target, new object[] { group });
+        }
+
+        static bool IsOrDerivesFrom(Type type, string namePart)
+        {
+            for (var t = type; t != null; t = t.BaseType)
+                if (t.Name.IndexOf(namePart, StringComparison.Ordinal) >= 0)
+                    return true;
+            return false;
         }
 
         static bool IsPackageInstalled(string name) =>

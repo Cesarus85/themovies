@@ -115,21 +115,26 @@ namespace TheMovies.EditorTools
         [MenuItem("The Movies/VR-Einrichtung prüfen", priority = 30)]
         public static void CheckXR()
         {
-            var state = XRConfigurator.CheckQuest(out string problem);
-            if (state == XRConfigurator.Readiness.Ready)
+            var state = XRConfigurator.CheckQuest(out string problem, out string details);
+            string found = string.IsNullOrEmpty(details) ? string.Empty : "\n\nGefunden:\n" + details;
+            switch (state)
             {
-                EditorUtility.DisplayDialog("The Movies", "Alles bereit: OpenXR und Meta Quest Support sind für Android aktiv.", "OK");
-                return;
+                case XRConfigurator.Readiness.Ready:
+                    EditorUtility.DisplayDialog("The Movies", "Alles bereit: OpenXR und Meta Quest Support sind für Android aktiv." + found, "OK");
+                    return;
+                case XRConfigurator.Readiness.Unknown:
+                    EditorUtility.DisplayDialog("The Movies",
+                        "Die XR-Einstellungen ließen sich nicht eindeutig auslesen. Wenn unter XR Plug-in Management (Android) " +
+                        "'OpenXR' und unter OpenXR 'Meta Quest Support' angehakt sind, passt es." + found, "OK");
+                    return;
             }
 
-            string text = state == XRConfigurator.Readiness.Unknown
-                ? "Die XR-Einstellungen konnten nicht automatisch geprüft werden."
-                : problem;
-            if (EditorUtility.DisplayDialog("The Movies", text + "\n\nJetzt automatisch einrichten?", "Einrichten", "Abbrechen"))
+            if (EditorUtility.DisplayDialog("The Movies", problem + found + "\n\nJetzt automatisch einrichten?", "Einrichten", "Abbrechen"))
             {
                 string result = XRConfigurator.Configure();
-                XRConfigurator.CheckQuest(out problem);
-                EditorUtility.DisplayDialog("The Movies", result + (problem != null ? "\n\nNoch offen: " + problem : string.Empty), "OK");
+                var after = XRConfigurator.CheckQuest(out problem, out details);
+                EditorUtility.DisplayDialog("The Movies",
+                    result + (after == XRConfigurator.Readiness.NotReady ? "\n\nNoch offen: " + problem + "\n" + details : string.Empty), "OK");
             }
         }
 

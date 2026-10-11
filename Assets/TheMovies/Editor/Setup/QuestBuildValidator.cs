@@ -6,8 +6,9 @@ using UnityEngine;
 namespace TheMovies.EditorTools
 {
     /// <summary>
-    /// Stops Android builds that would start as a flat 2D window on the Quest because OpenXR or
-    /// "Meta Quest Support" is not enabled. Tries to fix the settings automatically first.
+    /// Warns (in the console) when an Android build looks like it would start as a flat 2D window on the
+    /// Quest because OpenXR or "Meta Quest Support" is not enabled. Never blocks the build: the check reads
+    /// XR package internals via reflection and can be wrong for other package versions.
     /// </summary>
     sealed class QuestBuildValidator : IPreprocessBuildWithReport
     {
@@ -18,21 +19,12 @@ namespace TheMovies.EditorTools
             if (report.summary.platform != BuildTarget.Android)
                 return;
 
-            if (XRConfigurator.CheckQuest(out string problem) != XRConfigurator.Readiness.NotReady)
-                return;
-
-            Debug.LogWarning("[TheMovies] " + problem + " Trying to enable OpenXR / Meta Quest Support automatically.");
-            XRConfigurator.Configure();
-            if (XRConfigurator.CheckQuest(out problem) != XRConfigurator.Readiness.NotReady)
+            if (XRConfigurator.CheckQuest(out string problem, out string details) == XRConfigurator.Readiness.NotReady)
             {
-                throw new BuildFailedException(
-                    "The Movies: OpenXR / Meta Quest Support wurde gerade aktiviert. Bitte den Build einfach noch einmal starten.");
+                Debug.LogWarning("[TheMovies] Möglicherweise startet die App auf der Quest nur als flaches Fenster: " + problem +
+                                 "\n" + details +
+                                 "\nBitte unter Edit > Project Settings > XR Plug-in Management (Android) prüfen: 'OpenXR' und 'Meta Quest Support'.");
             }
-
-            throw new BuildFailedException(
-                "The Movies: Die App würde auf der Quest nur als flaches Fenster starten. " + problem +
-                " Bitte unter Edit > Project Settings > XR Plug-in Management (Reiter Android) 'OpenXR' anhaken, " +
-                "unter OpenXR 'Meta Quest Support' aktivieren und unter 'Project Validation' auf 'Fix All' klicken.");
         }
     }
 }
