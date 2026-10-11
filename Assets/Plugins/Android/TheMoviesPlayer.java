@@ -19,7 +19,10 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
+import androidx.media3.common.audio.AudioProcessor;
+import androidx.media3.common.audio.BaseAudioProcessor;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.text.Cue;
@@ -31,6 +34,8 @@ import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.SeekParameters;
+import androidx.media3.exoplayer.audio.AudioSink;
+import androidx.media3.exoplayer.audio.DefaultAudioSink;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
 import java.io.File;
@@ -109,6 +114,40 @@ public final class TheMoviesPlayer {
         if (p != null) p.post(() -> { if (p.mPlayer != null) p.mPlayer.setVolume(volume); });
     }
 
+    /**
+     * Selects an audio or subtitle track (indices as listed by tracks()); group &lt; 0 switches the track type off.
+     * @param type 1 = audio, 3 = text (C.TRACK_TYPE_*)
+     */
+    public static void selectTrack(int id, int type, int group, int track) {
+        TheMoviesPlayer p = get(id);
+        if (p == null) return;
+        p.post(() -> {
+            ExoPlayer player = p.mPlayer;
+            Tracks tracks = p.mTracks;
+            if (player == null) return;
+            TrackSelectionParameters.Builder b = player.getTrackSelectionParameters().buildUpon();
+            if (group < 0 || tracks == null || group >= tracks.getGroups().size()) {
+                b.setTrackTypeDisabled(type, true);
+            } else {
+                Tracks.Group g = tracks.getGroups().get(group);
+                b.setTrackTypeDisabled(type, false);
+                b.setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(), track));
+            }
+            player.setTrackSelectionParameters(b.build());
+        });
+    }
+
+    /** Audio offset in ms (+ = sound later, - = sound earlier), applied at once via a seek to the current spot. */
+    public static void setAudioDelay(int id, int delayMs) {
+        TheMoviesPlayer p = get(id);
+        if (p == null) return;
+        p.mDelay.delayMs = Math.max(-1000, Math.min(1000, delayMs));
+        p.post(() -> {
+            if (p.mPlayer != null && p.mPlayer.getPlaybackState() != Player.STATE_IDLE)
+                p.mPlayer.seekTo(p.mPlayer.getCurrentPosition());
+        });
+    }
+
     /** Stops the player; GL objects are freed on the next renderFrame call. */
     public static void release(int id) {
         TheMoviesPlayer p;
@@ -183,7 +222,7 @@ public final class TheMoviesPlayer {
         return p != null ? p.mCues : "";
     }
 
-    /** Audio and subtitle tracks for the menu, one per line: "a|de|AC-3 5.1|1" (type|language|label|selected). */
+    /** Audio and subtitle tracks for the menu, one per line: "a|de|AC3 5.1|1|1|2|0" (type|language|label|selected|supported|group|track). */
     public static String tracks(int id) {
         TheMoviesPlayer p = get(id);
         return p != null ? p.mTrackInfo : "";
@@ -239,6 +278,8 @@ public final class TheMoviesPlayer {
     private volatile int mCueVersion;
     private volatile String mTrackInfo = "";
     private volatile boolean mAudioUnsupported;
+    private volatile Tracks mTracks;
+    private final DelayAudioProcessor mDelay = new DelayAudioProcessor();
 
     // GL (render thread only, except the ids read by state())
     private final AtomicBoolean mFrameAvailable = new AtomicBoolean();
@@ -272,7 +313,7 @@ public final class TheMoviesPlayer {
     private void openOnPlayerThread(String location, String preferredLanguage) {
         post(() -> {
             try {
-                DefaultRenderersFactory renderers = new DefaultRenderersFactory(mContext)
+                DefaultRenderersFactory renderers = new AudioDelayRenderersFactory(mContext, mDelay)
                         .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                         .setEnableDecoderFallback(true);
 
@@ -398,9 +439,12 @@ public final class TheMoviesPlayer {
 
         @Override
         public void onTracksChanged(Tracks tracks) {
+            mTracks = tracks;
             StringBuilder sb = new StringBuilder();
             boolean anyAudio = false, anyAudioSupported = false;
-            for (Tracks.Group group : tracks.getGroups()) {
+            List<Tracks.Group> groups = tracks.getGroups();
+            for (int gi = 0; gi < groups.size(); gi++) {
+                Tracks.Group group = groups.get(gi);
                 int type = group.getType();
                 if (type != C.TRACK_TYPE_AUDIO && type != C.TRACK_TYPE_TEXT) continue;
                 for (int i = 0; i < group.length; i++) {
@@ -414,7 +458,8 @@ public final class TheMoviesPlayer {
                             .append(f.language != null ? f.language : "").append('|')
                             .append(describe(f)).append('|')
                             .append(group.isTrackSelected(i) ? '1' : '0').append('|')
-                            .append(supported ? '1' : '0').append('\n');
+                            .append(supported ? '1' : '0').append('|')
+                            .append(gi).append('|').append(i).append('\n');
                 }
             }
             mTrackInfo = sb.toString();
@@ -440,6 +485,67 @@ public final class TheMoviesPlayer {
         sb.append((slash >= 0 ? mime.substring(slash + 1) : mime).toUpperCase());
         if (f.channelCount > 0) sb.append(' ').append(f.channelCount == 6 ? "5.1" : f.channelCount == 8 ? "7.1" : f.channelCount + "ch");
         return sb.toString().replace('|', '/').replace('\n', ' ');
+    }
+
+    // ---------------- Audio offset ----------------
+
+    /** Renderers whose audio sink runs the offset processor (works for the FFmpeg renderer too). */
+    private static final class AudioDelayRenderersFactory extends DefaultRenderersFactory {
+        private final DelayAudioProcessor mDelay;
+
+        AudioDelayRenderersFactory(Context context, DelayAudioProcessor delay) {
+            super(context);
+            mDelay = delay;
+        }
+
+        // Media3 1.2+ signature (no @Override: older/newer variants simply keep the default sink).
+        protected AudioSink buildAudioSink(Context context, boolean enableFloatOutput, boolean enableAudioTrackPlaybackParams) {
+            return new DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .setAudioProcessors(new AudioProcessor[] {mDelay})
+                    .build();
+        }
+    }
+
+    /**
+     * Shifts the sound against the picture: after every flush (start, seek) it inserts silence (sound later) or
+     * skips samples (sound earlier). The audio clock counts the played frames, so the picture follows.
+     */
+    private static final class DelayAudioProcessor extends BaseAudioProcessor {
+        volatile int delayMs;
+        private long mPendingFrames;
+
+        @Override
+        protected AudioFormat onConfigure(AudioFormat input) throws UnhandledAudioFormatException {
+            if (input.encoding != C.ENCODING_PCM_16BIT && input.encoding != C.ENCODING_PCM_FLOAT)
+                throw new UnhandledAudioFormatException(input);
+            return input;
+        }
+
+        @Override
+        protected void onFlush() {
+            mPendingFrames = (long) delayMs * inputAudioFormat.sampleRate / 1000;
+        }
+
+        @Override
+        public void queueInput(ByteBuffer input) {
+            int frameSize = inputAudioFormat.bytesPerFrame;
+            if (frameSize <= 0) return;
+            if (mPendingFrames < 0) {
+                long dropFrames = Math.min(input.remaining() / frameSize, -mPendingFrames);
+                input.position(input.position() + (int) (dropFrames * frameSize));
+                mPendingFrames += dropFrames;
+            }
+            int silence = mPendingFrames > 0 ? (int) (mPendingFrames * frameSize) : 0;
+            int remaining = input.remaining();
+            if (silence == 0 && remaining == 0) return;
+            ByteBuffer out = replaceOutputBuffer(silence + remaining);
+            for (int i = 0; i < silence; i++) out.put((byte) 0);
+            if (silence > 0) mPendingFrames = 0;
+            out.put(input);
+            out.flip();
+        }
     }
 
     // ---------------- Render thread ----------------

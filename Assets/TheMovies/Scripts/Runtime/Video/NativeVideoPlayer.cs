@@ -179,6 +179,11 @@ namespace TheMovies.Video
             m_State[1] = seconds;
         }
 
+        /// <param name="type">1 = audio, 3 = subtitles; <paramref name="group"/> &lt; 0 switches the type off.</param>
+        public void SelectTrack(int type, int group, int index) => m_Java.CallStatic("selectTrack", m_Id, type, group, index);
+
+        public void SetAudioDelay(int milliseconds) => m_Java.CallStatic("setAudioDelay", m_Id, milliseconds);
+
         public void SetSpeed(float speed) => m_Java.CallStatic("setSpeed", m_Id, speed);
         public void SetVolume(float volume) => m_Java.CallStatic("setVolume", m_Id, volume);
 

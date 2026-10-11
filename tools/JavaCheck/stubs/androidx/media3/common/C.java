@@ -1,1 +1,1 @@
-package androidx.media3.common; public final class C { public static final long TIME_UNSET = Long.MIN_VALUE + 1; public static final int TRACK_TYPE_AUDIO = 1, TRACK_TYPE_TEXT = 3; }
+package androidx.media3.common; public final class C { public static final long TIME_UNSET = Long.MIN_VALUE + 1; public static final int TRACK_TYPE_AUDIO = 1, TRACK_TYPE_TEXT = 3; public static final int ENCODING_PCM_16BIT = 2, ENCODING_PCM_FLOAT = 4; }

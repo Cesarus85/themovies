@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using TheMovies.Core;
 using UnityEngine;
 using UnityEngine.Video;
 
@@ -47,6 +49,35 @@ namespace TheMovies.Video
 
         /// <summary>Embedded subtitle text to show right now (own player only).</summary>
         public string EmbeddedSubtitle => m_Native != null ? m_Native.Cues : string.Empty;
+
+        /// <summary>Audio and subtitle tracks of the file (own player only; empty otherwise).</summary>
+        public List<MediaTrack> Tracks()
+        {
+            if (m_Native == null || State != MovieState.Ready) return new List<MediaTrack>();
+            return MediaTrack.Parse(m_Native.Tracks);
+        }
+
+        public void SelectTrack(MediaTrack track)
+        {
+            if (m_Native == null || track == null) return;
+            m_Native.SelectTrack(track.Type == MediaTrackType.Audio ? 1 : 3, track.Group, track.Index);
+        }
+
+        /// <summary>Switches the embedded subtitles off (own player).</summary>
+        public void DisableEmbeddedSubtitles() => m_Native?.SelectTrack(3, -1, 0);
+
+        int m_AudioDelayMs;
+
+        /// <summary>Sound offset in ms (+ later, - earlier) – own player only.</summary>
+        public int AudioDelayMs
+        {
+            get => m_AudioDelayMs;
+            set
+            {
+                m_AudioDelayMs = Mathf.Clamp(value, -1000, 1000);
+                m_Native?.SetAudioDelay(m_AudioDelayMs);
+            }
+        }
 
         /// <summary>Seconds the player has buffered ahead of the playback position (own player), MaxValue if unknown.</summary>
         public double BufferedAhead
@@ -126,6 +157,7 @@ namespace TheMovies.Video
                 {
                     m_Native = new NativeVideoPlayer(pathOrUrl);
                     m_Native.SetVolume(m_Volume);
+                    if (m_AudioDelayMs != 0) m_Native.SetAudioDelay(m_AudioDelayMs);
                     m_PrepareStartedAt = Now;
                     return;
                 }

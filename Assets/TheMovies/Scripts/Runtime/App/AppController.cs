@@ -31,6 +31,7 @@ namespace TheMovies.App
 
         void Awake()
         {
+            AppLog.Start();
             Application.runInBackground = true;
             QualitySettings.vSyncCount = 0;
             Settings = AppSettings.Load();
@@ -57,6 +58,7 @@ namespace TheMovies.App
             playerGo.transform.SetParent(Screen.transform, false);
             var moviePlayer = playerGo.AddComponent<MoviePlayer>();
             moviePlayer.Volume = Settings.Volume;
+            moviePlayer.AudioDelayMs = Settings.AudioDelayMs;
             Media = playerGo.AddComponent<MediaCoordinator>();
             Media.Init(moviePlayer, Screen, library);
 
@@ -171,6 +173,15 @@ namespace TheMovies.App
             MixedReality.SetEnabled(enabled, m_Cinema, m_Rig.Camera);
             Settings.MixedReality = MixedReality.Enabled;
             Settings.Save();
+        }
+
+        /// <summary>Sound offset of the own player in ms (+ later, - earlier); saved for the next movies.</summary>
+        public void ChangeAudioDelay(int deltaMs)
+        {
+            int value = Mathf.Clamp(Settings.AudioDelayMs + deltaMs, -500, 500);
+            Settings.AudioDelayMs = value;
+            Settings.Save();
+            Media.Player.AudioDelayMs = value;
         }
 
         public void ChangeHeight(float delta)

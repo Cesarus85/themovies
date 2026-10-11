@@ -17,7 +17,7 @@ namespace TheMovies.UI
     /// browser. Appears at eye level in front of the user and can be moved with the grab bar below it.
     /// Built entirely in code from the widgets in UIKit.cs.
     /// </summary>
-    public sealed class MenuUI : MonoBehaviour
+    public sealed partial class MenuUI : MonoBehaviour
     {
         const float k_Width = 0.92f;
         const float k_Height = 0.72f;
@@ -154,6 +154,7 @@ namespace TheMovies.UI
             m_SessionPage = BuildSessionPage();
             m_BrowserPage = BuildBrowserPage();
             m_SettingsPage = BuildSettingsPage();
+            BuildExtraPages();
 
             m_Handle = UIGrabHandle.Create(m_Root, new Vector3(0, -k_Height * 0.5f - 0.035f, 0), 0.2f);
             m_Handle.Began += OnGrabBegan;
@@ -165,6 +166,7 @@ namespace TheMovies.UI
             m_KeyboardPage.SetActive(false);
             m_SessionPage.SetActive(false);
             m_BrowserPage.SetActive(false);
+            HideExtraPages();
             ShowPage(m_MainPage);
 
             LaserPointer.PressedOnNothing += OnPressedOnNothing;
@@ -498,8 +500,10 @@ namespace TheMovies.UI
             m_SetHeight = Label(p, string.Empty, valueX, y, 0.02f, 10, TextAnchor.MiddleCenter);
             Button(p, null, plusX, y, small, small, () => m_App.ChangeHeight(0.05f), 0.02f, UIIcon.Plus);
 
-            Button(p, "Platz neu ausrichten", -0.2f, -0.322f, 0.3f, 0.042f, () => XRRig.Instance?.RequestAlign(), 0.017f, style: ButtonStyle.Subtle);
-            Button(p, "Menü hierher holen", 0.2f, -0.322f, 0.3f, 0.042f, PlaceInFrontOfUser, 0.017f, style: ButtonStyle.Subtle);
+            Button(p, "Ton & Untertitel", -0.33f, -0.322f, 0.205f, 0.042f, () => ShowPage(m_TracksPage), 0.016f, style: ButtonStyle.Subtle);
+            Button(p, "Protokoll", -0.11f, -0.322f, 0.205f, 0.042f, OpenLog, 0.016f, style: ButtonStyle.Subtle);
+            Button(p, "Platz ausrichten", 0.11f, -0.322f, 0.205f, 0.042f, () => XRRig.Instance?.RequestAlign(), 0.016f, style: ButtonStyle.Subtle);
+            Button(p, "Menü herholen", 0.33f, -0.322f, 0.205f, 0.042f, PlaceInFrontOfUser, 0.016f, style: ButtonStyle.Subtle);
             return p;
         }
 
@@ -1213,6 +1217,7 @@ namespace TheMovies.UI
             else if (m_CurrentPage == m_SessionPage) RefreshSession();
             else if (m_CurrentPage == m_BrowserPage) RefreshBrowser();
             else if (m_CurrentPage == m_SettingsPage) RefreshSettings();
+            else RefreshExtraPages();
         }
 
         void RefreshSettings()

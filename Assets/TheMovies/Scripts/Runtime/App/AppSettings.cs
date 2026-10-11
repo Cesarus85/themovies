@@ -15,6 +15,7 @@ namespace TheMovies.App
         const string k_Height = "tm.height";
         const string k_Subtitles = "tm.subtitles";
         const string k_MixedReality = "tm.mixedReality";
+        const string k_AudioDelay = "tm.audioDelay";
 
         public string Name;
         public int ScreenSize;
@@ -26,6 +27,7 @@ namespace TheMovies.App
         public float HeightOffset;
         public bool Subtitles;
         public bool MixedReality;
+        public int AudioDelayMs;
 
         public static AppSettings Load()
         {
@@ -41,6 +43,7 @@ namespace TheMovies.App
                 HeightOffset = PlayerPrefs.GetFloat(k_Height, 0f),
                 Subtitles = PlayerPrefs.GetInt(k_Subtitles, 1) == 1,
                 MixedReality = PlayerPrefs.GetInt(k_MixedReality, 0) == 1,
+                AudioDelayMs = PlayerPrefs.GetInt(k_AudioDelay, 0),
             };
         }
 
@@ -56,6 +59,7 @@ namespace TheMovies.App
             PlayerPrefs.SetFloat(k_Height, HeightOffset);
             PlayerPrefs.SetInt(k_Subtitles, Subtitles ? 1 : 0);
             PlayerPrefs.SetInt(k_MixedReality, MixedReality ? 1 : 0);
+            PlayerPrefs.SetInt(k_AudioDelay, AudioDelayMs);
             PlayerPrefs.Save();
         }
     }

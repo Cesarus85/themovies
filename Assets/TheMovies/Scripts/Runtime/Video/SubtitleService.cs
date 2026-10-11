@@ -42,6 +42,9 @@ namespace TheMovies.Video
         /// <summary>Subtitle text from the movie file itself (own player), used when there is no .srt file.</summary>
         public string EmbeddedText { get; set; }
 
+        /// <summary>The user picked a subtitle track of the movie file: show it instead of the .srt file.</summary>
+        public bool PreferEmbedded { get; set; }
+
         /// <summary>Name of the loaded subtitle source for the menu.</summary>
         public string TrackName { get; private set; } = string.Empty;
 
@@ -76,6 +79,7 @@ namespace TheMovies.Video
         {
             m_LoadToken++;
             EmbeddedText = null;
+            PreferEmbedded = false;
             m_Track = null;
             TrackData = null;
             TrackName = string.Empty;
@@ -135,7 +139,9 @@ namespace TheMovies.Video
         void LateUpdate()
         {
             string text = null;
-            if (Enabled && m_Track != null && m_TimeProvider != null)
+            if (Enabled && PreferEmbedded && !string.IsNullOrEmpty(EmbeddedText))
+                text = EmbeddedText;
+            else if (Enabled && m_Track != null && m_TimeProvider != null && !PreferEmbedded)
                 text = m_Track.TextAt(m_TimeProvider());
             else if (Enabled && m_Track == null && !string.IsNullOrEmpty(EmbeddedText))
                 text = EmbeddedText;

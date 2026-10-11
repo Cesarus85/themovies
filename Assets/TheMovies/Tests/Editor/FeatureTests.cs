@@ -151,3 +151,59 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    using System;
+    using NUnit.Framework;
+    using TheMovies.Core;
+
+    public class LogBufferTests
+    {
+        [Test]
+        public void KeepsTheNewestLinesAndFilters()
+        {
+            var log = new LogBuffer(16);
+            var t = new DateTime(2026, 1, 1, 12, 0, 0);
+            for (int i = 0; i < 20; i++) log.Add(LogLevel.Info, "Zeile " + i, t);
+            log.Add(LogLevel.Error, "Fehler\n  at Foo.Bar()\n", t);
+            var all = log.Snapshot();
+            Assert.AreEqual(16, all.Count);
+            Assert.AreEqual("  at Foo.Bar()", all[15].Text);
+            Assert.AreEqual(2, log.Snapshot(problemsOnly: true).Count);
+            Assert.AreEqual("12:00:00 F Fehler", log.Snapshot(true)[0].ToString());
+
+            var newest = LogBuffer.Page(all, 0, 5, 200);
+            Assert.AreEqual(5, newest.Count);
+            StringAssert.EndsWith("at Foo.Bar()", newest[4]);
+            var older = LogBuffer.Page(all, 3, 5, 200);
+            Assert.AreEqual(1, older.Count);
+            Assert.IsEmpty(LogBuffer.Page(all, 4, 5, 200));
+        }
+    }
+}
+
+namespace TheMovies.Tests
+{
+    using NUnit.Framework;
+    using TheMovies.Core;
+
+    public class MediaTrackTests
+    {
+        [Test]
+        public void ParsesPlayerTrackList()
+        {
+            var tracks = MediaTrack.Parse("a|de|AC3 5.1|1|1|1|0\na|en|DTS 5.1|0|0|2|0\nt|ger|SUBRIP|0|1|3|1\nbroken\n");
+            Assert.AreEqual(3, tracks.Count);
+            Assert.AreEqual("Deutsch · AC3 5.1", tracks[0].DisplayName);
+            Assert.IsTrue(tracks[0].Selected);
+            Assert.AreEqual("Englisch · DTS 5.1 (nicht abspielbar)", tracks[1].DisplayName);
+            Assert.AreEqual(MediaTrackType.Subtitle, tracks[2].Type);
+            Assert.AreEqual("Deutsch", tracks[2].LanguageName);
+            Assert.AreEqual(3, tracks[2].Group);
+            Assert.AreEqual(1, tracks[2].Index);
+            Assert.AreEqual("Unbekannt", Languages.Name("und"));
+            Assert.AreEqual("Englisch", Languages.Name("en-US"));
+        }
+    }
+}
