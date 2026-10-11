@@ -309,6 +309,12 @@ namespace TheMovies.Video
                     UnloadMovie();
                     m_LoadedVersion = 0;
                 }
+                if (m_AppliedFormat != (byte)StereoFormat.Mono)
+                {
+                    // Back to the screen in the hall (after a 180°/360° video).
+                    m_AppliedFormat = (byte)StereoFormat.Mono;
+                    m_Screen.SetFormat(StereoFormat.Mono, m_AppliedSwap);
+                }
                 LocalState = ParticipantMediaState.NoMovie;
                 if (Time.unscaledTime > m_ReportedProblemUntil)
                     Problem = string.Empty;

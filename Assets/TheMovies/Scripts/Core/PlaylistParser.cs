@@ -80,6 +80,25 @@ namespace TheMovies.Core
                 case "fou":
                 case "ftab":
                     return StereoFormat.TopBottomFull;
+                case "180":
+                case "180mono":
+                    return StereoFormat.Mono180;
+                case "vr180":
+                case "180sbs":
+                case "180lr":
+                    return StereoFormat.SideBySide180;
+                case "180ou":
+                case "180tb":
+                    return StereoFormat.TopBottom180;
+                case "360":
+                case "360mono":
+                    return StereoFormat.Mono360;
+                case "360sbs":
+                case "360lr":
+                    return StereoFormat.SideBySide360;
+                case "360ou":
+                case "360tb":
+                    return StereoFormat.TopBottom360;
                 default:
                     return null;
             }

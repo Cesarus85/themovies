@@ -21,6 +21,24 @@ namespace TheMovies.Core
 
         /// <summary>Top/bottom, each eye at full resolution (frame is twice as tall).</summary>
         TopBottomFull = 4,
+
+        /// <summary>180° video (half sphere in front of the viewer), the same picture for both eyes.</summary>
+        Mono180 = 5,
+
+        /// <summary>180° 3D, eyes side by side (VR180, the usual format of 180° cameras).</summary>
+        SideBySide180 = 6,
+
+        /// <summary>180° 3D, eyes top/bottom.</summary>
+        TopBottom180 = 7,
+
+        /// <summary>360° video (equirectangular, full sphere), the same picture for both eyes.</summary>
+        Mono360 = 8,
+
+        /// <summary>360° 3D, eyes side by side.</summary>
+        SideBySide360 = 9,
+
+        /// <summary>360° 3D, eyes top/bottom (the usual stereo 360° format).</summary>
+        TopBottom360 = 10,
     }
 
     /// <summary>Texture scale (X,Y) and offset (Z,W) for one eye.</summary>
@@ -48,9 +66,43 @@ namespace TheMovies.Core
             StereoFormat.SideBySideFull,
             StereoFormat.TopBottomHalf,
             StereoFormat.TopBottomFull,
+            StereoFormat.Mono180,
+            StereoFormat.SideBySide180,
+            StereoFormat.TopBottom180,
+            StereoFormat.Mono360,
+            StereoFormat.SideBySide360,
+            StereoFormat.TopBottom360,
         };
 
-        public static bool IsStereo(this StereoFormat f) => f != StereoFormat.Mono;
+        public static bool IsStereo(this StereoFormat f) => f != StereoFormat.Mono && f != StereoFormat.Mono180 && f != StereoFormat.Mono360;
+
+        /// <summary>0 for a normal screen, 180 or 360 for videos shown around the viewer.</summary>
+        public static int Immersion(this StereoFormat f)
+        {
+            switch (f)
+            {
+                case StereoFormat.Mono180:
+                case StereoFormat.SideBySide180:
+                case StereoFormat.TopBottom180:
+                    return 180;
+                case StereoFormat.Mono360:
+                case StereoFormat.SideBySide360:
+                case StereoFormat.TopBottom360:
+                    return 360;
+                default:
+                    return 0;
+            }
+        }
+
+        public static bool IsImmersive(this StereoFormat f) => f.Immersion() > 0;
+
+        /// <summary>Short tag for lists: "", "3D", "180°", "360° 3D" …</summary>
+        public static string ShortLabel(this StereoFormat f)
+        {
+            int degrees = f.Immersion();
+            if (degrees > 0) return f.IsStereo() ? degrees + "° 3D" : degrees + "°";
+            return f.IsStereo() ? "3D" : string.Empty;
+        }
 
         public static string DisplayName(this StereoFormat f)
         {
@@ -61,6 +113,12 @@ namespace TheMovies.Core
                 case StereoFormat.SideBySideFull: return "3D SBS (Full)";
                 case StereoFormat.TopBottomHalf: return "3D OU (Half)";
                 case StereoFormat.TopBottomFull: return "3D OU (Full)";
+                case StereoFormat.Mono180: return "180° 2D";
+                case StereoFormat.SideBySide180: return "180° 3D SBS";
+                case StereoFormat.TopBottom180: return "180° 3D OU";
+                case StereoFormat.Mono360: return "360° 2D";
+                case StereoFormat.SideBySide360: return "360° 3D SBS";
+                case StereoFormat.TopBottom360: return "360° 3D OU";
                 default: return f.ToString();
             }
         }
@@ -96,9 +154,13 @@ namespace TheMovies.Core
             {
                 case StereoFormat.SideBySideHalf:
                 case StereoFormat.SideBySideFull:
+                case StereoFormat.SideBySide180:
+                case StereoFormat.SideBySide360:
                     return new UvRect(0.5f, 1f, left ? 0f : 0.5f, 0f);
                 case StereoFormat.TopBottomHalf:
                 case StereoFormat.TopBottomFull:
+                case StereoFormat.TopBottom180:
+                case StereoFormat.TopBottom360:
                     return new UvRect(1f, 0.5f, 0f, left ? 0.5f : 0f);
                 default:
                     return new UvRect(1f, 1f, 0f, 0f);
@@ -114,7 +176,8 @@ namespace TheMovies.Core
             double aspect = width > 0 && height > 0 ? (double)width / height : 0;
             var tokens = Tokenize(fileName ?? string.Empty);
 
-            bool sbs = false, tb = false, half = false, full = false, is3D = false;
+            bool sbs = false, tb = false, half = false, full = false, is3D = false, mono = false;
+            int degrees = 0;
             for (int i = 0; i < tokens.Count; i++)
             {
                 string t = tokens[i];
@@ -167,6 +230,53 @@ namespace TheMovies.Core
                     case "3d":
                         is3D = true;
                         break;
+                    case "180":
+                    case "vr180":
+                    case "180x180":
+                    case "180vr":
+                    case "180deg":
+                        degrees = 180;
+                        break;
+                    case "180lr":
+                    case "180sbs":
+                    case "sbs180":
+                    case "lr180":
+                        degrees = 180;
+                        sbs = true;
+                        break;
+                    case "180tb":
+                    case "180ou":
+                    case "tb180":
+                    case "ou180":
+                        degrees = 180;
+                        tb = true;
+                        break;
+                    case "360":
+                    case "vr360":
+                    case "360x180":
+                    case "360vr":
+                    case "360deg":
+                    case "equirect":
+                    case "equirectangular":
+                        degrees = 360;
+                        break;
+                    case "360lr":
+                    case "360sbs":
+                    case "sbs360":
+                        degrees = 360;
+                        sbs = true;
+                        break;
+                    case "360tb":
+                    case "360ou":
+                    case "tb360":
+                    case "ou360":
+                        degrees = 360;
+                        tb = true;
+                        break;
+                    case "mono":
+                    case "2d":
+                        mono = true;
+                        break;
                 }
 
                 // "side by side", "over under", "top bottom" written as separate words
@@ -174,6 +284,8 @@ namespace TheMovies.Core
                 if (t == "over" && i + 1 < tokens.Count && tokens[i + 1] == "under") tb = true;
                 if (t == "top" && i + 1 < tokens.Count && (tokens[i + 1] == "bottom" || tokens[i + 1] == "and")) tb = true;
             }
+
+            if (degrees > 0) return DetectImmersive(degrees, sbs, tb, mono, aspect);
 
             if (sbs)
             {
@@ -197,6 +309,25 @@ namespace TheMovies.Core
             }
 
             return StereoFormat.Mono;
+        }
+
+        /// <summary>180°/360°: packing from the tags, otherwise from the frame shape.</summary>
+        static StereoFormat DetectImmersive(int degrees, bool sbs, bool tb, bool mono, double aspect)
+        {
+            bool is180 = degrees == 180;
+            if (sbs) return is180 ? StereoFormat.SideBySide180 : StereoFormat.SideBySide360;
+            if (tb) return is180 ? StereoFormat.TopBottom180 : StereoFormat.TopBottom360;
+            if (mono) return is180 ? StereoFormat.Mono180 : StereoFormat.Mono360;
+            if (is180)
+            {
+                // One eye of a 180° video is square: 2:1 = side by side (VR180), 1:2 = top/bottom, 1:1 = mono.
+                if (aspect <= 0 || aspect >= 1.6) return StereoFormat.SideBySide180;
+                return aspect <= 0.7 ? StereoFormat.TopBottom180 : StereoFormat.Mono180;
+            }
+            // One eye of a 360° video is 2:1: 4:1 = side by side, 1:1 = top/bottom, 2:1 = mono.
+            if (aspect >= 3.0) return StereoFormat.SideBySide360;
+            if (aspect > 0 && aspect <= 1.3) return StereoFormat.TopBottom360;
+            return StereoFormat.Mono360;
         }
 
         static List<string> Tokenize(string s)

@@ -18,6 +18,8 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
   im Menü mit „Sitz höher/tiefer“ feinjustierbar
 - **3D-Filme**: Side-by-Side und Over-Under, jeweils Half oder Full, „Augen tauschen“; das Format wird
   aus dem Dateinamen (`3D.HSBS`, `Half-OU`, `SBS`, …) und der Bildgröße erkannt
+- **180°/360°-Videos** (2D und 3D, SBS/OU): rund um dich statt auf der Leinwand, der Saal wird dafür
+  ausgeblendet; erkannt an `VR180`, `_180_LR`, `_360`, `360_TB`, `360x180` …, für alle synchron
 - **Gemeinsam schauen** mit bis zu 4 Personen:
   - **Online** über einen kurzen **Raum-Code** (Unity Multiplayer Services/Relay, keine Portfreigabe nötig)
   - **LAN** direkt per IP-Adresse (ohne Unity-Konto)
@@ -36,6 +38,10 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
 - **NAS & Netzlaufwerke**: Filme direkt von Windows-/Samba-Freigaben (**SMB 2/3**), **WebDAV** oder
   **DLNA/UPnP-Medienservern** abspielen – mit Netzwerksuche, Ordner-Navigation und Spulen; der Gastgeber
   kann NAS-Filme auch an Mitschauer weiterstreamen
+- **Jellyfin/Emby und Plex**: Bibliotheken mit Postern, Serien/Staffeln und Suche; Plex-Anmeldung per
+  Code auf plex.tv/link (kein Passwort-Tippen in der Brille)
+- **Filmauswahl mit Postern**: Kachelansicht (Poster vom Medienserver, `poster.jpg`/`Film.jpg`/Kodi-`.nfo`
+  neben dem Film), Suche/Filter, Tab **„Zuletzt“** und **„Weiterschauen“** direkt auf der Startseite
 - **Untertitel** aus `.srt`-Dateien (neben dem Film, bei Streams auch vom Gastgeber), pro Person ein-/ausschaltbar
 - **Weiterschauen**: Die App merkt sich, wo ihr aufgehört habt, und bietet beim nächsten Mal „Fortsetzen“ an
 - **Reaktionen**: 😂 😮 ❤️ ⭐ über dem eigenen Avatar und **Popcorn werfen** 🍿
@@ -135,18 +141,20 @@ Die Datei wird unverändert übertragen, daher gilt:
 ### Vom NAS / Netzlaufwerk
 
 Im Menü *Film wählen → Netzwerk*. Beim ersten Öffnen sucht die App im WLAN nach NAS-Geräten
-(Bonjour „_smb._tcp“, z. B. Synology/QNAP) und DLNA-Medienservern. Gefundenes erscheint mit „gefunden“;
+(Bonjour „_smb._tcp“, z. B. Synology/QNAP), DLNA-Medienservern sowie Jellyfin/Emby- und Plex-Servern. Gefundenes erscheint mit „gefunden“;
 antippen, Benutzer und Passwort eingeben (leer = Gast) – klappt die Anmeldung, wird die Quelle gespeichert.
 Ein NAS, das nur als Medienserver (DLNA) antwortet, erscheint zusätzlich als **SMB**-Eintrag, wenn es
 Dateifreigaben anbietet. Klappt etwas nicht, steht der Grund in Orange unter dem Titel; mit **„Anmelden“**
 gibst du Benutzer/Passwort (neu) ein.
-Nicht gefunden? **„NAS hinzufügen“** und die Adresse eintippen:
+Nicht gefunden? **„Hinzufügen“** und die Adresse eintippen:
 
 | Protokoll | Beispiele | Hinweise |
 | --- | --- | --- |
 | **SMB** (Windows-Freigabe, Samba, NAS) | `smb://192.168.1.10/filme`, `smb://diskstation`, `smb://nas:4455/video/3D` | SMB 2.0 bis 3.0.2, NTLMv2-Anmeldung, Signierung. Ohne Freigabename zeigt die App die Freigaben des Servers. Domänen-Konten als `DOMÄNE\name`. |
 | **WebDAV** | `https://nas:5006/filme`, `davs://cloud.example.de/remote.php/dav/files/ich/` | Basic/Digest-Anmeldung. Selbstsignierte Zertifikate werden nur bei Adressen im Heimnetz akzeptiert. |
 | **DLNA/UPnP** | wird automatisch gefunden | Ohne Anmeldung; die Wiedergabe läuft direkt vom Medienserver. |
+| **Jellyfin / Emby** | `http://192.168.1.5:8096`, `jellyfin://nas` | Benutzer + Passwort des Servers. Bibliotheken (Filme, Serien → Staffeln → Folgen) mit Postern, „Suchen“ durchsucht die ganze Bibliothek. Abspielen per Direct Play (Originaldatei, kein Umwandeln). Andere http(s)-Adressen prüft die App automatisch auf Jellyfin/Plex. |
+| **Plex** | `plex` | Es erscheint ein **4-stelliger Code**: am Handy/PC **plex.tv/link** öffnen und eingeben – fertig. Alle Server des Kontos, die beste Verbindung (lokal zuerst) wird automatisch gewählt. |
 
 - **Streamen (Standard mit dem eigenen Player):** Film antippen – er läuft direkt vom NAS, Spulen lädt
   gezielt nach. Unten in der Leiste lässt sich auf **„Erst kopieren“** umschalten.
@@ -160,6 +168,10 @@ Nicht gefunden? **„NAS hinzufügen“** und die Adresse eintippen:
   einen lokalen Zwischenspeicher (ca. 40 MB Vorlauf, 3 parallele Verbindungen). Gut für kleinere Dateien;
   reicht es nicht, pausiert der Film kurz („Lade nach …“).
 - **Untertitel** (`Film.srt`, `Film.de.srt` …) werden auch im NAS-Ordner gefunden.
+- **Poster**: „Kacheln“/„Liste“ oben rechts schaltet die Ansicht um. Poster kommen vom Medienserver oder aus dem
+  Ordner: `Film-poster.jpg`, `Film.jpg`, `Film.tbn`, bei einem Film pro Ordner auch `poster.jpg`/`folder.jpg`/
+  `cover.jpg`; eine Kodi-`.nfo` liefert Titel, Jahr und ggf. die Poster-Adresse. Ordner-Kacheln zeigen das
+  `poster.jpg`/`folder.jpg` im Ordner.
 - **Mitschauer**: Für die anderen ist ein NAS-Film wie eine lokale Datei – wer denselben Film hat, nimmt
   seinen eigenen; alle anderen bekommen ihn vom Gastgeber gestreamt (wie oben).
 - Klappt ein Gerätename wie `smb://diskstation` nicht, die **IP-Adresse** des NAS verwenden
@@ -180,7 +192,9 @@ solange alle Teilnehmer darauf zugreifen können:
   ```
   https://server/film.mp4
   Mein 3D-Film | https://server/film-3d.mp4 | sbs
+  Alpen in VR | https://server/alpen.mp4 | vr180
   ```
+  Formate: `2d`, `sbs`, `fsbs`, `ou`, `fou`, `180`, `vr180` (= 180° SBS), `180ou`, `360`, `360sbs`, `360tb`.
 
 Kopiergeschützte Dienste (Netflix, Disney+ …) lassen sich technisch nicht einbinden. Bitte nur Inhalte
 verwenden, die du besitzt bzw. abspielen darfst.
@@ -249,15 +263,15 @@ THEMOVIES_DLNA=http://127.0.0.1:8200/rootDesc.xml dotnet test tools/CoreTests --
 Assets/TheMovies/
   Scripts/Core/        Logik ohne Unity: Uhrenabgleich, Zeitleiste, Drift-Korrektur, 3D-Formate, Dateisuche
     Streaming/         Block-Cache, lokaler HTTP-Server mit Range-Support, Quellen-Streamer
-    Network/           SMB2/3-Client (NTLMv2, Signierung, Freigabeliste), WebDAV, DLNA/SSDP, mDNS
+    Network/           SMB2/3-Client (NTLMv2, Signierung, Freigabeliste), WebDAV, DLNA/SSDP, mDNS, Jellyfin, Plex
   Scripts/Runtime/
     App/               AppController (Einstiegspunkt), Einstellungen
     Net/               SessionManager (Online/LAN), CinemaSync (gemeinsame Zeitleiste), NetworkPlayer, Sprachchat
     Video/             MoviePlayer (Unity VideoPlayer), MediaCoordinator (Sync anwenden), MediaLibrary,
                        NetworkLibrary (NAS-Quellen, Suche, Proxy-Wiedergabe)
-    World/             Kinosaal, Leinwand mit 3D-Shader, Avatare
+    World/             Kinosaal, Leinwand mit 3D-Shader, 180°/360°-Kugel, Avatare
     XR/                Kamera-Rig, Controller, Laserpointer, PC-Steuerung
-    UI/                3D-Menü (Hauptmenü, Tastatur, Steuerung, Filmauswahl)
+    UI/                3D-Menü (Hauptmenü, Tastatur, Steuerung, Filmauswahl mit Poster-Kacheln, Protokoll)
   Resources/Shaders/   Stereo-Video-, Unlit-, Text- und Menü-Shader (Single Pass Instanced)
   Editor/              Menü „The Movies“: Projekt einrichten, APK bauen
   Tests/Editor/        NUnit-Tests

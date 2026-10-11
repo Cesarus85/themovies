@@ -45,9 +45,18 @@ namespace TheMovies.World
 
         public ScreenController Screen { get; private set; }
 
-        /// <summary>Hides the hall (for mixed reality) but keeps the screen.</summary>
+        bool m_HallWanted = true;
+
+        /// <summary>Hides the hall (for mixed reality) but keeps the screen. It also stays hidden during 180°/360° videos.</summary>
         public void SetHallVisible(bool visible)
         {
+            m_HallWanted = visible;
+            ApplyHall();
+        }
+
+        void ApplyHall()
+        {
+            bool visible = m_HallWanted && (Screen == null || !Screen.IsImmersive);
             foreach (Transform child in transform)
             {
                 if (Screen != null && child == Screen.transform) continue;
@@ -78,6 +87,7 @@ namespace TheMovies.World
             s_Seats = DefaultSeats();
             env.BuildHall();
             env.Screen = ScreenController.Create(go.transform, new Vector3(0, k_ScreenBottom, k_ScreenZ), Quaternion.identity, maxHeight: 8.2f);
+            env.Screen.ImmersiveChanged += _ => env.ApplyHall();
             return env;
         }
 
@@ -106,6 +116,7 @@ namespace TheMovies.World
             s_Seats = seats;
             SetLights(new Vector4[0], new Vector4[0]);
             Screen = ScreenController.Create(transform, anchor.position, Quaternion.Euler(0, anchor.eulerAngles.y, 0), maxHeight: 12f);
+            Screen.ImmersiveChanged += _ => ApplyHall();
             return true;
         }
 

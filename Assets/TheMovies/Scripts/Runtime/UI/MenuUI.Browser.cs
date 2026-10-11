@@ -627,7 +627,7 @@ namespace TheMovies.UI
                     }
                     else if (entry.IsUrl) details.Append("Stream");
                     else if (entry.Size > 0) details.Append(TextUtil.FormatSize(entry.Size));
-                    if (format.IsStereo()) details.Append(details.Length > 0 ? " · " : string.Empty).Append("3D");
+                    if (format != StereoFormat.Mono) details.Append(details.Length > 0 ? " · " : string.Empty).Append(format.ShortLabel());
                     tile.Set(entry.Title, details.ToString(), PosterCache.Instance.Get(entry), false, fraction);
                     break;
                 }
@@ -638,7 +638,8 @@ namespace TheMovies.UI
                     float fraction = -1;
                     if (!networkItem.IsFolder)
                     {
-                        if (StereoFormats.Detect(networkItem.Name).IsStereo()) details.Append(details.Length > 0 ? " · " : string.Empty).Append("3D");
+                        var format = StereoFormats.Detect(networkItem.Name);
+                        if (format != StereoFormat.Mono) details.Append(details.Length > 0 ? " · " : string.Empty).Append(format.ShortLabel());
                         var progress = m_App.Media.ProgressOf(new MediaEntry { Name = networkItem.Name, Location = networkItem.Location, SourceId = string.Empty });
                         if (progress.HasValue && progress.Value.duration > 0) fraction = (float)(progress.Value.position / progress.Value.duration);
                         if (networkItem.Size > 0 && details.Length < 12) details.Append(details.Length > 0 ? " · " : string.Empty).Append(TextUtil.FormatSize(networkItem.Size));
@@ -673,7 +674,7 @@ namespace TheMovies.UI
                     label.Append(TextUtil.Ellipsize(entry.Title, 48));
                     if (entry.IsUrl) label.Append("   ·  Stream");
                     else if (entry.Size > 0) label.Append("   ·  ").Append(TextUtil.FormatSize(entry.Size));
-                    if (format.IsStereo()) label.Append("   ·  ").Append(format.DisplayName());
+                    if (format != StereoFormat.Mono) label.Append("   ·  ").Append(format.DisplayName());
                     break;
                 }
                 case NetworkSource source:
@@ -690,7 +691,7 @@ namespace TheMovies.UI
                     label.Append(TextUtil.Ellipsize(file.DisplayTitle, 48));
                     if (file.Year > 0) label.Append(" (").Append(file.Year).Append(')');
                     if (file.Size > 0) label.Append("   ·  ").Append(TextUtil.FormatSize(file.Size));
-                    if (format.IsStereo()) label.Append("   ·  ").Append(format.DisplayName());
+                    if (format != StereoFormat.Mono) label.Append("   ·  ").Append(format.DisplayName());
                     break;
                 }
             }

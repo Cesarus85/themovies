@@ -242,6 +242,24 @@ namespace TheMovies.Tests
 
     public class StereoFormatTests
     {
+        [Test]
+        public void DescribesImmersiveFormats()
+        {
+            Assert.AreEqual(180, StereoFormat.SideBySide180.Immersion());
+            Assert.AreEqual(360, StereoFormat.Mono360.Immersion());
+            Assert.AreEqual(0, StereoFormat.TopBottomFull.Immersion());
+            Assert.IsFalse(StereoFormat.Mono180.IsStereo());
+            Assert.IsTrue(StereoFormat.TopBottom360.IsStereo());
+            Assert.AreEqual("180° 3D", StereoFormat.SideBySide180.ShortLabel());
+            Assert.AreEqual("360°", StereoFormat.Mono360.ShortLabel());
+            Assert.AreEqual("3D", StereoFormat.SideBySideHalf.ShortLabel());
+            Assert.AreEqual(string.Empty, StereoFormat.Mono.ShortLabel());
+            Assert.AreEqual(0.5f, StereoFormat.SideBySide180.EyeUv(1, false).OffsetX);
+            Assert.AreEqual(0.5f, StereoFormat.TopBottom360.EyeUv(0, false).OffsetY);
+            Assert.AreEqual(StereoFormat.SideBySide180, PlaylistParser.ParseFormat("VR180"));
+            Assert.AreEqual(StereoFormat.TopBottom360, PlaylistParser.ParseFormat("360tb"));
+        }
+
         [TestCase("Avatar.2009.3D.HSBS.1080p.mkv", 1920, 1080, StereoFormat.SideBySideHalf)]
         [TestCase("Movie.3D.Half-SBS.mp4", 0, 0, StereoFormat.SideBySideHalf)]
         [TestCase("Movie.3D.H-SBS.mp4", 0, 0, StereoFormat.SideBySideHalf)]
@@ -256,6 +274,15 @@ namespace TheMovies.Tests
         [TestCase("Household.mp4", 1920, 1080, StereoFormat.Mono)]
         [TestCase("Holiday.1080p.mp4", 1920, 1080, StereoFormat.Mono)]
         [TestCase(null, 0, 0, StereoFormat.Mono)]
+        [TestCase("Alps_VR180.mp4", 5760, 2880, StereoFormat.SideBySide180)]
+        [TestCase("Alps_180_LR.mp4", 0, 0, StereoFormat.SideBySide180)]
+        [TestCase("Alps_180.mp4", 2880, 2880, StereoFormat.Mono180)]
+        [TestCase("Alps 180 TB.mp4", 0, 0, StereoFormat.TopBottom180)]
+        [TestCase("Concert_360.mp4", 3840, 1920, StereoFormat.Mono360)]
+        [TestCase("Concert_360.mp4", 3840, 3840, StereoFormat.TopBottom360)]
+        [TestCase("Concert_360_TB.mp4", 0, 0, StereoFormat.TopBottom360)]
+        [TestCase("Concert-360sbs.mp4", 0, 0, StereoFormat.SideBySide360)]
+        [TestCase("Concert.360x180.mp4", 0, 0, StereoFormat.Mono360)]
         public void DetectsFormat(string name, int w, int h, StereoFormat expected)
         {
             Assert.AreEqual(expected, StereoFormats.Detect(name, w, h));

@@ -2,11 +2,17 @@
 
 Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der Quest steht aus · 📋 geplant · 💡 Idee
 
-## Nächster Bearbeitungsschritt
+## Diese Runde umgesetzt (Test auf der Quest steht aus)
 
-| Prio | Thema | Notizen |
+| Status | Thema | Umsetzung |
 | --- | --- | --- |
-| 🔴 | **Absturz/Einfrieren beim Beenden eines NAS-Films** | Vermutete Ursache: Beim Stoppen schließt der Hauptthread die SMB-Verbindungen des Streamers *synchron* (CLOSE + LOGOFF mit Antwort-Wartezeit bis 15 s), während Worker-Threads gleichzeitig auf denselben Verbindungen lesen (nicht threadsicher → Antworten vertauscht, Wartezeiten). Dazu `Resources.UnloadUnusedAssets` + `GC.Collect` und das Freigeben der Video-Surface, während ExoPlayer noch darauf zeichnet. Lösung: Verbindungen nur hart schließen (Socket zu), Aufräumen komplett im Hintergrund, Surface erst nach `player.release()` freigeben, kein UnloadUnusedAssets. |
+| 🧪 | **Einfrieren beim Beenden eines NAS-Films** | Verbindungen beim Stoppen nur hart schließen (Socket zu), Aufräumen im Hintergrund, Video-Surface erst nach `player.release()` freigeben, kein `UnloadUnusedAssets`. |
+| 🧪 | **Passthrough, eigener Weg** | Eigenes OpenXR-Feature „The Movies: Passthrough“ (`XR_FB_passthrough` direkt): Passthrough-Ebene wird in `xrEndFrame` vor das Bild gelegt, die Projektionsebene mit Alpha gemischt – unabhängig von AR Foundation. |
+| 🧪 | **Protokoll in der App** | `themovies-log.txt` im App-Ordner (+ Log des vorigen Starts), *Einstellungen → Protokoll* zeigt es an. |
+| 🧪 | **Ton- und Untertitelspur, Ton-Versatz** | *Einstellungen → Ton & Untertitel*: Spuren des laufenden Films wählen, Ton-Versatz ±500 ms (Bluetooth-Kopfhörer). |
+| 🧪 | **Schönere Filmauswahl** | Kachelansicht mit Postern (Medienserver, `poster.jpg`/`Film.jpg`/`.tbn`, Kodi-`.nfo`), Suche/Filter, Tab „Zuletzt“, „Weiterschauen“ auf der Startseite. |
+| 🧪 | **Jellyfin/Emby und Plex** | Jellyfin mit Benutzer/Passwort, Plex per Code auf plex.tv/link; Bibliotheken, Serien, Suche, Direct Play; Netzwerksuche findet beide. |
+| 🧪 | **180°/360°-Videos** | Halb-/Vollkugel um den Kopf, mono/SBS/OU, Erkennung über den Dateinamen, Saal wird ausgeblendet, für alle synchron. |
 
 ## Phase 1 – Grundlage
 
@@ -34,14 +40,14 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der
 | Status | # | Thema | Idee zur Umsetzung | Aufwand |
 | --- | --- | --- | --- | --- |
 | 📋 | 5 | Weitere Säle | Heimkino (Sofa, Kamin), Autokino unter Sternen, Weltraum-Lounge; Auswahl in den Einstellungen, für alle synchron oder pro Person | mittel |
-| 📋 | 6 | 180°/360°-Videos | Innen texturierte Kugel/Halbkugel statt Leinwand, Formate mono/SBS/OU, Erkennung über Dateiname (`_180`, `_360`, `LR`, `TB`) | mittel |
+| 🧪 | 6 | 180°/360°-Videos | Innen texturierte Kugel/Halbkugel statt Leinwand, Formate mono/SBS/OU, Erkennung über Dateiname (`_180`, `_360`, `LR`, `TB`) | mittel |
 | 📋 | 7 | Handtracking | OpenXR Hand Interaction Profile, Pinch = Trigger, Strahl aus der Hand; Avatare mit Hand-Posen | mittel |
 | ✅ | – | Eigener Video-Player | ExoPlayer/Media3 über Java-Plugin, GL-Textur-Übergabe, FFmpeg-Ton, eingebettete Untertitel – auf der Quest bestätigt | groß |
-| 💡 | 12 | Spuren & Ton-Versatz | Ton- und Untertitelspur im Menü wählen (Daten liefert der Player schon), Ton-Versatz ±500 ms (Bluetooth-Kopfhörer), Untertitel-Größe/Position | klein |
-| 💡 | 13 | Schönere Filmauswahl | Poster und Titel aus dem NAS-Ordner (`poster.jpg`, `folder.jpg`, Kodi-`.nfo`), optional TMDB; Kachelansicht, Suche, „Weiterschauen“-Reihe auf der Startseite | mittel |
+| 🧪 | 12 | Spuren & Ton-Versatz | Ton- und Untertitelspur im Menü, Ton-Versatz ±500 ms. Offen: Untertitel-Größe/Position | klein |
+| 🧪 | 13 | Schönere Filmauswahl | Poster, Kacheln, Suche, „Zuletzt“/„Weiterschauen“. Offen: TMDB-Poster für Ordner ohne Bilder (braucht einen eigenen API-Schlüssel) | mittel |
 | 💡 | 14 | Leinwand-Erlebnis | Ambilight-Saalbeleuchtung aus dem Bildrand, Vorhang öffnet sich beim Start, Kino-Ton-Raumhall, Pause-Licht | mittel |
 | ✅ | – | NAS / Netzlaufwerk | SMB 2/3, WebDAV, DLNA; Netzwerksuche (Bonjour/SSDP), Ordner-Navigation, Proxy mit Puffer, Untertitel vom NAS, Weiterstreamen an Mitschauer | groß |
-| 📋 | 8 | Mediathek (Jellyfin/Plex) | Login per Code, Bibliothek durchsuchen, Direct-Play-URL an alle verteilen | groß |
+| 🧪 | 8 | Mediathek (Jellyfin/Plex) | Jellyfin/Emby-Login, Plex per Code, Bibliothek durchsuchen, Direct Play. Offen: Transcoding für Formate, die der Player nicht kann; Gesehen-Status an den Server melden | groß |
 | 📋 | 9 | Bildeinstellungen | Helligkeit/Kontrast/Sättigung im Leinwand-Shader, 3D-Tiefe über horizontalen Augen-Versatz | klein |
 | 📋 | 10 | Sprachchat-Komfort | Mitschauer leiser während der Film läuft (Ducking), Push-to-Talk auf Grip-Taste, Lautstärke pro Person | klein |
 
@@ -58,8 +64,7 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der
 - **Auf der Quest messen:** Durchsatz des Host-Streamings über Relay vs. LAN, Genauigkeit und Dauer von Sprüngen im VideoPlayer, Bildrate im neuen Saal (Ziel: stabile 72/90 Hz, OVR Metrics Tool).
 - **Schärfere Schrift:** Menü und Untertitel auf TextMeshPro (SDF) umstellen.
 - **Netzwerk-Tests im Editor:** Multiplayer Play Mode + Unity Test Runner für Join/Leave, Host-Wechsel, Streaming.
-- **Logs:** Fehlerprotokoll im App-Ordner (+ „Protokoll anzeigen“ im Menü), damit Abstürze wie beim Beenden ohne `adb logcat` nachvollziehbar sind.
-- **Eigener Player, Ausbau:** Ton-/Untertitelspur im Menü wählbar, SMB als direkte ExoPlayer-DataSource, Wiedergabe als OpenXR-Composition-Layer (Android Surface) – siehe [docs/PLAYER.md](docs/PLAYER.md).
+- **Eigener Player, Ausbau:** SMB als direkte ExoPlayer-DataSource, Wiedergabe als OpenXR-Composition-Layer (Android Surface) – siehe [docs/PLAYER.md](docs/PLAYER.md).
 - **NAS auf der Quest messen:** Durchsatz SMB/WebDAV über WLAN mit 4K-Remux (Ziel ≥ 15 MB/s), ggf. mehrere Lese-Anfragen parallel.
 - **NAS-Zugangsdaten verschlüsseln:** Android Keystore statt Klartext in den App-Einstellungen.
 - **SMB 3.1.1 + Verschlüsselung:** Pre-Auth-Integrity und AES-GCM, damit auch „Verschlüsselung erzwingen“ funktioniert.

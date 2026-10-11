@@ -1,5 +1,7 @@
+using System;
 using TheMovies.Core;
 using TheMovies.UI;
+using TheMovies.XR;
 using UnityEngine;
 
 namespace TheMovies.World
@@ -7,6 +9,7 @@ namespace TheMovies.World
     /// <summary>
     /// The cinema screen: shows the video with the right per-eye cropping for 3D, keeps the aspect ratio,
     /// scales to the chosen size and lets the room pick up its average color ("screen glow").
+    /// 180°/360° videos are shown on a (half) sphere around the viewer instead; the hall is hidden meanwhile.
     /// </summary>
     public sealed class ScreenController : MonoBehaviour
     {
@@ -18,6 +21,10 @@ namespace TheMovies.World
         float m_MaxHeight = 8f;
         Mesh m_PictureMesh;
         Mesh m_MaskingMesh;
+        const float k_SphereRadius = 40f;
+        Transform m_Sphere;
+        Mesh m_SphereMesh;
+        int m_SphereDegrees;
 
         static readonly int k_LeftEyeST = Shader.PropertyToID("_LeftEyeST");
         static readonly int k_RightEyeST = Shader.PropertyToID("_RightEyeST");
@@ -48,6 +55,12 @@ namespace TheMovies.World
         public int SizeIndex => m_SizeIndex;
         public Vector3 Center => transform.TransformPoint(new Vector3(0, Size.y * 0.5f, 0));
         public Vector2 Size { get; private set; }
+
+        /// <summary>A 180°/360° video is shown around the viewer (the hall should be hidden).</summary>
+        public bool IsImmersive => m_Format.IsImmersive();
+
+        /// <summary>Fires when <see cref="IsImmersive"/> changes.</summary>
+        public event Action<bool> ImmersiveChanged;
 
         /// <param name="localPosition">Bottom center of the screen.</param>
         public static ScreenController Create(Transform parent, Vector3 localPosition, Quaternion localRotation, float maxHeight)
@@ -84,6 +97,17 @@ namespace TheMovies.World
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             m_ScreenTransform = picture.transform;
 
+            // Sphere for 180°/360° videos: same material, so texture, 3D packing and brightness apply as well.
+            m_SphereMesh = new Mesh { name = "Immersive Sphere" };
+            var sphere = UIFactory.CreateEmpty(transform, "Immersive Sphere", Vector3.zero);
+            sphere.AddComponent<MeshFilter>().sharedMesh = m_SphereMesh;
+            var sphereRenderer = sphere.AddComponent<MeshRenderer>();
+            sphereRenderer.sharedMaterial = m_Material;
+            sphereRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sphereRenderer.receiveShadows = false;
+            m_Sphere = sphere.transform;
+            sphere.SetActive(false);
+
             m_GlowTexture = new RenderTexture(32, 16, 0, RenderTextureFormat.ARGB32)
             {
                 name = "TheMovies Screen Glow",
@@ -106,6 +130,7 @@ namespace TheMovies.World
             if (m_Material != null) Destroy(m_Material);
             if (m_PictureMesh != null) Destroy(m_PictureMesh);
             if (m_MaskingMesh != null) Destroy(m_MaskingMesh);
+            if (m_SphereMesh != null) Destroy(m_SphereMesh);
         }
 
         public void SetTexture(Texture texture)
@@ -126,10 +151,97 @@ namespace TheMovies.World
 
         public void SetFormat(StereoFormat format, bool swapEyes)
         {
+            bool wasImmersive = IsImmersive;
             m_Format = format;
             m_SwapEyes = swapEyes;
             ApplyFormat();
             Layout();
+            ApplyImmersion();
+            if (wasImmersive != IsImmersive) ImmersiveChanged?.Invoke(IsImmersive);
+        }
+
+        void ApplyImmersion()
+        {
+            int degrees = m_Format.Immersion();
+            bool immersive = degrees > 0;
+            m_ScreenTransform.gameObject.SetActive(!immersive);
+            m_Frame.gameObject.SetActive(!immersive);
+            m_Sphere.gameObject.SetActive(immersive);
+            if (immersive && degrees != m_SphereDegrees)
+            {
+                m_SphereDegrees = degrees;
+                BuildSphere(m_SphereMesh, k_SphereRadius, degrees);
+            }
+            if (immersive) FollowViewer(aim: true);
+        }
+
+        /// <summary>
+        /// The sphere stays centered on the viewer's head (moving the head must not move the picture), its
+        /// middle towards the screen.
+        /// </summary>
+        void FollowViewer(bool aim = false)
+        {
+            var rig = XRRig.Instance;
+            Transform head = rig != null && rig.Head != null ? rig.Head : Camera.main != null ? Camera.main.transform : null;
+            if (head == null) return;
+            m_Sphere.position = head.position;
+            // The middle of the picture where the screen is (the seats face it). Only aimed when the video starts:
+            // turning it with every head movement would make the picture swim.
+            if (!aim) return;
+            Vector3 forward = Center - head.position;
+            forward.y = 0;
+            if (forward.sqrMagnitude > 0.01f) m_Sphere.rotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
+        }
+
+        /// <summary>
+        /// Inside of a sphere (360°) or of its front half (180°) with equirectangular texture coordinates:
+        /// U runs from left to right as seen from the center, the middle of the picture is straight ahead (+Z).
+        /// </summary>
+        public static void BuildSphere(Mesh mesh, float radius, int degrees, int columns = 96, int rows = 48)
+        {
+            float lonRange = degrees * Mathf.Deg2Rad;
+            var vertices = new Vector3[(columns + 1) * (rows + 1)];
+            var normals = new Vector3[vertices.Length];
+            var uvs = new Vector2[vertices.Length];
+            for (int r = 0; r <= rows; r++)
+            {
+                float v = (float)r / rows;
+                float lat = (v - 0.5f) * Mathf.PI;
+                for (int c = 0; c <= columns; c++)
+                {
+                    float u = (float)c / columns;
+                    float lon = (u - 0.5f) * lonRange;
+                    var dir = new Vector3(Mathf.Sin(lon) * Mathf.Cos(lat), Mathf.Sin(lat), Mathf.Cos(lon) * Mathf.Cos(lat));
+                    int i = r * (columns + 1) + c;
+                    vertices[i] = dir * radius;
+                    normals[i] = -dir;
+                    uvs[i] = new Vector2(u, v);
+                }
+            }
+            var triangles = new int[columns * rows * 6];
+            int t = 0;
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < columns; c++)
+                {
+                    int a = r * (columns + 1) + c;
+                    int b = a + columns + 1;
+                    // Wound to face the center.
+                    triangles[t++] = a;
+                    triangles[t++] = a + 1;
+                    triangles[t++] = b;
+                    triangles[t++] = a + 1;
+                    triangles[t++] = b + 1;
+                    triangles[t++] = b;
+                }
+            }
+            mesh.Clear();
+            mesh.indexFormat = vertices.Length > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
+            mesh.vertices = vertices;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * radius * 2f);
         }
 
         public void SetSize(int index)
@@ -228,6 +340,8 @@ namespace TheMovies.World
 
         void LateUpdate()
         {
+            if (m_Sphere.gameObject.activeSelf) FollowViewer();
+
             if (!Mathf.Approximately(m_RoomLight, m_RoomLightTarget))
             {
                 m_RoomLight = Mathf.MoveTowards(m_RoomLight, m_RoomLightTarget, Time.deltaTime * 0.6f);
