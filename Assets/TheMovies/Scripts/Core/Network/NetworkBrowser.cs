@@ -39,6 +39,22 @@ namespace TheMovies.Core.Network
             }
         }
 
+        static bool IsPortOpen(string host, int port, int timeoutMs)
+        {
+            try
+            {
+                using (var tcp = new System.Net.Sockets.TcpClient())
+                {
+                    var connect = tcp.ConnectAsync(host, port);
+                    return connect.Wait(timeoutMs) && !connect.IsFaulted && tcp.Connected;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         /// <summary>Opens a file of a source for streaming (own connection, opened lazily by <see cref="IRandomAccessSource.Open"/>).</summary>
         public static IRandomAccessSource OpenFile(NetworkSource source, string location)
         {
@@ -75,9 +91,10 @@ namespace TheMovies.Core.Network
                 result.Add(new NetworkSource { Kind = NetworkSourceKind.Smb, Name = s.Name, Address = address.ToString(), Discovered = true });
             }
 
+            var devices = new List<(NetworkSource source, string host)>();
             using (var http = new HttpClient { Timeout = TimeSpan.FromSeconds(4) })
             {
-                var fetches = new List<Task<NetworkSource>>();
+                var fetches = new List<Task<(NetworkSource, string)>>();
                 foreach (string location in dlna.Result)
                 {
                     fetches.Add(Task.Run(() =>
@@ -85,18 +102,37 @@ namespace TheMovies.Core.Network
                         try
                         {
                             var device = Dlna.FetchDevice(http, location);
-                            return device == null ? null : new NetworkSource { Kind = NetworkSourceKind.Dlna, Name = device.FriendlyName, Address = location, Discovered = true };
+                            if (device == null) return ((NetworkSource)null, (string)null);
+                            var source = new NetworkSource { Kind = NetworkSourceKind.Dlna, Name = device.FriendlyName, Address = location, Discovered = true };
+                            return (source, new Uri(location).Host);
                         }
                         catch (Exception)
                         {
-                            return null;
+                            return ((NetworkSource)null, (string)null);
                         }
                     }));
                 }
                 foreach (var f in fetches)
-                    if (f.Result != null)
-                        result.Add(f.Result);
+                    if (f.Result.Item1 != null)
+                        devices.Add(f.Result);
             }
+
+            // A NAS found as media server usually also has file shares: offer them when port 445 answers.
+            var probes = new List<Task<NetworkSource>>();
+            var probed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (source, host) in devices)
+            {
+                result.Add(source);
+                bool known = result.Exists(r => r.Kind == NetworkSourceKind.Smb && SmbAddress.TryParse(r.Address, out var a) && a.Host == host);
+                if (known || !probed.Add(host)) continue;
+                string name = source.Name;
+                probes.Add(Task.Run(() => IsPortOpen(host, Smb2Client.DefaultPort, 800)
+                    ? new NetworkSource { Kind = NetworkSourceKind.Smb, Name = name, Address = new SmbAddress { Host = host, Port = Smb2Client.DefaultPort }.ToString(), Discovered = true }
+                    : null));
+            }
+            foreach (var p in probes)
+                if (p.Result != null && !result.Exists(r => r.Kind == NetworkSourceKind.Smb && r.Address == p.Result.Address))
+                    result.Add(p.Result);
             return result;
         }
     }

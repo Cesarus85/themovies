@@ -18,3 +18,13 @@ namespace UnityEngine.XR.ARFoundation
         public CameraSubsystemStub subsystem => null;
     }
 }
+
+namespace UnityEngine.XR.OpenXR
+{
+    public static class OpenXRRuntime
+    {
+        public static string name => string.Empty;
+        public static string version => string.Empty;
+        public static bool IsExtensionEnabled(string extensionName) => false;
+    }
+}

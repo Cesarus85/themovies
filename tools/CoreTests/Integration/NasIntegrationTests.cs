@@ -112,5 +112,39 @@ namespace TheMovies.Tests.Integration
                 StringAssert.Contains("Anmeldung abgelehnt", e.Message);
             }
         }
+
+        [Test]
+        public void DlnaBrowseAndRead()
+        {
+            string dlna = Env("THEMOVIES_DLNA");
+            if (string.IsNullOrEmpty(dlna)) Assert.Ignore("THEMOVIES_DLNA not set (device description URL)");
+            var source = new NetworkSource { Kind = NetworkSourceKind.Dlna, Name = "Test", Address = dlna };
+            using (var browser = NetworkBrowser.Create(source))
+            {
+                // Walk down the containers until a video shows up.
+                NetworkItem file = null;
+                var queue = new System.Collections.Generic.Queue<string>();
+                queue.Enqueue(source.RootLocation);
+                int visited = 0;
+                while (file == null && queue.Count > 0 && visited++ < 30)
+                {
+                    foreach (var item in browser.List(queue.Dequeue()))
+                    {
+                        if (item.IsFolder) queue.Enqueue(item.Location);
+                        else if (file == null) file = item;
+                    }
+                }
+                Assert.IsNotNull(file, "no video found");
+                TestContext.WriteLine($"{file.Name} {file.Size} {file.Location}");
+                Assert.AreEqual(file.Location, browser.DirectUrl(file.Location));
+                using (var stream = browser.OpenFile(file.Location))
+                {
+                    stream.Open();
+                    Assert.AreEqual(file.Size, stream.Length);
+                    var head = new byte[1000];
+                    Assert.AreEqual(1000, SourceReader.ReadFully(stream, 0, head, 0, 1000));
+                }
+            }
+        }
     }
 }

@@ -44,6 +44,12 @@ namespace TheMovies.Video
         /// <summary>Last error of browsing or adding a source, empty if none.</summary>
         public string Error { get; private set; } = string.Empty;
 
+        /// <summary>The last error was a rejected login (wrong or missing user/password).</summary>
+        public bool LoginRejected { get; private set; }
+
+        /// <summary>The current source could not be opened at all (nothing listed yet).</summary>
+        public bool CurrentFailed => Current != null && !IsBusy && m_Path.Count == 0 && Error.Length > 0;
+
         /// <summary>The source being browsed, or null while the source list is shown.</summary>
         public NetworkSource Current { get; private set; }
 
@@ -139,6 +145,15 @@ namespace TheMovies.Video
                 }
                 m_MainThread.Enqueue(() => done(result, error));
             });
+        }
+
+        static bool IsLoginError(Exception e)
+        {
+            e = e is AggregateException agg ? agg.GetBaseException() : e;
+            if (e is SmbException smb)
+                return smb.Status == Smb2Client.StatusLogonFailure || smb.Status == Smb2Client.StatusAccessDenied ||
+                       smb.Status == Smb2Client.StatusAccountDisabled || smb.Status == Smb2Client.StatusPasswordExpired;
+            return e.Message.StartsWith("Anmeldung abgelehnt", StringComparison.Ordinal);
         }
 
         static string Describe(Exception e)
@@ -242,13 +257,13 @@ namespace TheMovies.Video
             Current = source;
             m_Path.Clear();
             Items = new List<NetworkItem>();
-            Navigate(source.RootLocation, source.Name, push: true, onSuccess, closeOnError: true);
+            Navigate(source.RootLocation, source.Name, push: true, onSuccess);
         }
 
         public void OpenFolder(NetworkItem folder)
         {
             if (Current == null || folder == null || !folder.IsFolder) return;
-            Navigate(folder.Location, folder.Name, push: true, null, closeOnError: false);
+            Navigate(folder.Location, folder.Name, push: true, null);
         }
 
         /// <summary>Goes up one folder. Returns false when already at the top (then the source list is shown).</summary>
@@ -262,15 +277,20 @@ namespace TheMovies.Video
             }
             m_Path.Pop();
             var (location, title) = m_Path.Peek();
-            Navigate(location, title, push: false, null, closeOnError: false);
+            Navigate(location, title, push: false, null);
             return true;
         }
 
         public void Reload()
         {
-            if (Current == null || m_Path.Count == 0) return;
+            if (Current == null) return;
+            if (m_Path.Count == 0)
+            {
+                OpenSource(Current);
+                return;
+            }
             var (location, title) = m_Path.Peek();
-            Navigate(location, title, push: false, null, closeOnError: false);
+            Navigate(location, title, push: false, null);
         }
 
         public void CloseSource()
@@ -281,16 +301,30 @@ namespace TheMovies.Video
             Items = new List<NetworkItem>();
             IsBusy = false;
             Error = string.Empty;
+            LoginRejected = false;
             Changed?.Invoke();
         }
 
-        void Navigate(string location, string title, bool push, Action onSuccess, bool closeOnError)
+        void Navigate(string location, string title, bool push, Action onSuccess)
         {
             var source = Current;
-            var browser = BrowserFor(source);
             int token = ++m_BrowseToken;
+            INetworkBrowser browser;
+            try
+            {
+                browser = BrowserFor(source);
+            }
+            catch (Exception e)
+            {
+                IsBusy = false;
+                Error = Describe(e);
+                Debug.LogWarning($"[TheMovies] Network source '{source.Name}' ({source.Address}): {e}");
+                Changed?.Invoke();
+                return;
+            }
             IsBusy = true;
             Error = string.Empty;
+            LoginRejected = false;
             Changed?.Invoke();
             RunAsync(browser, () => browser.List(location), (items, error) =>
             {
@@ -298,9 +332,10 @@ namespace TheMovies.Video
                 IsBusy = false;
                 if (error != null)
                 {
-                    string message = Describe(error);
-                    if (closeOnError) CloseSource();
-                    Error = message;
+                    // Stay in the source and show the error, so the user sees what went wrong and can log in.
+                    Error = Describe(error);
+                    LoginRejected = IsLoginError(error);
+                    Debug.LogWarning($"[TheMovies] Network source '{source.Name}' ({source.Address}), '{location}': {error}");
                     Changed?.Invoke();
                     return;
                 }

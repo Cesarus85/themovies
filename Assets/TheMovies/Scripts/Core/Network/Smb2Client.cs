@@ -141,7 +141,16 @@ namespace TheMovies.Core.Network
         {
             var tcp = new TcpClient { NoDelay = true, ReceiveTimeout = m_TimeoutMs, SendTimeout = m_TimeoutMs };
             var connect = tcp.ConnectAsync(m_Host, m_Port);
-            if (!connect.Wait(m_TimeoutMs))
+            bool finished;
+            try
+            {
+                finished = connect.Wait(m_TimeoutMs);
+            }
+            catch (AggregateException)
+            {
+                finished = true; // faulted, handled below
+            }
+            if (!finished)
             {
                 tcp.Dispose();
                 throw new IOException($"Keine Verbindung zu {m_Host} (Zeitüberschreitung).");
@@ -150,7 +159,10 @@ namespace TheMovies.Core.Network
             {
                 tcp.Dispose();
                 var inner = connect.Exception?.GetBaseException();
-                throw new IOException($"Keine Verbindung zu {m_Host}: {inner?.Message}", inner);
+                string reason = inner is SocketException se && se.SocketErrorCode == SocketError.ConnectionRefused
+                    ? "Port " + m_Port + " ist zu – SMB am Gerät aktiviert?"
+                    : inner?.Message;
+                throw new IOException($"Keine Verbindung zu {m_Host}: {reason}", inner);
             }
             m_Tcp = tcp;
             m_Stream = tcp.GetStream();

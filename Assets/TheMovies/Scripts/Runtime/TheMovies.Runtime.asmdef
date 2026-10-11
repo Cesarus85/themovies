@@ -13,7 +13,8 @@
         "Unity.Services.Vivox",
         "Unity.XR.ARFoundation",
         "Unity.XR.ARSubsystems",
-        "Unity.XR.CoreUtils"
+        "Unity.XR.CoreUtils",
+        "Unity.XR.OpenXR"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -42,6 +43,11 @@
             "name": "com.unity.xr.arfoundation",
             "expression": "5.0.0",
             "define": "THEMOVIES_ARF"
+        },
+        {
+            "name": "com.unity.xr.openxr",
+            "expression": "1.0.0",
+            "define": "THEMOVIES_OPENXR"
         }
     ],
     "noEngineReferences": false

@@ -34,21 +34,71 @@ namespace TheMovies.App
         {
             get
             {
-                if (!Enabled) return string.Empty;
-#if THEMOVIES_ARF
-                // Short diagnostic so problems can be reported from inside the headset.
-                string session = ARSession.state.ToString();
-                if (s_CameraManager == null || s_CameraManager.subsystem == null)
-                    return $"Passthrough: kein Kamera-Subsystem (Session {session}) – 'Meta Quest: Camera (Passthrough)' in OpenXR/Android aktiv?";
-                if (ARSession.state == ARSessionState.Unsupported)
-                    return "Passthrough: Session 'Unsupported' – OpenXR-Feature 'Meta Quest: Session' aktiv?";
-                if (!s_CameraManager.subsystem.running)
-                    return $"Passthrough: Kamera startet noch (Session {session}, Manager {(s_CameraManager.enabled ? "an" : "aus")}) …";
-                return string.Empty;
-#else
-                return "Mixed Reality: Paket 'Unity OpenXR: Meta' fehlt.";
-#endif
+                Diagnose(out string problem, out _);
+                return problem;
             }
+        }
+
+        /// <summary>One line for the settings page: what the passthrough is doing right now.</summary>
+        public static string Status
+        {
+            get
+            {
+                Diagnose(out string problem, out string state);
+                return problem.Length > 0 ? problem + "  [" + state + "]" : "Passthrough läuft  [" + state + "]";
+            }
+        }
+
+        static string s_LastLogged;
+
+        static void Diagnose(out string problem, out string state)
+        {
+            problem = string.Empty;
+            state = string.Empty;
+            if (!Enabled) return;
+#if THEMOVIES_ARF
+            bool extension = PassthroughExtensionEnabled(out string runtime);
+            bool hasSubsystem = s_CameraManager != null && s_CameraManager.subsystem != null;
+            bool running = hasSubsystem && s_CameraManager.subsystem.running;
+            state = $"Session {ARSession.state}, Kamera-Subsystem {(hasSubsystem ? (running ? "läuft" : "gestoppt") : "fehlt")}, " +
+                    $"XR_FB_passthrough {(extension ? "aktiv" : "AUS")}, {runtime}";
+            if (!extension)
+                problem = "Passthrough war beim Bauen nicht aktiv: OpenXR/Android 'Meta Quest: Camera (Passthrough)' + 'Meta Quest: Session' anhaken und neu bauen.";
+            else if (ARSession.state == ARSessionState.Unsupported)
+                problem = "Passthrough: Session 'Unsupported' – OpenXR-Feature 'Meta Quest: Session' aktiv?";
+            else if (!hasSubsystem)
+                problem = "Passthrough: kein Kamera-Subsystem – 'Meta Quest: Camera (Passthrough)' in OpenXR/Android aktiv?";
+            else if (!running)
+                problem = "Passthrough: Kamera startet noch …";
+#else
+            problem = "Mixed Reality: Paket 'Unity OpenXR: Meta' fehlt.";
+            state = "kein AR Foundation";
+#endif
+            string line = problem + " | " + state;
+            if (line != s_LastLogged)
+            {
+                s_LastLogged = line;
+                Debug.Log("[TheMovies] Passthrough: " + line);
+            }
+        }
+
+        static bool PassthroughExtensionEnabled(out string runtime)
+        {
+#if THEMOVIES_OPENXR
+            try
+            {
+                runtime = UnityEngine.XR.OpenXR.OpenXRRuntime.name + " " + UnityEngine.XR.OpenXR.OpenXRRuntime.version;
+                return UnityEngine.XR.OpenXR.OpenXRRuntime.IsExtensionEnabled("XR_FB_passthrough");
+            }
+            catch (System.Exception e)
+            {
+                runtime = "OpenXR: " + e.GetType().Name;
+                return true; // can't tell; don't blame the build
+            }
+#else
+            runtime = "OpenXR unbekannt";
+            return true;
+#endif
         }
 
 #if THEMOVIES_ARF

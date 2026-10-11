@@ -133,6 +133,9 @@ Die Datei wird unverändert übertragen, daher gilt:
 Im Menü *Film wählen → Netzwerk*. Beim ersten Öffnen sucht die App im WLAN nach NAS-Geräten
 (Bonjour „_smb._tcp“, z. B. Synology/QNAP) und DLNA-Medienservern. Gefundenes erscheint mit „gefunden“;
 antippen, Benutzer und Passwort eingeben (leer = Gast) – klappt die Anmeldung, wird die Quelle gespeichert.
+Ein NAS, das nur als Medienserver (DLNA) antwortet, erscheint zusätzlich als **SMB**-Eintrag, wenn es
+Dateifreigaben anbietet. Klappt etwas nicht, steht der Grund in Orange unter dem Titel; mit **„Anmelden“**
+gibst du Benutzer/Passwort (neu) ein.
 Nicht gefunden? **„NAS hinzufügen“** und die Adresse eintippen:
 
 | Protokoll | Beispiele | Hinweise |
@@ -222,7 +225,8 @@ Integrationstests gegen echte Server (werden sonst übersprungen): Samba-Freigab
 WebDAV-Ordner mit `Filme/film.mp4` + `film.srt`:
 
 ```
-THEMOVIES_SMB=127.0.0.1:4455 THEMOVIES_DAV=http://127.0.0.1:8089/dav/ dotnet test tools/CoreTests --filter Category=Integration
+THEMOVIES_SMB=127.0.0.1:4455 THEMOVIES_DAV=http://127.0.0.1:8089/dav/ \
+THEMOVIES_DLNA=http://127.0.0.1:8200/rootDesc.xml dotnet test tools/CoreTests --filter Category=Integration
 ```
 
 ## Projektaufbau

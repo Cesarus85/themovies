@@ -82,6 +82,8 @@ namespace TheMovies.UI
         UILabel m_SetHeight;
         UIButton m_SetSubtitles;
         UIButton m_SetCinema, m_SetMixed;
+        UILabel m_SetMixedStatus;
+        GameObject m_SettingsReturn;
         UIButton m_ResumeButton, m_RestartButton;
         UILabel m_SessionStatus;
         readonly UILabel[] m_Participants = new UILabel[CinemaEnvironment.MaxParticipants];
@@ -331,8 +333,9 @@ namespace TheMovies.UI
             m_HostLan = Button(p, "LAN-Kino eröffnen", -0.217f, -0.115f, 0.42f, 0.06f, () => m_App.Sessions.HostLan(), 0.021f);
             m_JoinLan = Button(p, "Per IP beitreten", 0.217f, -0.115f, 0.42f, 0.06f, EnterLanHost, 0.021f);
 
-            m_SoloButton = Button(p, "Allein schauen", -0.217f, -0.195f, 0.42f, 0.06f, StartSolo, 0.021f);
-            Button(p, "Menü ausblenden", 0.217f, -0.195f, 0.42f, 0.06f, Hide, 0.021f, style: ButtonStyle.Subtle);
+            m_SoloButton = Button(p, "Allein schauen", -0.29f, -0.195f, 0.275f, 0.06f, StartSolo, 0.021f);
+            Button(p, "Einstellungen", 0f, -0.195f, 0.275f, 0.06f, () => OpenSettings(m_MainPage), 0.021f, UIIcon.Settings);
+            Button(p, "Menü ausblenden", 0.29f, -0.195f, 0.275f, 0.06f, Hide, 0.021f, style: ButtonStyle.Subtle);
 
             m_MainStatus = Label(p, string.Empty, 0, -0.258f, 0.018f, 70, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
@@ -409,7 +412,7 @@ namespace TheMovies.UI
             Divider(p, -0.15f);
             float rowY = -0.2f;
             Button(p, "Film wählen", -0.3f, rowY, 0.22f, 0.06f, () => OpenBrowser(false), 0.02f, UIIcon.Film);
-            Button(p, "Einstellungen", -0.06f, rowY, 0.24f, 0.06f, () => ShowPage(m_SettingsPage), 0.02f, UIIcon.Settings);
+            Button(p, "Einstellungen", -0.06f, rowY, 0.24f, 0.06f, () => OpenSettings(m_SessionPage), 0.02f, UIIcon.Settings);
             Button(p, "Ausblenden", 0.16f, rowY, 0.18f, 0.06f, Hide, 0.02f, style: ButtonStyle.Subtle);
             m_LeaveButton = Button(p, "Verlassen", 0.345f, rowY, 0.16f, 0.06f, Leave, 0.02f, style: ButtonStyle.Danger);
 
@@ -435,8 +438,9 @@ namespace TheMovies.UI
         {
             var p = Page("Settings Page");
             Label(p, "Einstellungen", k_Left, 0.305f, 0.026f, 0, TextAnchor.MiddleLeft, UIStyle.Accent);
-            Button(p, "Zurück", 0.35f, 0.305f, 0.16f, 0.045f, () => ShowPage(m_SessionPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
+            Button(p, "Zurück", 0.35f, 0.305f, 0.16f, 0.045f, () => ShowPage(m_SettingsReturn ?? m_SessionPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
             Divider(p, 0.272f);
+            m_SetMixedStatus = Label(p, string.Empty, 0, 0.247f, 0.0135f, 110, TextAnchor.MiddleCenter, UIStyle.Warning);
 
             const float minusX = 0.0f, valueX = 0.18f, plusX = 0.36f, small = 0.05f, step = 0.062f;
             float y = 0.2f;
@@ -490,6 +494,12 @@ namespace TheMovies.UI
             Button(p, "Platz neu ausrichten", -0.2f, -0.322f, 0.3f, 0.042f, () => XRRig.Instance?.RequestAlign(), 0.017f, style: ButtonStyle.Subtle);
             Button(p, "Menü hierher holen", 0.2f, -0.322f, 0.3f, 0.042f, PlaceInFrontOfUser, 0.017f, style: ButtonStyle.Subtle);
             return p;
+        }
+
+        void OpenSettings(GameObject returnPage)
+        {
+            m_SettingsReturn = returnPage;
+            ShowPage(m_SettingsPage);
         }
 
         void SettingRow(GameObject page, string title, float y, bool divider = true)
@@ -843,13 +853,14 @@ namespace TheMovies.UI
             ShowPage(m_SessionPage);
         }
 
-        /// <summary>"Im Netz suchen" in the source list, "Aktualisieren" inside a source.</summary>
+        /// <summary>"Im Netz suchen" in the source list; inside a source "Aktualisieren", or "Anmelden"/"Erneut versuchen" after an error.</summary>
         void NetworkPrimary()
         {
             var library = NetworkLibrary.Instance;
             if (library == null) return;
-            if (library.Current != null) library.Reload();
-            else library.Discover();
+            if (library.Current == null) library.Discover();
+            else if (library.Error.Length > 0 && library.Current.Kind != NetworkSourceKind.Dlna) AskLogin(library.Current.Clone());
+            else library.Reload();
             RefreshBrowser();
         }
 
@@ -971,6 +982,7 @@ namespace TheMovies.UI
             else
                 m_BrowserTitle.Text = "Film wählen";
 
+            m_BrowserInfo.Color = network && library.Error.Length > 0 ? UIStyle.Warning : UIStyle.TextDim;
             var items = new List<object>();
             if (!network)
             {
@@ -991,6 +1003,7 @@ namespace TheMovies.UI
                     : sources.Count == 0 ? "Nichts gefunden. Über „NAS hinzufügen“ die Adresse eingeben (SMB oder WebDAV)."
                     : "Freigaben (SMB), WebDAV-Ordner und DLNA-Medienserver";
                 m_NetworkBar[3].Label = "Im Netz suchen";
+                m_NetworkBar[3].Highlighted = false;
                 m_NetworkBar[3].Interactable = !library.IsDiscovering;
                 m_NetworkBar[4].Label = "NAS hinzufügen";
                 m_NetworkBar[4].Interactable = true;
@@ -998,11 +1011,15 @@ namespace TheMovies.UI
             else
             {
                 foreach (var item in library.Items) items.Add(item);
-                m_BrowserInfo.Text = library.IsBusy ? "Verbinde …"
-                    : library.Error.Length > 0 ? library.Error
+                m_BrowserInfo.Text = library.IsBusy ? $"Verbinde mit {library.Current.Address} …"
+                    : library.Error.Length > 0
+                        ? library.Error + (library.LoginRejected || (library.CurrentFailed && library.Current.Kind == NetworkSourceKind.Smb) ? "  → „Anmelden“" : string.Empty)
                     : library.Items.Count == 0 ? "Keine Filme oder Ordner hier."
                     : library.PathLabel;
-                m_NetworkBar[3].Label = "Aktualisieren";
+                bool failed = library.Error.Length > 0;
+                m_NetworkBar[3].Label = !failed ? "Aktualisieren"
+                    : library.Current.Kind == NetworkSourceKind.Dlna ? "Erneut versuchen" : "Anmelden";
+                m_NetworkBar[3].Highlighted = failed;
                 m_NetworkBar[3].Interactable = !library.IsBusy;
                 bool saved = library.IsSaved(library.Current);
                 m_NetworkBar[4].Label = Time.unscaledTime < m_RemoveConfirmUntil ? "Wirklich entfernen?" : "Quelle entfernen";
@@ -1139,6 +1156,8 @@ namespace TheMovies.UI
             m_SetMixed.Highlighted = MixedReality.Enabled;
             m_SetMixed.Interactable = MixedReality.Available;
             m_SetMixed.Label = MixedReality.Available ? "Mixed Reality" : "MR: Paket fehlt";
+            m_SetMixedStatus.Text = MixedReality.Enabled ? MixedReality.Status : string.Empty;
+            m_SetMixedStatus.Color = MixedReality.Problem.Length > 0 ? UIStyle.Warning : UIStyle.TextDim;
         }
 
         void RefreshMain()
