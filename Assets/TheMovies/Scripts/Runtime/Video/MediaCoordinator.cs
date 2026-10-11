@@ -171,6 +171,14 @@ namespace TheMovies.Video
             m_ReportedProblemUntil = Time.unscaledTime + 8f;
         }
 
+        /// <summary>Ends the movie for everyone; the position is kept for "Weiterschauen".</summary>
+        public void Stop()
+        {
+            if (Playback.Current.Media.IsEmpty) return;
+            RecordResume(true);
+            Playback.Current.RequestStop();
+        }
+
         public void TogglePlay()
         {
             var auth = Playback.Current;
@@ -469,7 +477,15 @@ namespace TheMovies.Video
             m_Player.Unload();
             NetworkLibrary.Instance?.StopPlayback();
             m_Screen.SetTexture(null);
+            bool hadMovie = CurrentEntry != null;
             CurrentEntry = null;
+            SaveResume(true);
+            // Give the decoder buffers and stream caches back right away.
+            if (hadMovie)
+            {
+                Resources.UnloadUnusedAssets();
+                GC.Collect();
+            }
         }
 
         void OnPrepared()

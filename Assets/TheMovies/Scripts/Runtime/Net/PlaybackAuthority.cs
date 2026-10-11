@@ -31,6 +31,9 @@ namespace TheMovies.Net
         void RequestSelectMedia(MediaEntry entry, StereoFormat format);
         void RequestFormat(StereoFormat format, bool swapEyes);
 
+        /// <summary>Ends the current movie for everyone (back to "no movie").</summary>
+        void RequestStop();
+
         /// <summary>The selecting participant reports the length once the movie is prepared.</summary>
         void ReportDuration(int mediaVersion, double duration);
     }
@@ -87,6 +90,7 @@ namespace TheMovies.Net
 
         MediaDescriptor m_Media;
         PlaybackTimeline m_Timeline;
+        int m_LastVersion;
 
         public bool IsNetworked => false;
         public MediaDescriptor Media => m_Media;
@@ -117,7 +121,15 @@ namespace TheMovies.Net
 
         public void RequestSelectMedia(MediaEntry entry, StereoFormat format)
         {
-            m_Media = Playback.Describe(entry, format, m_Media.Version + 1);
+            m_LastVersion = Math.Max(m_LastVersion, m_Media.Version) + 1;
+            m_Media = Playback.Describe(entry, format, m_LastVersion);
+            m_Timeline = new PlaybackTimeline { Revision = m_Timeline.Revision + 1 };
+        }
+
+        public void RequestStop()
+        {
+            m_LastVersion = Math.Max(m_LastVersion, m_Media.Version);
+            m_Media = default;
             m_Timeline = new PlaybackTimeline { Revision = m_Timeline.Revision + 1 };
         }
 
@@ -149,6 +161,7 @@ namespace TheMovies.Net
 
         public void Clear()
         {
+            m_LastVersion = Math.Max(m_LastVersion, m_Media.Version);
             m_Media = default;
             m_Timeline = default;
         }

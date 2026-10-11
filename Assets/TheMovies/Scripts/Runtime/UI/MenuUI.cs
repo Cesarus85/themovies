@@ -69,6 +69,8 @@ namespace TheMovies.UI
         UISlider m_Seek;
         UILabel m_TimeLabel;
         UIButton m_PlayButton;
+        UIButton m_StopButton;
+        float m_StopConfirmUntil;
         UIButton m_LeaveButton;
 
         // Settings page
@@ -402,12 +404,14 @@ namespace TheMovies.UI
             m_TimeLabel = Label(p, string.Empty, k_Right, 0.035f, 0.019f, 24, TextAnchor.MiddleRight);
 
             float y = -0.07f;
-            m_TransportButtons.Add(Button(p, "30", -0.3f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(-30), 0.02f, UIIcon.Back));
-            m_TransportButtons.Add(Button(p, "10", -0.165f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(-10), 0.02f, UIIcon.Back));
-            m_PlayButton = Button(p, null, 0f, y, 0.115f, 0.115f, PlayPause, 0.02f, UIIcon.Play, ButtonStyle.Primary, round: true);
+            m_TransportButtons.Add(Button(p, "30", -0.34f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(-30), 0.02f, UIIcon.Back));
+            m_TransportButtons.Add(Button(p, "10", -0.205f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(-10), 0.02f, UIIcon.Back));
+            m_PlayButton = Button(p, null, -0.07f, y, 0.115f, 0.115f, PlayPause, 0.02f, UIIcon.Play, ButtonStyle.Primary, round: true);
             m_TransportButtons.Add(m_PlayButton);
-            m_TransportButtons.Add(Button(p, "10", 0.165f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(10), 0.02f, UIIcon.Forward));
-            m_TransportButtons.Add(Button(p, "30", 0.3f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(30), 0.02f, UIIcon.Forward));
+            m_TransportButtons.Add(Button(p, "10", 0.065f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(10), 0.02f, UIIcon.Forward));
+            m_TransportButtons.Add(Button(p, "30", 0.2f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(30), 0.02f, UIIcon.Forward));
+            m_StopButton = Button(p, "Beenden", 0.35f, y, 0.15f, 0.075f, StopMovie, 0.018f, UIIcon.Close, ButtonStyle.Subtle);
+            m_TransportButtons.Add(m_StopButton);
 
             Divider(p, -0.15f);
             float rowY = -0.2f;
@@ -569,6 +573,22 @@ namespace TheMovies.UI
             m_App.Media.TogglePlay();
             if (willPlay && !Playback.Current.Media.IsEmpty)
                 m_AutoHideAt = Time.unscaledTime + 1.2f;
+        }
+
+        /// <summary>First press asks, second press (within 3 s) ends the movie for everyone and frees its memory.</summary>
+        void StopMovie()
+        {
+            if (Playback.Current.Media.IsEmpty) return;
+            if (Time.unscaledTime < m_StopConfirmUntil)
+            {
+                m_StopConfirmUntil = 0;
+                m_App.Media.Stop();
+            }
+            else
+            {
+                m_StopConfirmUntil = Time.unscaledTime + 3f;
+            }
+            Refresh();
         }
 
         void ToggleMic() => m_App.SetMicMuted(!VoiceChat.Muted);
@@ -1254,6 +1274,9 @@ namespace TheMovies.UI
             bool playing = auth.Timeline.Playing;
             m_PlayButton.SetIcon(playing ? UIIcon.Pause : UIIcon.Play);
             foreach (var b in m_TransportButtons) b.Interactable = !media.IsEmpty;
+            bool confirmStop = Time.unscaledTime < m_StopConfirmUntil;
+            m_StopButton.Label = confirmStop ? "Sicher?" : "Beenden";
+            m_StopButton.Style = confirmStop ? ButtonStyle.Danger : ButtonStyle.Subtle;
             m_LeaveButton.Label = networked || sessions.State != ConnectionState.Offline ? "Verlassen" : "Hauptmenü";
 
             RefreshParticipants(networked);

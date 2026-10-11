@@ -183,6 +183,7 @@ verwenden, die du besitzt bzw. abspielen darfst.
 | Umschauen | Kopf | rechte Maustaste halten + ziehen |
 | Platz/Blickrichtung neu ausrichten | „Ausrichten“ im Menü oder Meta-Taste lang drücken | – |
 | Sitzhöhe anpassen | *Einstellungen → Sitzhöhe* | dito |
+| Film beenden (für alle, gibt den Speicher frei) | **„Beenden“** neben den Spul-Knöpfen, dann **„Sicher?“** | dito |
 | Menü verschieben | Leiste unter dem Menü mit dem Trigger greifen; Stick vor/zurück ändert den Abstand | Leiste mit der Maus ziehen |
 
 **Ablauf:** Eine Person tippt **„Kino eröffnen“** und sagt den anderen den **Raum-Code** (steht oben im

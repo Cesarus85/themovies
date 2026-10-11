@@ -202,6 +202,8 @@ namespace TheMovies.Net
 
         public void RequestFormat(StereoFormat format, bool swapEyes) => SetFormatRpc((byte)format, swapEyes);
 
+        public void RequestStop() => StopRpc();
+
         public void ReportDuration(int mediaVersion, double duration) => ReportDurationRpc(mediaVersion, duration);
 
         // ---------- Host side ----------
@@ -235,9 +237,11 @@ namespace TheMovies.Net
             RpcParams rpcParams = default)
         {
             m_WaitingForOthers.Value = false;
+            // Never reuse a version: participants and the host stream identify the movie by it.
+            m_LastVersion = Math.Max(m_LastVersion, m_Media.Value.Version) + 1;
             var media = new MediaDescriptor
             {
-                Version = m_Media.Value.Version + 1,
+                Version = m_LastVersion,
                 Key = key,
                 Title = title,
                 IsUrl = isUrl,
@@ -253,6 +257,21 @@ namespace TheMovies.Net
                 Revision = Timeline.Revision + 1,
             });
         }
+
+        [Rpc(SendTo.Server)]
+        void StopRpc()
+        {
+            m_LastVersion = Math.Max(m_LastVersion, m_Media.Value.Version);
+            m_WaitingForOthers.Value = false;
+            m_Media.Value = default;
+            SetTimeline(new PlaybackTimeline
+            {
+                AnchorHostTime = LocalNow,
+                Revision = Timeline.Revision + 1,
+            });
+        }
+
+        int m_LastVersion;
 
         [Rpc(SendTo.Server)]
         void SetFormatRpc(byte format, bool swapEyes)
