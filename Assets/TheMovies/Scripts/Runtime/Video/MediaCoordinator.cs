@@ -105,12 +105,17 @@ namespace TheMovies.Video
             else auth.RequestPlay();
         }
 
-        public void CycleFormat()
+        /// <param name="direction">+1 = next format, -1 = previous format.</param>
+        public void CycleFormat(int direction = 1)
         {
             var media = Playback.Current.Media;
             if (media.IsEmpty) return;
             m_FormatRefined = true;
-            Playback.Current.RequestFormat(media.StereoFormat.Next(), media.SwapEyes);
+            var format = media.StereoFormat;
+            int steps = direction >= 0 ? 1 : StereoFormats.All.Length - 1;
+            for (int i = 0; i < steps; i++)
+                format = format.Next();
+            Playback.Current.RequestFormat(format, media.SwapEyes);
         }
 
         public void ToggleSwapEyes()

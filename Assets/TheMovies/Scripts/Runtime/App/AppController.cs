@@ -111,13 +111,6 @@ namespace TheMovies.App
             }
         }
 
-        void LateUpdate()
-        {
-            // Keep the menu with the seat (seat changes when joining a cinema).
-            if (Menu.Visible)
-                Menu.Place();
-        }
-
         void OnSessionChanged()
         {
             Menu.OnSessionChanged();

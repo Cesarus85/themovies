@@ -41,6 +41,15 @@ namespace TheMovies.XR
         public bool LeftTracked { get; private set; }
         public bool RightTracked { get; private set; }
 
+        /// <summary>True once the head pose is known (immediately on a desktop).</summary>
+        public bool HeadReady => !XRActive || m_HeadTrackedSince >= 0;
+
+        /// <summary>Vertical thumbstick input of either controller (-1..1).</summary>
+        public float StickY { get; private set; }
+
+        /// <summary>While true, the thumbstick does not seek (e.g. while it moves the menu).</summary>
+        public bool SuppressStickSeek { get; set; }
+
         /// <summary>Show the laser rays even when they point at nothing (true while the menu is open).</summary>
         public bool ShowRays { get; set; } = true;
 
@@ -297,9 +306,13 @@ namespace TheMovies.XR
             if (m_Inputs.WasPressed("RPrimary") || m_Inputs.WasPressed("LPrimary"))
                 PlayPauseRequested?.Invoke();
 
+            Vector2 rightStick = m_Inputs.Thumbstick(false), leftStick = m_Inputs.Thumbstick(true);
+            StickY = Mathf.Abs(rightStick.y) >= Mathf.Abs(leftStick.y) ? rightStick.y : leftStick.y;
+
             // Thumbstick flick left/right = seek 10 s
-            float x = m_Inputs.Thumbstick(false).x;
-            if (Mathf.Abs(x) < 0.1f) x = m_Inputs.Thumbstick(true).x;
+            float x = rightStick.x;
+            if (Mathf.Abs(x) < 0.1f) x = leftStick.x;
+            if (SuppressStickSeek) x = 0f;
             int dir = x > 0.75f ? 1 : x < -0.75f ? -1 : 0;
             if (dir != 0 && m_StickDirection == 0)
                 SeekStepRequested?.Invoke(dir * 10.0);

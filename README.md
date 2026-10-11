@@ -139,7 +139,8 @@ verwenden, die du besitzt bzw. abspielen darfst.
 | 10 s zurück / vor | Stick nach links / rechts | Pfeiltasten |
 | Umschauen | Kopf | rechte Maustaste halten + ziehen |
 | Platz/Blickrichtung neu ausrichten | „Ausrichten“ im Menü oder Meta-Taste lang drücken | – |
-| Sitzhöhe anpassen | „Sitz höher“ / „Sitz tiefer“ im Menü | dito |
+| Sitzhöhe anpassen | *Einstellungen → Sitzhöhe* | dito |
+| Menü verschieben | Leiste unter dem Menü mit dem Trigger greifen; Stick vor/zurück ändert den Abstand | Leiste mit der Maus ziehen |
 
 **Ablauf:** Eine Person tippt **„Kino eröffnen“** und sagt den anderen den **Raum-Code** (steht oben im
 Menü). Die anderen tippen **„Mit Code beitreten“**. Dann *Film wählen* → *Abspielen*. Das Menü blendet

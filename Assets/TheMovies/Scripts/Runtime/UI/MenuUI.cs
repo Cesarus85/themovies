@@ -12,13 +12,14 @@ using UnityEngine;
 namespace TheMovies.UI
 {
     /// <summary>
-    /// The floating 3D menu in front of the seat: main menu, on-screen keyboard, playback controls
-    /// and the movie browser. Built entirely in code from <see cref="UIKit"/> widgets.
+    /// The floating 3D menu: main menu, on-screen keyboard, playback controls, settings and the movie
+    /// browser. Appears at eye level in front of the user and can be moved with the grab bar below it.
+    /// Built entirely in code from the widgets in UIKit.cs.
     /// </summary>
     public sealed class MenuUI : MonoBehaviour
     {
         const float k_Width = 0.92f;
-        const float k_Height = 0.66f;
+        const float k_Height = 0.62f;
         const float k_Left = -k_Width * 0.5f + 0.03f;
         const float k_Right = k_Width * 0.5f - 0.03f;
         const int k_BrowserRows = 7;
@@ -29,7 +30,13 @@ namespace TheMovies.UI
         GameObject m_KeyboardPage;
         GameObject m_SessionPage;
         GameObject m_BrowserPage;
+        GameObject m_SettingsPage;
         GameObject m_CurrentPage;
+        UIGrabHandle m_Handle;
+        bool m_PlacementPending = true;
+        float m_ShowAnimation = 1f;
+        float m_GrabDistance;
+        Vector3 m_GrabOffset;
         bool m_Solo;
         bool m_Visible = true;
         float m_AutoHideAt = -1;
@@ -61,12 +68,17 @@ namespace TheMovies.UI
         UISlider m_Seek;
         UILabel m_TimeLabel;
         UIButton m_PlayButton;
-        UIButton m_FormatButton;
-        UIButton m_SwapButton;
-        UIButton m_SizeButton;
-        UIButton m_LightButton;
-        UIButton m_MicButton;
         UIButton m_LeaveButton;
+
+        // Settings page
+        UILabel m_SetFormat;
+        UIButton m_SetFormatPrev, m_SetFormatNext;
+        UIButton m_SetSwap;
+        UILabel m_SetSize;
+        UIButton m_SetLightAuto, m_SetLightOn, m_SetLightOff;
+        UILabel m_SetVolume;
+        UIButton m_SetMic;
+        UILabel m_SetHeight;
         UILabel m_SessionStatus;
         readonly UILabel[] m_Participants = new UILabel[CinemaEnvironment.MaxParticipants];
         readonly List<UIButton> m_TransportButtons = new List<UIButton>();
@@ -107,7 +119,10 @@ namespace TheMovies.UI
         void Build()
         {
             m_Root = transform;
-            UIFactory.CreateQuad(m_Root, "Panel", new Vector3(0, 0, UIStyle.Layer), new Vector2(k_Width, k_Height), UIStyle.Panel, UIFactory.PanelMaterial);
+            UIFactory.CreateRounded(m_Root, "Rim", new Vector3(0, 0, 2 * UIStyle.Layer), new Vector2(k_Width + 0.008f, k_Height + 0.008f),
+                0.034f, UIStyle.PanelRim, UIFactory.PanelMaterial, 0f);
+            UIFactory.CreateRounded(m_Root, "Panel", new Vector3(0, 0, UIStyle.Layer), new Vector2(k_Width, k_Height),
+                0.03f, UIStyle.PanelTop, UIFactory.PanelMaterial, 0.55f);
             // A collider behind everything so pressing on the panel background does not count as "pressed on nothing".
             var blocker = UIFactory.CreateEmpty(m_Root, "Blocker", new Vector3(0, 0, 0.01f));
             blocker.AddComponent<BoxCollider>().size = new Vector3(k_Width, k_Height, 0.005f);
@@ -116,7 +131,14 @@ namespace TheMovies.UI
             m_KeyboardPage = BuildKeyboardPage();
             m_SessionPage = BuildSessionPage();
             m_BrowserPage = BuildBrowserPage();
+            m_SettingsPage = BuildSettingsPage();
 
+            m_Handle = UIGrabHandle.Create(m_Root, new Vector3(0, -k_Height * 0.5f - 0.035f, 0), 0.2f);
+            m_Handle.Began += OnGrabBegan;
+            m_Handle.Moved += OnGrabMoved;
+            m_Handle.Ended += OnGrabEnded;
+
+            m_SettingsPage.SetActive(false);
             m_MainPage.SetActive(false);
             m_KeyboardPage.SetActive(false);
             m_SessionPage.SetActive(false);
@@ -135,10 +157,15 @@ namespace TheMovies.UI
 
         public void Show()
         {
+            bool wasVisible = m_Visible && gameObject.activeSelf;
             m_Visible = true;
             m_AutoHideAt = -1;
             gameObject.SetActive(true);
-            Place();
+            if (!wasVisible)
+            {
+                PlaceInFrontOfUser();
+                m_ShowAnimation = 0f;
+            }
         }
 
         public void Hide()
@@ -159,16 +186,60 @@ namespace TheMovies.UI
             if (!m_Visible) Show();
         }
 
-        /// <summary>Floats in front of the seat, low and tilted like a remote control.</summary>
-        public void Place()
+        /// <summary>Puts the menu at eye level in front of where the user looks, facing them.</summary>
+        public void PlaceInFrontOfUser()
+        {
+            var rig = XRRig.Instance;
+            if (rig == null || !rig.HeadReady)
+            {
+                m_PlacementPending = true;
+                return;
+            }
+            m_PlacementPending = false;
+
+            // Ride along with the rig, so it follows when the seat changes or the view is re-centered.
+            if (transform.parent != rig.transform)
+                transform.SetParent(rig.transform, true);
+
+            var head = rig.Head;
+            Vector3 forward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+            if (forward.sqrMagnitude < 0.01f) forward = rig.transform.forward;
+            forward.Normalize();
+            float distance = rig.XRActive ? 0.8f : 1.15f;
+            transform.position = head.position + forward * distance + Vector3.down * 0.08f;
+            FaceUser();
+        }
+
+        void FaceUser()
         {
             var rig = XRRig.Instance;
             if (rig == null) return;
-            Pose seat = rig.Seat;
-            bool xr = rig.XRActive;
-            Vector3 local = xr ? new Vector3(0, 0.82f + rig.HeightOffset, 0.55f) : new Vector3(0, 1.05f + rig.HeightOffset, 0.85f);
-            float tilt = xr ? 35f : 8f;
-            transform.SetPositionAndRotation(seat.position + seat.rotation * local, seat.rotation * Quaternion.Euler(tilt, 0, 0));
+            Vector3 away = transform.position - rig.Head.position;
+            if (away.sqrMagnitude > 1e-4f)
+                transform.rotation = Quaternion.LookRotation(away, Vector3.up);
+        }
+
+        void OnGrabBegan(Ray ray, Vector3 hitPoint)
+        {
+            m_GrabDistance = Vector3.Distance(ray.origin, hitPoint);
+            m_GrabOffset = transform.position - hitPoint;
+            if (XRRig.Instance != null) XRRig.Instance.SuppressStickSeek = true;
+        }
+
+        void OnGrabMoved(Ray ray)
+        {
+            // Push/pull with the thumbstick while holding the bar.
+            var rig = XRRig.Instance;
+            if (rig != null)
+                m_GrabDistance = Mathf.Clamp(m_GrabDistance + rig.StickY * Time.unscaledDeltaTime * 0.8f, 0.3f, 2.5f);
+            Vector3 target = ray.origin + ray.direction * m_GrabDistance + m_GrabOffset;
+            transform.position = Vector3.Lerp(transform.position, target, 1f - Mathf.Exp(-25f * Time.unscaledDeltaTime));
+            FaceUser();
+        }
+
+        void OnGrabEnded()
+        {
+            if (XRRig.Instance != null) XRRig.Instance.SuppressStickSeek = false;
         }
 
         // ---------------- Pages ----------------
@@ -188,8 +259,13 @@ namespace TheMovies.UI
             Refresh();
         }
 
-        static UIButton Button(GameObject page, string label, float x, float y, float w, float h, Action onClick, float textHeight = 0.024f) =>
-            UIButton.Create(page.transform, label, new Vector3(x, y, -UIStyle.Layer), new Vector2(w, h), onClick, textHeight);
+        static UIButton Button(GameObject page, string label, float x, float y, float w, float h, Action onClick, float textHeight = 0.024f,
+            UIIcon icon = UIIcon.None, ButtonStyle style = ButtonStyle.Normal, bool round = false) =>
+            UIButton.Create(page.transform, label, new Vector3(x, y, -UIStyle.Layer), new Vector2(w, h), onClick, textHeight, icon, style, round);
+
+        static void Divider(GameObject page, float y, float width = k_Width - 0.06f) =>
+            UIFactory.CreateQuad(page.transform, "Divider", new Vector3(0, y, -UIStyle.Layer * 0.5f), new Vector2(width, 0.0015f),
+                UIStyle.Divider, UIFactory.WidgetMaterial);
 
         static UILabel Label(GameObject page, string text, float x, float y, float height, int maxChars,
             TextAnchor anchor = TextAnchor.MiddleLeft, Color? color = null) =>
@@ -215,12 +291,13 @@ namespace TheMovies.UI
             var p = Page("Main Page");
             Label(p, "THE MOVIES", 0, 0.24f, 0.055f, 0, TextAnchor.MiddleCenter, UIStyle.Accent);
             Label(p, "Gemeinsam Kino schauen – mit bis zu 4 Personen", 0, 0.192f, 0.02f, 0, TextAnchor.MiddleCenter, UIStyle.TextDim);
+            Divider(p, 0.163f);
 
             m_MainName = Label(p, string.Empty, k_Left, 0.125f, 0.026f, 40);
             Button(p, "Name ändern", 0.33f, 0.125f, 0.2f, 0.055f, EditName, 0.02f);
 
             Label(p, "Über das Internet (Raum-Code)", k_Left, 0.06f, 0.019f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
-            m_HostOnline = Button(p, "Kino eröffnen", -0.217f, 0.005f, 0.42f, 0.075f, () => m_App.Sessions.HostOnline());
+            m_HostOnline = Button(p, "Kino eröffnen", -0.217f, 0.005f, 0.42f, 0.075f, () => m_App.Sessions.HostOnline(), style: ButtonStyle.Primary);
             m_JoinOnline = Button(p, "Mit Code beitreten", 0.217f, 0.005f, 0.42f, 0.075f, EnterRoomCode);
 
             Label(p, "Im selben WLAN (ohne Unity-Dienste)", k_Left, -0.065f, 0.019f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
@@ -228,7 +305,7 @@ namespace TheMovies.UI
             m_JoinLan = Button(p, "Per IP beitreten", 0.217f, -0.115f, 0.42f, 0.06f, EnterLanHost, 0.021f);
 
             m_SoloButton = Button(p, "Allein schauen", -0.217f, -0.195f, 0.42f, 0.06f, StartSolo, 0.021f);
-            Button(p, "Menü ausblenden", 0.217f, -0.195f, 0.42f, 0.06f, Hide, 0.021f);
+            Button(p, "Menü ausblenden", 0.217f, -0.195f, 0.42f, 0.06f, Hide, 0.021f, style: ButtonStyle.Subtle);
 
             m_MainStatus = Label(p, string.Empty, 0, -0.258f, 0.018f, 70, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
@@ -273,59 +350,103 @@ namespace TheMovies.UI
         GameObject BuildSessionPage()
         {
             var p = Page("Session Page");
-            m_RoomLabel = Label(p, string.Empty, k_Left, 0.255f, 0.03f, 30, TextAnchor.MiddleLeft, UIStyle.Accent);
-            m_VoiceLabel = Label(p, string.Empty, k_Right, 0.255f, 0.017f, 40, TextAnchor.MiddleRight, UIStyle.TextDim);
+            m_RoomLabel = Label(p, string.Empty, k_Left, 0.268f, 0.024f, 30, TextAnchor.MiddleLeft, UIStyle.Accent);
+            m_VoiceLabel = Label(p, string.Empty, k_Right, 0.268f, 0.015f, 40, TextAnchor.MiddleRight, UIStyle.TextDim);
+            Divider(p, 0.24f);
 
-            m_TitleLabel = Label(p, string.Empty, k_Left, 0.205f, 0.027f, 30);
-            m_InfoLabel = Label(p, string.Empty, k_Left, 0.168f, 0.016f, 62, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            m_TitleLabel = Label(p, string.Empty, k_Left, 0.2f, 0.03f, 26);
+            m_InfoLabel = Label(p, string.Empty, k_Left, 0.162f, 0.015f, 58, TextAnchor.MiddleLeft, UIStyle.TextDim);
             for (int i = 0; i < m_Participants.Length; i++)
-                m_Participants[i] = Label(p, string.Empty, 0.06f, 0.215f - i * 0.026f, 0.017f, 34);
+                m_Participants[i] = Label(p, string.Empty, 0.1f, 0.205f - i * 0.026f, 0.016f, 34);
 
-            m_ProblemLabel = Label(p, string.Empty, k_Left, 0.1f, 0.017f, 62, TextAnchor.MiddleLeft, UIStyle.Warning);
-            m_AssignButton = Button(p, "Datei zuordnen", 0.345f, 0.1f, 0.19f, 0.042f, () => OpenBrowser(true), 0.017f);
+            m_ProblemLabel = Label(p, string.Empty, k_Left, 0.09f, 0.016f, 60, TextAnchor.MiddleLeft, UIStyle.Warning);
+            m_AssignButton = Button(p, "Datei zuordnen", 0.34f, 0.09f, 0.18f, 0.04f, () => OpenBrowser(true), 0.016f);
 
-            m_Seek = UISlider.Create(p.transform, new Vector3(-0.085f, 0.04f, -UIStyle.Layer), 0.64f, 0.016f);
+            m_Seek = UISlider.Create(p.transform, new Vector3(-0.115f, 0.035f, -UIStyle.Layer), 0.62f, 0.014f);
             m_Seek.Committed += v => Playback.Current.RequestSeek(v * m_App.Media.DisplayDuration);
-            m_TimeLabel = Label(p, string.Empty, k_Right, 0.04f, 0.02f, 24, TextAnchor.MiddleRight);
+            m_TimeLabel = Label(p, string.Empty, k_Right, 0.035f, 0.019f, 24, TextAnchor.MiddleRight);
 
-            var transport = Row(p, -0.04f, 0.075f, 0.014f,
-                ("-30 s", 0.12f, () => Playback.Current.RequestSeekRelative(-30)),
-                ("-10 s", 0.12f, () => Playback.Current.RequestSeekRelative(-10)),
-                ("Abspielen", 0.24f, PlayPause),
-                ("+10 s", 0.12f, () => Playback.Current.RequestSeekRelative(10)),
-                ("+30 s", 0.12f, () => Playback.Current.RequestSeekRelative(30)));
-            m_PlayButton = transport[2];
-            m_PlayButton.Highlighted = true;
-            m_TransportButtons.AddRange(transport);
+            float y = -0.07f;
+            m_TransportButtons.Add(Button(p, "30", -0.3f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(-30), 0.02f, UIIcon.Back));
+            m_TransportButtons.Add(Button(p, "10", -0.165f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(-10), 0.02f, UIIcon.Back));
+            m_PlayButton = Button(p, null, 0f, y, 0.115f, 0.115f, PlayPause, 0.02f, UIIcon.Play, ButtonStyle.Primary, round: true);
+            m_TransportButtons.Add(m_PlayButton);
+            m_TransportButtons.Add(Button(p, "10", 0.165f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(10), 0.02f, UIIcon.Forward));
+            m_TransportButtons.Add(Button(p, "30", 0.3f, y, 0.12f, 0.075f, () => Playback.Current.RequestSeekRelative(30), 0.02f, UIIcon.Forward));
 
-            var row2 = Row(p, -0.125f, 0.06f, 0.012f,
-                ("Film wählen", 0.2f, () => OpenBrowser(false)),
-                ("Format", 0.24f, () => m_App.Media.CycleFormat()),
-                ("Augen tauschen", 0.19f, () => m_App.Media.ToggleSwapEyes()),
-                ("Leinwand", 0.21f, CycleScreenSize));
-            m_FormatButton = row2[1];
-            m_SwapButton = row2[2];
-            m_SizeButton = row2[3];
+            Divider(p, -0.15f);
+            float rowY = -0.2f;
+            Button(p, "Film wählen", -0.3f, rowY, 0.22f, 0.06f, () => OpenBrowser(false), 0.02f, UIIcon.Film);
+            Button(p, "Einstellungen", -0.06f, rowY, 0.24f, 0.06f, () => ShowPage(m_SettingsPage), 0.02f, UIIcon.Settings);
+            Button(p, "Ausblenden", 0.16f, rowY, 0.18f, 0.06f, Hide, 0.02f, style: ButtonStyle.Subtle);
+            m_LeaveButton = Button(p, "Verlassen", 0.345f, rowY, 0.16f, 0.06f, Leave, 0.02f, style: ButtonStyle.Danger);
 
-            var row3 = Row(p, -0.198f, 0.055f, 0.012f,
-                ("Licht", 0.15f, CycleLights),
-                ("Leiser", 0.12f, () => m_App.ChangeVolume(-0.1f)),
-                ("Lauter", 0.12f, () => m_App.ChangeVolume(0.1f)),
-                ("Mikro", 0.15f, ToggleMic),
-                ("Ausblenden", 0.15f, Hide),
-                ("Verlassen", 0.14f, Leave));
-            m_LightButton = row3[0];
-            m_MicButton = row3[3];
-            m_LeaveButton = row3[5];
-            m_LeaveButton.BaseColor = UIStyle.Danger;
-
-            Row(p, -0.264f, 0.05f, 0.012f,
-                ("Ausrichten", 0.16f, () => XRRig.Instance?.RequestAlign()),
-                ("Sitz tiefer", 0.16f, () => m_App.ChangeHeight(-0.05f)),
-                ("Sitz höher", 0.16f, () => m_App.ChangeHeight(0.05f)));
-
-            m_SessionStatus = Label(p, string.Empty, 0, -0.312f, 0.016f, 90, TextAnchor.MiddleCenter, UIStyle.TextDim);
+            m_SessionStatus = Label(p, string.Empty, 0, -0.272f, 0.014f, 100, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
+        }
+
+        GameObject BuildSettingsPage()
+        {
+            var p = Page("Settings Page");
+            Label(p, "Einstellungen", k_Left, 0.268f, 0.026f, 0, TextAnchor.MiddleLeft, UIStyle.Accent);
+            Button(p, "Zurück", 0.35f, 0.268f, 0.16f, 0.045f, () => ShowPage(m_SessionPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
+            Divider(p, 0.24f);
+
+            const float minusX = 0.0f, valueX = 0.18f, plusX = 0.36f, small = 0.055f;
+            float y = 0.195f;
+
+            SettingRow(p, "3D-Format", y);
+            m_SetFormatPrev = Button(p, null, minusX, y, small, small, () => m_App.Media.CycleFormat(-1), 0.02f, UIIcon.ChevronLeft);
+            m_SetFormat = Label(p, string.Empty, valueX, y, 0.02f, 16, TextAnchor.MiddleCenter);
+            m_SetFormatNext = Button(p, null, plusX, y, small, small, () => m_App.Media.CycleFormat(1), 0.02f, UIIcon.ChevronRight);
+
+            y -= 0.07f;
+            SettingRow(p, "Augen tauschen", y);
+            m_SetSwap = Button(p, "Aus", valueX, y, 0.2f, small, () => m_App.Media.ToggleSwapEyes(), 0.019f);
+
+            y -= 0.07f;
+            SettingRow(p, "Leinwand", y);
+            Button(p, null, minusX, y, small, small, () => ChangeScreenSize(-1), 0.02f, UIIcon.Minus);
+            m_SetSize = Label(p, string.Empty, valueX, y, 0.02f, 16, TextAnchor.MiddleCenter);
+            Button(p, null, plusX, y, small, small, () => ChangeScreenSize(1), 0.02f, UIIcon.Plus);
+
+            y -= 0.07f;
+            SettingRow(p, "Saallicht", y);
+            m_SetLightAuto = Button(p, "Auto", 0.05f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.Auto, 0.018f);
+            m_SetLightOn = Button(p, "An", 0.18f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.On, 0.018f);
+            m_SetLightOff = Button(p, "Aus", 0.31f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.Off, 0.018f);
+
+            y -= 0.07f;
+            SettingRow(p, "Lautstärke Film", y);
+            Button(p, null, minusX, y, small, small, () => m_App.ChangeVolume(-0.1f), 0.02f, UIIcon.Minus);
+            m_SetVolume = Label(p, string.Empty, valueX, y, 0.02f, 8, TextAnchor.MiddleCenter);
+            Button(p, null, plusX, y, small, small, () => m_App.ChangeVolume(0.1f), 0.02f, UIIcon.Plus);
+
+            y -= 0.07f;
+            SettingRow(p, "Mikrofon", y);
+            m_SetMic = Button(p, "An", valueX, y, 0.2f, small, ToggleMic, 0.019f);
+
+            y -= 0.07f;
+            SettingRow(p, "Sitzhöhe", y);
+            Button(p, null, minusX, y, small, small, () => m_App.ChangeHeight(-0.05f), 0.02f, UIIcon.Minus);
+            m_SetHeight = Label(p, string.Empty, valueX, y, 0.02f, 10, TextAnchor.MiddleCenter);
+            Button(p, null, plusX, y, small, small, () => m_App.ChangeHeight(0.05f), 0.02f, UIIcon.Plus);
+
+            Button(p, "Platz neu ausrichten", -0.2f, -0.282f, 0.3f, 0.045f, () => XRRig.Instance?.RequestAlign(), 0.017f, style: ButtonStyle.Subtle);
+            Button(p, "Menü hierher holen", 0.2f, -0.282f, 0.3f, 0.045f, PlaceInFrontOfUser, 0.017f, style: ButtonStyle.Subtle);
+            return p;
+        }
+
+        void SettingRow(GameObject page, string title, float y)
+        {
+            Label(page, title, k_Left, y, 0.02f, 24, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            Divider(page, y - 0.035f);
+        }
+
+        void ChangeScreenSize(int delta)
+        {
+            int next = Mathf.Clamp(m_App.Screen.SizeIndex + delta, 0, ScreenController.Widths.Length - 1);
+            m_App.SetScreenSize(next);
         }
 
         GameObject BuildBrowserPage()
@@ -376,18 +497,6 @@ namespace TheMovies.UI
             m_App.Media.TogglePlay();
             if (willPlay && !Playback.Current.Media.IsEmpty)
                 m_AutoHideAt = Time.unscaledTime + 1.2f;
-        }
-
-        void CycleScreenSize()
-        {
-            int next = (m_App.Screen.SizeIndex + 1) % ScreenController.Widths.Length;
-            m_App.SetScreenSize(next);
-        }
-
-        void CycleLights()
-        {
-            var media = m_App.Media;
-            media.Lights = (LightMode)(((int)media.Lights + 1) % 3);
         }
 
         void ToggleMic() => m_App.SetMicMuted(!VoiceChat.Muted);
@@ -625,10 +734,19 @@ namespace TheMovies.UI
 
         void Update()
         {
-            if (m_AutoHideAt > 0 && Time.unscaledTime >= m_AutoHideAt)
+            if (m_AutoHideAt > 0 && Time.unscaledTime >= m_AutoHideAt && !m_Handle.IsDragging)
             {
                 Hide();
                 return;
+            }
+            if (m_PlacementPending)
+                PlaceInFrontOfUser();
+            if (m_ShowAnimation < 1f)
+            {
+                m_ShowAnimation = Mathf.Min(1f, m_ShowAnimation + Time.unscaledDeltaTime * 6f);
+                float eased = 1f - (1f - m_ShowAnimation) * (1f - m_ShowAnimation);
+                float scale = Mathf.Lerp(0.9f, 1f, eased);
+                transform.localScale = new Vector3(scale, scale, scale);
             }
             // 15 updates per second are plenty and keep string garbage low; a dragged slider updates every frame.
             if (Time.unscaledTime >= m_NextRefresh || m_Seek.IsDragging)
@@ -646,7 +764,8 @@ namespace TheMovies.UI
                 m_Solo = false;
                 if (m_CurrentPage == m_MainPage) ShowPage(m_SessionPage);
             }
-            else if (state == ConnectionState.Offline && !m_Solo && (m_CurrentPage == m_SessionPage || m_CurrentPage == m_BrowserPage))
+            else if (state == ConnectionState.Offline && !m_Solo &&
+                     (m_CurrentPage == m_SessionPage || m_CurrentPage == m_BrowserPage || m_CurrentPage == m_SettingsPage))
             {
                 ShowPage(m_MainPage);
             }
@@ -658,6 +777,31 @@ namespace TheMovies.UI
             if (m_CurrentPage == m_MainPage) RefreshMain();
             else if (m_CurrentPage == m_SessionPage) RefreshSession();
             else if (m_CurrentPage == m_BrowserPage) RefreshBrowser();
+            else if (m_CurrentPage == m_SettingsPage) RefreshSettings();
+        }
+
+        void RefreshSettings()
+        {
+            var media = Playback.Current.Media;
+            bool hasMovie = !media.IsEmpty;
+            m_SetFormat.Text = hasMovie ? media.StereoFormat.DisplayName() : "–";
+            m_SetFormatPrev.Interactable = hasMovie;
+            m_SetFormatNext.Interactable = hasMovie;
+            m_SetSwap.Interactable = hasMovie && media.StereoFormat.IsStereo();
+            m_SetSwap.Highlighted = media.SwapEyes;
+            m_SetSwap.Label = media.SwapEyes ? "An" : "Aus";
+            m_SetSize.Text = ScreenController.SizeNames[m_App.Screen.SizeIndex];
+            var lights = m_App.Media.Lights;
+            m_SetLightAuto.Highlighted = lights == LightMode.Auto;
+            m_SetLightOn.Highlighted = lights == LightMode.On;
+            m_SetLightOff.Highlighted = lights == LightMode.Off;
+            m_SetVolume.Text = $"{Mathf.RoundToInt(m_App.Settings.Volume * 100)} %";
+            bool micAvailable = Playback.Current.IsNetworked && VoiceChat.Compiled;
+            m_SetMic.Interactable = micAvailable;
+            m_SetMic.Highlighted = micAvailable && !VoiceChat.Muted;
+            m_SetMic.Label = !VoiceChat.Compiled ? "nicht installiert" : VoiceChat.Muted ? "Aus" : "An";
+            float height = XRRig.Instance != null ? XRRig.Instance.HeightOffset : 0f;
+            m_SetHeight.Text = $"{height * 100:+0;-0;0} cm";
         }
 
         void RefreshMain()
@@ -735,16 +879,8 @@ namespace TheMovies.UI
             m_TimeLabel.Text = media.IsEmpty ? string.Empty : $"{TextUtil.FormatTime(shownTime)} / {(duration > 0 ? TextUtil.FormatTime(duration) : "–")}";
 
             bool playing = auth.Timeline.Playing;
-            m_PlayButton.Label = playing ? "Pause" : "Abspielen";
+            m_PlayButton.SetIcon(playing ? UIIcon.Pause : UIIcon.Play);
             foreach (var b in m_TransportButtons) b.Interactable = !media.IsEmpty;
-            m_FormatButton.Label = media.IsEmpty ? "Format" : media.StereoFormat.DisplayName();
-            m_FormatButton.Interactable = !media.IsEmpty;
-            m_SwapButton.Interactable = !media.IsEmpty && media.StereoFormat.IsStereo();
-            m_SwapButton.Highlighted = media.SwapEyes;
-            m_SizeButton.Label = "Leinwand: " + ScreenController.SizeNames[m_App.Screen.SizeIndex];
-            m_LightButton.Label = coordinator.Lights == LightMode.Auto ? "Licht: Auto" : coordinator.Lights == LightMode.On ? "Licht: an" : "Licht: aus";
-            m_MicButton.Label = VoiceChat.Muted ? "Mikro: aus" : "Mikro: an";
-            m_MicButton.Interactable = networked && VoiceChat.Compiled;
             m_LeaveButton.Label = networked || sessions.State != ConnectionState.Offline ? "Verlassen" : "Hauptmenü";
 
             RefreshParticipants(networked);
@@ -754,8 +890,7 @@ namespace TheMovies.UI
             string sync = coordinator.LocalState == ParticipantMediaState.Ready && networked
                 ? $"Sync {cmd.Drift * 1000:+0;-0;0} ms · Ping {auth.RoundTrip * 1000:0} ms  ·  "
                 : string.Empty;
-            float height = XRRig.Instance != null ? XRRig.Instance.HeightOffset : 0f;
-            m_SessionStatus.Text = sync + $"Lautstärke {Mathf.RoundToInt(m_App.Settings.Volume * 100)} %  ·  Sitzhöhe {height * 100:+0;-0;0} cm  ·  Menü: B / Y";
+            m_SessionStatus.Text = sync + "Menü: B / Y  ·  Verschieben: Leiste unten greifen, Stick vor/zurück für Abstand";
         }
 
         void RefreshParticipants(bool networked)
