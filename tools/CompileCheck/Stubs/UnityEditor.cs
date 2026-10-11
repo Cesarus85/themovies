@@ -39,7 +39,26 @@ namespace UnityEditor
 
     public static class EditorApplication
     {
+        public delegate void CallbackFunction();
         public static System.Action update;
+        public static CallbackFunction delayCall;
+        public static bool isCompiling => false;
+        public static bool isUpdating => false;
+        public static bool isPlayingOrWillChangePlaymode => false;
+    }
+
+    [AttributeUsage(AttributeTargets.Class)]
+    public sealed class InitializeOnLoadAttribute : Attribute { }
+
+    public static class EditorPrefs
+    {
+        public static bool GetBool(string key, bool defaultValue) => defaultValue;
+        public static void SetBool(string key, bool value) { }
+    }
+
+    public static class Menu
+    {
+        public static void SetChecked(string menuPath, bool isChecked) { }
     }
 
     public static class EditorUserBuildSettings

@@ -214,6 +214,61 @@ namespace TheMovies.EditorTools
             return !(result is bool ok) || ok;
         }
 
+        /// <summary>
+        /// Turns back on what the Quest build needs if something switched it off (OpenXR loader, Meta Quest Support,
+        /// controller profiles, and the passthrough features when the Meta OpenXR package is installed).
+        /// </summary>
+        /// <returns>Names of what was changed; empty if everything was fine.</returns>
+        public static System.Collections.Generic.List<string> RepairQuest()
+        {
+            var changed = new System.Collections.Generic.List<string>();
+            try
+            {
+                if (CheckQuest(out _) == Readiness.NotReady)
+                {
+                    Configure();
+                    if (CheckQuest(out _) == Readiness.Ready)
+                        changed.Add("OpenXR-Loader / Meta Quest Support");
+                }
+                var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
+                if (openXrSettingsType != null)
+                {
+                    EnableMissingFeatures(openXrSettingsType, BuildTargetGroup.Android, k_AndroidFeatures, changed, "Android");
+                    EnableMissingFeatures(openXrSettingsType, BuildTargetGroup.Standalone, k_DesktopFeatures, changed, "PC");
+                }
+                if (IsMetaOpenXrInstalled && EnablePassthroughFeatures() > 0)
+                    changed.Add("Passthrough (Meta Quest: Session/Camera)");
+                if (EnsureMetaSession() > 0)
+                    changed.Add("Meta Quest: Session");
+                if (changed.Count > 0)
+                    AssetDatabase.SaveAssets();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[TheMovies] XR repair failed: " + e.Message);
+            }
+            return changed;
+        }
+
+        static void EnableMissingFeatures(Type openXrSettingsType, BuildTargetGroup group, string[] featureTypeNames,
+            System.Collections.Generic.List<string> changed, string label)
+        {
+            var get = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static);
+            var settings = get?.Invoke(null, new object[] { group });
+            var features = settings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
+            if (features == null) return;
+            foreach (var feature in features)
+            {
+                if (feature == null || !featureTypeNames.Contains(feature.GetType().Name) || IsEnabled(feature)) continue;
+                var prop = feature.GetType().GetProperty("enabled");
+                if (prop == null) continue;
+                prop.SetValue(feature, true);
+                if (feature is Object o) EditorUtility.SetDirty(o);
+                if (settings is Object s) EditorUtility.SetDirty(s);
+                changed.Add(DisplayName(feature) + " (" + label + ")");
+            }
+        }
+
         public const string MetaOpenXrPackage = "com.unity.xr.meta-openxr";
 
         public static bool IsMetaOpenXrInstalled => IsPackageInstalled(MetaOpenXrPackage);
