@@ -159,3 +159,11 @@ namespace UnityEditor.SceneManagement
         public static Scene OpenScene(string scenePath) => default;
     }
 }
+
+namespace UnityEditor.PackageManager
+{
+    public sealed class PackageInfo
+    {
+        public static PackageInfo FindForAssetPath(string assetPath) => null;
+    }
+}

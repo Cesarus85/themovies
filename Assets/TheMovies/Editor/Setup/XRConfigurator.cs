@@ -37,7 +37,7 @@ namespace TheMovies.EditorTools
         {
             try
             {
-                var perTargetType = FindType("UnityEngine.XR.Management.XRGeneralSettingsPerBuildTarget");
+                var perTargetType = FindType("UnityEditor.XR.Management.XRGeneralSettingsPerBuildTarget");
                 var metadataStore = FindType("UnityEditor.XR.Management.Metadata.XRPackageMetadataStore");
                 var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
                 if (perTargetType == null || metadataStore == null)
@@ -80,17 +80,19 @@ namespace TheMovies.EditorTools
             problem = null;
             try
             {
-                var perTargetType = FindType("UnityEngine.XR.Management.XRGeneralSettingsPerBuildTarget");
+                var perTargetType = FindType("UnityEditor.XR.Management.XRGeneralSettingsPerBuildTarget");
                 var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
-                if (perTargetType == null)
+                if (perTargetType == null || openXrSettingsType == null)
                 {
-                    problem = "Paket 'XR Plug-in Management' fehlt.";
-                    return Readiness.NotReady;
-                }
-                if (openXrSettingsType == null)
-                {
-                    problem = "Paket 'OpenXR Plugin' fehlt.";
-                    return Readiness.NotReady;
+                    bool managementInstalled = IsPackageInstalled("com.unity.xr.management");
+                    bool openXrInstalled = IsPackageInstalled("com.unity.xr.openxr");
+                    if (!managementInstalled || !openXrInstalled)
+                    {
+                        problem = !managementInstalled ? "Paket 'XR Plug-in Management' fehlt." : "Paket 'OpenXR Plugin' fehlt.";
+                        return Readiness.NotReady;
+                    }
+                    // Packages are there but their classes moved: don't block the build on our own guesswork.
+                    return Readiness.Unknown;
                 }
 
                 string key = "com.unity.xr.management.loader_settings";
@@ -213,12 +215,35 @@ namespace TheMovies.EditorTools
             return m.Invoke(target, new object[] { group });
         }
 
+        static bool IsPackageInstalled(string name) =>
+            UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/" + name) != null;
+
+        /// <summary>Finds a type by full name, or by its simple name if the namespace differs between package versions.</summary>
         static Type FindType(string fullName)
         {
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
                 var t = asm.GetType(fullName, false);
                 if (t != null) return t;
+            }
+
+            string simpleName = fullName.Substring(fullName.LastIndexOf('.') + 1);
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string asmName = asm.GetName().Name;
+                if (!asmName.StartsWith("Unity.XR", StringComparison.Ordinal)) continue;
+                Type[] types;
+                try
+                {
+                    types = asm.GetTypes();
+                }
+                catch (ReflectionTypeLoadException e)
+                {
+                    types = e.Types;
+                }
+                foreach (var t in types)
+                    if (t != null && t.Name == simpleName)
+                        return t;
             }
             return null;
         }
