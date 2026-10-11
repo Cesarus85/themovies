@@ -90,12 +90,19 @@ namespace UnityEditor
         public static void RevealInFinder(string path) { }
     }
 
+    public static class SessionState
+    {
+        public static bool GetBool(string key, bool defaultValue) => defaultValue;
+        public static void SetBool(string key, bool value) { }
+    }
+
     public static class AssetDatabase
     {
         public static T LoadAssetAtPath<T>(string assetPath) where T : Object => null;
         public static void CreateAsset(Object asset, string path) { }
         public static void SaveAssets() { }
         public static void ImportAsset(string path) { }
+        public static System.Type GetMainAssetTypeAtPath(string assetPath) => null;
         public static void Refresh() { }
         public static bool IsValidFolder(string path) => false;
         public static string CreateFolder(string parentFolder, string newFolderName) => null;

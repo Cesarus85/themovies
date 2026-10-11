@@ -37,6 +37,10 @@ namespace TheMovies.EditorTools
                 Debug.LogWarning("[TheMovies] Grafik-API ist nicht OpenGL ES 3 – der eigene Video-Player (ExoPlayer) ist dann aus und " +
                                  "Unitys VideoPlayer wird verwendet. Umstellen: Menü The Movies > Grafik auf OpenGL ES 3 umstellen.");
 
+            if (DepthModelSetup.ModelMissing)
+                Debug.LogWarning("[TheMovies] 2D→3D: Paket 'Inference Engine' ist installiert, aber das KI-Modell fehlt (" + DepthModelSetup.ModelPath +
+                                 "). Menü The Movies > 2D→3D mit KI einrichten noch einmal aufrufen – sonst nutzt die App nur die einfache Schätzung.");
+
             // Ticks that got lost (controller profiles, passthrough …) are set again before they go missing in the APK.
             var repaired = XRConfigurator.RepairQuest();
             if (repaired.Count > 0)
