@@ -333,15 +333,14 @@ namespace TheMovies.Video
 
             bool buffering = m_Player.IsStalled;
             float ahead = float.MaxValue, window = float.MaxValue;
-            double position = m_Player.IsSeeking ? cmd.Target : m_Player.Time;
             if (IsStreaming && HostStreamService.Instance != null)
             {
-                ahead = HostStreamService.Instance.BufferedSeconds(position, m_Player.Duration);
+                ahead = HostStreamService.Instance.BufferedSeconds(m_Player.Duration);
                 window = HostStreamService.Instance.ReadAheadSeconds(m_Player.Duration);
             }
             else if (CurrentEntry != null && CurrentEntry.IsNetwork && NetworkLibrary.Instance != null && NetworkLibrary.Instance.IsProxyStreaming)
             {
-                ahead = NetworkLibrary.Instance.BufferedSeconds(position, m_Player.Duration);
+                ahead = NetworkLibrary.Instance.BufferedSeconds(m_Player.Duration);
                 window = NetworkLibrary.Instance.ReadAheadSeconds(m_Player.Duration);
             }
             if (!cmd.ReachedEnd)

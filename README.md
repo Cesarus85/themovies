@@ -144,8 +144,15 @@ Nicht gefunden? **„NAS hinzufügen“** und die Adresse eintippen:
 | **WebDAV** | `https://nas:5006/filme`, `davs://cloud.example.de/remote.php/dav/files/ich/` | Basic/Digest-Anmeldung. Selbstsignierte Zertifikate werden nur bei Adressen im Heimnetz akzeptiert. |
 | **DLNA/UPnP** | wird automatisch gefunden | Ohne Anmeldung; die Wiedergabe läuft direkt vom Medienserver. |
 
-- Spulen funktioniert überall; die App liest bei SMB/WebDAV über einen kleinen Zwischenspeicher
-  (ca. 12 MB Vorlauf) und meldet „puffert“, damit die anderen warten, falls das WLAN mal nicht reicht.
+- **„Erst kopieren“ (Standard):** Ein Film vom NAS wird zuerst auf die Quest kopiert (Fortschritt,
+  MB/s und Restzeit im Menü; „Kopieren abbrechen“ möglich, ein abgebrochener Kopiervorgang wird beim
+  nächsten Mal fortgesetzt) und dann lokal abgespielt – Spulen geht sofort, auch bei mehreren GB.
+  Unitys Video-Player liest gestreamte Quellen unter Android nur langsam, daher ist das der verlässliche Weg.
+  Kopien liegen in `Android/data/com.themovies.cinema/files/Movies/NAS` und erscheinen unter
+  „Dieses Gerät“; **„NAS-Kopien“** dort löscht sie wieder (der laufende Film bleibt).
+- **„Streamen“** (umschaltbar in der Leiste unten, wenn eine Quelle offen ist): spielt direkt vom NAS über
+  einen lokalen Zwischenspeicher (ca. 40 MB Vorlauf, 3 parallele Verbindungen). Gut für kleinere Dateien;
+  reicht es nicht, pausiert der Film kurz („Lade nach …“).
 - **Untertitel** (`Film.srt`, `Film.de.srt` …) werden auch im NAS-Ordner gefunden.
 - **Mitschauer**: Für die anderen ist ein NAS-Film wie eine lokale Datei – wer denselben Film hat, nimmt
   seinen eigenen; alle anderen bekommen ihn vom Gastgeber gestreamt (wie oben).
@@ -266,6 +273,10 @@ und „Meta Quest: Camera (Passthrough)“. Danach neu bauen. Ohne das Paket ist
 
 Manuell geht es auch: *Window → Package Manager → + → Add package by name* →
 `com.unity.xr.meta-openxr`, Version `2.3.0` (für Unity 6.3).
+
+Zum Eingrenzen gibt es neben „Mixed Reality“ den Knopf **„Test“**: 1 = normal, 2 = ohne MSAA,
+3 = ohne MSAA plus eine durchsichtige Ebene hinter der Szene. Die Statuszeile zeigt auch das Format des
+Augenbilds (es braucht einen Alpha-Kanal, z. B. `R8G8B8A8_SRGB`).
 
 Bleibt es schwarz: In den Einstellungen steht bei aktivem Mixed Reality eine Statuszeile (Session, Kamera,
 `XR_FB_passthrough`, Manifest-Eintrag `com.oculus.feature.PASSTHROUGH`). Die Passthrough-Kamera startet

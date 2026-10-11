@@ -85,6 +85,7 @@ namespace TheMovies.UI
         UIButton m_SetSubtitles;
         UIButton m_SetCinema, m_SetMixed;
         UILabel m_SetMixedStatus;
+        UIButton m_SetMixedTest;
         GameObject m_SettingsReturn;
         UIButton m_ResumeButton, m_RestartButton;
         UILabel m_SessionStatus;
@@ -105,6 +106,7 @@ namespace TheMovies.UI
         UIButton[] m_LocalBar;
         UIButton[] m_NetworkBar;
         float m_RemoveConfirmUntil;
+        float m_DeleteCopiesUntil;
 
         sealed class KeyboardRequest
         {
@@ -470,8 +472,9 @@ namespace TheMovies.UI
 
             y -= step;
             SettingRow(p, "Umgebung", y);
-            m_SetCinema = Button(p, "Kino", 0.08f, y, 0.16f, small, () => m_App.SetMixedReality(false), 0.018f);
-            m_SetMixed = Button(p, "Mixed Reality", 0.27f, y, 0.2f, small, () => m_App.SetMixedReality(true), 0.018f);
+            m_SetCinema = Button(p, "Kino", 0.04f, y, 0.14f, small, () => m_App.SetMixedReality(false), 0.018f);
+            m_SetMixed = Button(p, "Mixed Reality", 0.21f, y, 0.18f, small, () => m_App.SetMixedReality(true), 0.018f);
+            m_SetMixedTest = Button(p, "Test", 0.37f, y, 0.12f, small, MixedReality.CycleTestMode, 0.016f, style: ButtonStyle.Subtle);
 
             y -= step;
             SettingRow(p, "Saallicht", y);
@@ -532,11 +535,12 @@ namespace TheMovies.UI
                 m_Rows[i] = Button(p, string.Empty, 0, 0.165f - i * 0.058f, k_Width - 0.06f, 0.05f, () => PickRow(index), 0.019f);
             }
             m_LocalBar = Row(p, -0.255f, 0.05f, 0.012f,
-                ("Zurück", 0.13f, BrowserBack),
-                ("Vorherige", 0.13f, () => TurnPage(-1)),
-                ("Nächste", 0.13f, () => TurnPage(1)),
-                ("Aktualisieren", 0.15f, () => m_App.Media.Library.Refresh()),
-                ("Adresse eingeben", 0.18f, EnterStreamUrl));
+                ("Zurück", 0.11f, BrowserBack),
+                ("Vorherige", 0.12f, () => TurnPage(-1)),
+                ("Nächste", 0.11f, () => TurnPage(1)),
+                ("Aktualisieren", 0.14f, () => m_App.Media.Library.Refresh()),
+                ("Adresse eingeben", 0.17f, EnterStreamUrl),
+                ("NAS-Kopien", 0.15f, DeleteCopies));
             m_NetworkBar = Row(p, -0.255f, 0.05f, 0.012f,
                 ("Zurück", 0.13f, BrowserBack),
                 ("Vorherige", 0.13f, () => TurnPage(-1)),
@@ -850,12 +854,35 @@ namespace TheMovies.UI
                         m_BrowserPageIndex = 0;
                         RefreshBrowser();
                     }
+                    else if (library.CopyFirst)
+                    {
+                        CopyThenPlay(library, library.ToEntry(item));
+                    }
                     else
                     {
                         PickEntry(library.ToEntry(item));
                     }
                     break;
             }
+        }
+
+        /// <summary>Copies the NAS movie to the headset, then selects (or assigns) the local copy.</summary>
+        void CopyThenPlay(NetworkLibrary library, MediaEntry entry)
+        {
+            if (entry == null) return;
+            bool assign = m_BrowserAssignMode;
+            if (!library.StartCopy(entry, local =>
+                {
+                    m_App.Media.Library.Refresh();
+                    if (assign) m_App.Media.AssignLocalFile(local);
+                    else if (!m_App.Media.Select(local, out string error)) m_App.Media.ReportProblem(error);
+                }, out string problem))
+            {
+                m_BrowserInfo.Text = problem;
+                m_App.Media.ReportProblem(problem);
+                return;
+            }
+            ShowPage(m_SessionPage);
         }
 
         void PickEntry(MediaEntry entry)
@@ -873,14 +900,15 @@ namespace TheMovies.UI
             ShowPage(m_SessionPage);
         }
 
-        /// <summary>"Im Netz suchen" in the source list; inside a source "Aktualisieren", or "Anmelden"/"Erneut versuchen" after an error.</summary>
+        /// <summary>"Im Netz suchen" in the source list; inside a source the copy/stream switch, or "Anmelden"/"Erneut versuchen" after an error.</summary>
         void NetworkPrimary()
         {
             var library = NetworkLibrary.Instance;
             if (library == null) return;
             if (library.Current == null) library.Discover();
             else if (library.Error.Length > 0 && library.Current.Kind != NetworkSourceKind.Dlna) AskLogin(library.Current.Clone());
-            else library.Reload();
+            else if (library.Error.Length > 0) library.Reload();
+            else library.CopyFirst = !library.CopyFirst;
             RefreshBrowser();
         }
 
@@ -894,6 +922,12 @@ namespace TheMovies.UI
                 EnterNasAddress();
                 return;
             }
+            if (library.IsCopying)
+            {
+                library.CancelCopy();
+                RefreshBrowser();
+                return;
+            }
             if (!library.IsSaved(library.Current)) return;
             if (Time.unscaledTime < m_RemoveConfirmUntil)
             {
@@ -904,6 +938,26 @@ namespace TheMovies.UI
             else
             {
                 m_RemoveConfirmUntil = Time.unscaledTime + 3f;
+            }
+            RefreshBrowser();
+        }
+
+        /// <summary>Deletes the movies copied from a NAS (asks once; the movie playing right now is kept).</summary>
+        void DeleteCopies()
+        {
+            if (Time.unscaledTime < m_DeleteCopiesUntil)
+            {
+                m_DeleteCopiesUntil = 0;
+                var current = m_App.Media.CurrentEntry;
+                long before = NetworkLibrary.CopiesSize();
+                int deleted = NetworkLibrary.Instance != null ? NetworkLibrary.Instance.DeleteCopies(current != null && !current.IsUrl ? current.Location : null) : 0;
+                m_App.Media.Library.Refresh();
+                m_BrowserInfo.Text = $"{deleted} Kopien gelöscht, {TextUtil.FormatSize(before - NetworkLibrary.CopiesSize())} frei geworden.";
+            }
+            else
+            {
+                m_DeleteCopiesUntil = Time.unscaledTime + 3f;
+                m_BrowserInfo.Text = $"NAS-Kopien auf der Quest: {TextUtil.FormatSize(NetworkLibrary.CopiesSize())} – nochmal tippen zum Löschen.";
             }
             RefreshBrowser();
         }
@@ -994,6 +1048,10 @@ namespace TheMovies.UI
             foreach (var b in m_LocalBar) b.gameObject.SetActive(!network);
             foreach (var b in m_NetworkBar) b.gameObject.SetActive(network);
             m_LocalBar[4].gameObject.SetActive(!network && !m_BrowserAssignMode);
+            long copies = network ? 0 : NetworkLibrary.CopiesSize();
+            m_LocalBar[5].gameObject.SetActive(!network && copies > 0);
+            m_LocalBar[5].Label = Time.unscaledTime < m_DeleteCopiesUntil ? "Alle löschen?" : "NAS-Kopien";
+            m_LocalBar[5].Style = Time.unscaledTime < m_DeleteCopiesUntil ? ButtonStyle.Danger : ButtonStyle.Normal;
 
             if (m_BrowserAssignMode)
                 m_BrowserTitle.Text = "Eigene Datei für: " + Playback.Current.Media.Title;
@@ -1031,19 +1089,22 @@ namespace TheMovies.UI
             else
             {
                 foreach (var item in library.Items) items.Add(item);
+                string copy = library.CopyStatus;
                 m_BrowserInfo.Text = library.IsBusy ? $"Verbinde mit {library.Current.Address} …"
+                    : copy.Length > 0 ? copy
                     : library.Error.Length > 0
                         ? library.Error + (library.LoginRejected || (library.CurrentFailed && library.Current.Kind == NetworkSourceKind.Smb) ? "  → „Anmelden“" : string.Empty)
                     : library.Items.Count == 0 ? "Keine Filme oder Ordner hier."
                     : library.PathLabel;
                 bool failed = library.Error.Length > 0;
-                m_NetworkBar[3].Label = !failed ? "Aktualisieren"
+                m_NetworkBar[3].Label = !failed ? (library.CopyFirst ? "Erst kopieren" : "Streamen")
                     : library.Current.Kind == NetworkSourceKind.Dlna ? "Erneut versuchen" : "Anmelden";
                 m_NetworkBar[3].Highlighted = failed;
                 m_NetworkBar[3].Interactable = !library.IsBusy;
                 bool saved = library.IsSaved(library.Current);
-                m_NetworkBar[4].Label = Time.unscaledTime < m_RemoveConfirmUntil ? "Wirklich entfernen?" : "Quelle entfernen";
-                m_NetworkBar[4].Interactable = saved;
+                m_NetworkBar[4].Label = library.IsCopying ? "Kopieren abbrechen"
+                    : Time.unscaledTime < m_RemoveConfirmUntil ? "Wirklich entfernen?" : "Quelle entfernen";
+                m_NetworkBar[4].Interactable = saved || library.IsCopying;
             }
 
             int pages = Mathf.Max(1, Mathf.CeilToInt(items.Count / (float)k_BrowserRows));
@@ -1185,7 +1246,9 @@ namespace TheMovies.UI
             m_SetMixed.Highlighted = MixedReality.Enabled;
             m_SetMixed.Interactable = MixedReality.Available;
             m_SetMixed.Label = MixedReality.Available ? "Mixed Reality" : "MR: Paket fehlt";
-            m_SetMixedStatus.Text = MixedReality.Enabled ? MixedReality.Status : string.Empty;
+            m_SetMixedStatus.Text = MixedReality.Enabled ? TwoLines(MixedReality.Status) : string.Empty;
+            m_SetMixedTest.gameObject.SetActive(MixedReality.Enabled);
+            m_SetMixedTest.Label = $"Test {MixedReality.TestMode + 1}/{MixedReality.TestModes}";
             m_SetMixedStatus.Color = MixedReality.Problem.Length > 0 ? UIStyle.Warning : UIStyle.TextDim;
         }
 
@@ -1243,6 +1306,8 @@ namespace TheMovies.UI
                 string source = string.Empty;
                 if (coordinator.IsStreaming && HostStreamService.Instance != null)
                     source = $"  ·  Stream vom Gastgeber {HostStreamService.Instance.ReceiveRate / 1e6f:0.0} MB/s";
+                else if (coordinator.CurrentEntry != null && coordinator.CurrentEntry.IsNetwork && NetworkLibrary.Instance != null && NetworkLibrary.Instance.IsProxyStreaming)
+                    source = $"  ·  NAS {NetworkLibrary.Instance.StreamRate / 1e6f:0.0} MB/s";
                 else if (media.HostStream && sessions.IsHost)
                     source = "  ·  wird bei Bedarf gestreamt";
                 m_InfoLabel.Text = media.StereoFormat.DisplayName() + (media.SwapEyes ? " (getauscht)" : string.Empty) +
@@ -1259,6 +1324,7 @@ namespace TheMovies.UI
             bool buffering = Playback.Current is LocalAuthority solo && solo.WaitingForBuffer;
             m_ProblemLabel.Text = TwoLines(waiting ? "Pausiert – warte, bis alle bereit sind …"
                 : buffering ? "Lade nach … geht gleich weiter."
+                : NetworkLibrary.Instance != null && NetworkLibrary.Instance.CopyStatus.Length > 0 ? NetworkLibrary.Instance.CopyStatus
                 : resume.HasValue && !missing ? $"Zuletzt bei {TextUtil.FormatTime(resume.Value)} aufgehört."
                 : !string.IsNullOrEmpty(coordinator.Problem) ? coordinator.Problem
                 : mrProblem);

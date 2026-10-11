@@ -47,6 +47,9 @@ namespace TheMovies.Core.Streaming
 
         public long BytesReceived => m_Cache.BytesReceived;
 
+        /// <inheritdoc cref="RemoteBlockCache.BufferedAheadOfReader"/>
+        public long BufferedAheadOfReader() => m_Cache.BufferedAheadOfReader();
+
         /// <summary>How many bytes the streamer keeps ready ahead of the player at most.</summary>
         public long ReadAheadBytes => (long)m_Cache.ReadAheadBlocks * m_Cache.BlockSize;
 

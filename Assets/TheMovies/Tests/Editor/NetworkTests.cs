@@ -398,3 +398,87 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    using System;
+    using System.IO;
+    using NUnit.Framework;
+    using TheMovies.Core.Network;
+
+    public class FileDownloadTests
+    {
+        sealed class FlakySource : IRandomAccessSource
+        {
+            readonly byte[] m_Data;
+            readonly int m_FailEvery;
+            static int s_Reads;
+            public FlakySource(byte[] data, int failEvery) { m_Data = data; m_FailEvery = failEvery; }
+            public long Length => m_Data.Length;
+            public void Open() { }
+            public int Read(long offset, byte[] buffer, int index, int count)
+            {
+                if (m_FailEvery > 0 && ++s_Reads % m_FailEvery == 0) throw new IOException("weg");
+                int n = (int)Math.Min(count, Math.Min(3_000_000, m_Data.Length - offset));
+                if (n <= 0) return 0;
+                Buffer.BlockCopy(m_Data, (int)offset, buffer, index, n);
+                return n;
+            }
+            public void Dispose() { }
+        }
+
+        static string TempDir()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "themovies-dl-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        [Test]
+        public void CopiesWithRetriesAndResumes()
+        {
+            var data = new byte[11_000_000];
+            new Random(3).NextBytes(data);
+            string dir = TempDir();
+            string target = Path.Combine(dir, "Film.mkv");
+
+            // A half-finished earlier copy is continued, not restarted.
+            File.WriteAllBytes(target + ".part", new ArraySegment<byte>(data, 0, 5_000_000).ToArray());
+            var download = new FileDownload(() => new FlakySource(data, 4), target, data.Length);
+            download.Start().Wait(20000);
+            Assert.IsNull(download.Error);
+            Assert.IsTrue(download.Finished);
+            Assert.IsFalse(File.Exists(target + ".part"));
+            Assert.AreEqual(data, File.ReadAllBytes(target));
+
+            // Already there: finishes immediately.
+            var again = new FileDownload(() => throw new InvalidOperationException("must not connect"), target, data.Length);
+            again.Start().Wait(5000);
+            Assert.IsTrue(again.Finished);
+            Directory.Delete(dir, true);
+        }
+
+        [Test]
+        public void CancelKeepsThePartFile()
+        {
+            var data = new byte[40_000_000];
+            string dir = TempDir();
+            string target = Path.Combine(dir, "Gross.mp4");
+            var download = new FileDownload(() => new FlakySource(data, 0), target, data.Length);
+            download.Cancel();
+            download.Start().Wait(5000);
+            Assert.IsFalse(download.Finished);
+            Assert.AreEqual("Abgebrochen.", download.Error);
+            Assert.IsFalse(File.Exists(target));
+            Directory.Delete(dir, true);
+        }
+
+        [TestCase("Film: Teil 1/2?.mkv", "Film_ Teil 1_2_.mkv")]
+        [TestCase("München 3D.mp4", "München 3D.mp4")]
+        [TestCase("  ", "film.mp4")]
+        public void SafeNames(string input, string expected)
+        {
+            Assert.AreEqual(expected, FileDownload.SafeFileName(input));
+        }
+    }
+}

@@ -116,6 +116,7 @@ namespace TheMovies.Video
 
         void Update()
         {
+            UpdateStreamRate();
             while (m_MainThread.TryDequeue(out var action))
             {
                 try
@@ -404,6 +405,8 @@ namespace TheMovies.Video
             string ext = Path.GetExtension(entry.FileName).ToLowerInvariant();
             if (ext.Length < 2 || ext.Length > 6) ext = ".mp4";
             m_RequestsAtServe = m_Server.RequestCount;
+            m_RateBytes = 0;
+            StreamRate = 0;
             string url = m_Server.Serve($"/nas/{++m_StreamCounter}/movie{ext}", m_Streamer, LocalStreamServer.ContentTypeFor(entry.FileName));
             Debug.Log($"[TheMovies] NAS stream {entry.Location} ({entry.Size} bytes) via {url}");
             return url;
@@ -437,15 +440,183 @@ namespace TheMovies.Video
             return (float)(streamer.ReadAheadBytes / (streamer.TotalSize / duration));
         }
 
-        /// <summary>Seconds buffered ahead of the playback position (estimated from the average bitrate).</summary>
-        public float BufferedSeconds(double mediaTime, double duration)
+        /// <summary>Seconds of video cached ahead of where the player reads (estimated from the average bitrate).</summary>
+        public float BufferedSeconds(double duration)
         {
             var streamer = m_Streamer;
             if (streamer == null || duration <= 0) return float.MaxValue;
-            double fraction = Math.Min(1.0, Math.Max(0.0, mediaTime / duration));
-            long ahead = streamer.BufferedBytesFrom((long)(streamer.TotalSize * fraction));
-            if (ahead == long.MaxValue) return float.MaxValue;
-            return (float)(ahead / (streamer.TotalSize / duration));
+            long ahead = streamer.BufferedAheadOfReader();
+            return ahead == long.MaxValue ? float.MaxValue : (float)(ahead / (streamer.TotalSize / duration));
+        }
+
+        /// <summary>Download rate of the running NAS stream in bytes per second (smoothed).</summary>
+        public float StreamRate { get; private set; }
+        long m_RateBytes;
+        float m_RateAt;
+
+        void UpdateStreamRate()
+        {
+            if (Time.unscaledTime < m_RateAt) return;
+            m_RateAt = Time.unscaledTime + 1f;
+            long bytes = m_Streamer?.BytesReceived ?? 0;
+            float rate = Mathf.Max(0, bytes - m_RateBytes);
+            m_RateBytes = bytes;
+            StreamRate = m_Streamer == null ? 0 : Mathf.Lerp(StreamRate, rate, 0.5f);
+        }
+
+        // ---------------- Copy to the headset ----------------
+
+        const string k_CopyFirstKey = "TheMovies.NasCopyFirst";
+
+        /// <summary>Folder with the movies copied from a NAS (part of the local library).</summary>
+        public static string CopyFolder => Path.Combine(MediaLibrary.AppMoviesFolder, "NAS");
+
+        /// <summary>Copy NAS movies to the headset before playing (reliable seeking) instead of streaming them.</summary>
+        public bool CopyFirst
+        {
+            get => PlayerPrefs.GetInt(k_CopyFirstKey, 1) == 1;
+            set
+            {
+                PlayerPrefs.SetInt(k_CopyFirstKey, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>The running (or last) copy, null if none was started.</summary>
+        public FileDownload Copy { get; private set; }
+        public string CopyTitle { get; private set; } = string.Empty;
+        public bool IsCopying => Copy != null && !Copy.Finished && Copy.Error == null;
+
+        /// <summary>Copies a NAS movie to the headset; <paramref name="done"/> gets the local entry on the main thread.</summary>
+        public bool StartCopy(MediaEntry entry, Action<MediaEntry> done, out string error)
+        {
+            error = null;
+            var source = entry != null && entry.IsNetwork ? FindSource(entry.SourceId) : null;
+            if (source == null)
+            {
+                error = "Die Netzwerkquelle dieses Films ist nicht mehr gespeichert.";
+                return false;
+            }
+            if (IsCopying)
+            {
+                error = "Es wird schon ein Film kopiert.";
+                return false;
+            }
+            string target = Path.Combine(CopyFolder, FileDownload.SafeFileName(entry.FileName));
+            long have = File.Exists(target + ".part") ? new FileInfo(target + ".part").Length : 0;
+            long free = FreeSpace(MediaLibrary.AppMoviesFolder);
+            if (free >= 0 && entry.Size - have > free - 512L * 1024 * 1024)
+            {
+                error = $"Zu wenig Speicher auf der Quest: {TextUtil.FormatSize(entry.Size)} nötig, {TextUtil.FormatSize(Math.Max(0, free))} frei.";
+                return false;
+            }
+
+            var copySource = source.Clone();
+            string location = entry.Location;
+            var download = new FileDownload(() => NetworkBrowser.OpenFile(copySource, location), target, entry.Size);
+            Copy = download;
+            CopyTitle = entry.Title;
+            Changed?.Invoke();
+            download.Start().ContinueWith(_ => m_MainThread.Enqueue(() =>
+            {
+                Changed?.Invoke();
+                if (!download.Finished)
+                {
+                    if (!download.Canceled) Debug.LogWarning($"[TheMovies] Copy of {location} failed: {download.Error}");
+                    return;
+                }
+                var local = new MediaEntry
+                {
+                    Title = entry.Title,
+                    Location = download.TargetPath,
+                    Size = new FileInfo(download.TargetPath).Length,
+                };
+                done?.Invoke(local);
+            }));
+            return true;
+        }
+
+        public void CancelCopy()
+        {
+            Copy?.Cancel();
+        }
+
+        /// <summary>One line for the menu while copying (empty otherwise).</summary>
+        public string CopyStatus
+        {
+            get
+            {
+                var c = Copy;
+                if (c == null) return string.Empty;
+                if (c.Finished) return string.Empty;
+                if (c.Error != null) return c.Canceled ? string.Empty : $"Kopieren fehlgeschlagen: {c.Error}";
+                string left = c.SecondsLeft >= 0 ? " · noch " + TextUtil.FormatTime(c.SecondsLeft) : string.Empty;
+                return $"Kopiere „{TextUtil.Ellipsize(CopyTitle, 30)}“ auf die Quest … {c.Progress * 100f:0} %  ·  {c.Rate / 1e6:0.0} MB/s{left}";
+            }
+        }
+
+        /// <summary>Size of all copies on the headset (bytes).</summary>
+        public static long CopiesSize()
+        {
+            try
+            {
+                if (!Directory.Exists(CopyFolder)) return 0;
+                long total = 0;
+                foreach (string f in Directory.GetFiles(CopyFolder))
+                    total += new FileInfo(f).Length;
+                return total;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>Deletes all copies except <paramref name="keep"/> (the movie playing right now).</summary>
+        public int DeleteCopies(string keep)
+        {
+            if (IsCopying) CancelCopy();
+            int deleted = 0;
+            try
+            {
+                if (!Directory.Exists(CopyFolder)) return 0;
+                foreach (string f in Directory.GetFiles(CopyFolder))
+                {
+                    if (keep != null && string.Equals(Path.GetFullPath(f), Path.GetFullPath(keep), StringComparison.OrdinalIgnoreCase)) continue;
+                    try
+                    {
+                        File.Delete(f);
+                        deleted++;
+                    }
+                    catch (IOException)
+                    {
+                        // Still in use (copy just being canceled): next time
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[TheMovies] Could not delete copies: " + e.Message);
+            }
+            return deleted;
+        }
+
+        static long FreeSpace(string path)
+        {
+            try
+            {
+                Directory.CreateDirectory(path);
+#if UNITY_ANDROID && !UNITY_EDITOR
+                using (var stat = new AndroidJavaObject("android.os.StatFs", path))
+                    return stat.Call<long>("getAvailableBytes");
+#else
+                return new DriveInfo(Path.GetPathRoot(Path.GetFullPath(path))).AvailableFreeSpace;
+#endif
+            }
+            catch (Exception)
+            {
+                return -1;
+            }
         }
 
         /// <summary>A separate reader for the host stream (participants without their own copy). Opened lazily.</summary>

@@ -163,18 +163,13 @@ namespace TheMovies.Net
             return (float)((double)cache.ReadAheadBlocks * cache.BlockSize / (cache.TotalSize / duration));
         }
 
-        /// <summary>Seconds of video buffered ahead of the given position (estimated from the average bitrate).</summary>
-        public float BufferedSeconds(double mediaTime, double duration)
+        /// <summary>Seconds of video cached ahead of where the player reads (estimated from the average bitrate).</summary>
+        public float BufferedSeconds(double duration)
         {
             var cache = m_Cache;
-            if (cache == null || duration <= 0) return 0;
-            double bytesPerSecond = cache.TotalSize / duration;
-            long position = (long)(cache.TotalSize * Math.Min(1.0, Math.Max(0.0, mediaTime / duration)));
-            int index = cache.BlockIndexOf(position);
-            long ahead = (long)cache.ContiguousBlocksFrom(index) * cache.BlockSize - (position - (long)index * cache.BlockSize);
-            if (index + cache.ContiguousBlocksFrom(index) >= cache.BlockCount)
-                return float.MaxValue; // everything up to the end is there
-            return (float)(Math.Max(0, ahead) / bytesPerSecond);
+            if (cache == null || duration <= 0) return float.MaxValue;
+            long ahead = cache.BufferedAheadOfReader();
+            return ahead == long.MaxValue ? float.MaxValue : (float)(ahead / (cache.TotalSize / duration));
         }
 
         void SendRequests()

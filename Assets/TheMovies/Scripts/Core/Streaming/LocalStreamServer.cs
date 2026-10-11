@@ -100,6 +100,7 @@ namespace TheMovies.Core.Streaming
         string m_Path;
         IBlockSource m_Cache;
         string m_ContentType = "application/octet-stream";
+        readonly System.Collections.Generic.HashSet<TcpClient> m_Clients = new System.Collections.Generic.HashSet<TcpClient>();
 
         public LocalStreamServer()
         {
@@ -118,6 +119,7 @@ namespace TheMovies.Core.Streaming
         /// <summary>Serves <paramref name="cache"/> under <paramref name="path"/> (e.g. "/media/3/movie.mp4"). Returns the URL.</summary>
         public string Serve(string path, IBlockSource cache, string contentType)
         {
+            CloseConnections();
             lock (m_Lock)
             {
                 m_Path = path;
@@ -133,6 +135,24 @@ namespace TheMovies.Core.Streaming
             {
                 m_Path = null;
                 m_Cache = null;
+            }
+            CloseConnections();
+        }
+
+        /// <summary>Drops all open player connections (a player paused for long may sit in a blocked write).</summary>
+        void CloseConnections()
+        {
+            TcpClient[] clients;
+            lock (m_Clients)
+            {
+                clients = new TcpClient[m_Clients.Count];
+                m_Clients.CopyTo(clients);
+                m_Clients.Clear();
+            }
+            foreach (var c in clients)
+            {
+                try { c.Close(); }
+                catch (Exception) { }
             }
         }
 
@@ -161,6 +181,7 @@ namespace TheMovies.Core.Streaming
         public void Dispose()
         {
             m_Disposed = true;
+            CloseConnections();
             try { m_Listener.Stop(); }
             catch (SocketException) { }
         }
@@ -189,12 +210,16 @@ namespace TheMovies.Core.Streaming
 
         void Handle(TcpClient client)
         {
+            lock (m_Clients) m_Clients.Add(client);
             using (client)
             {
                 try
                 {
                     client.NoDelay = true;
-                    client.SendTimeout = BlockWaitTimeoutMs;
+                    // No send timeout: a paused player stops reading for as long as it likes. Connections are
+                    // closed when the movie changes (CloseConnections) or when the player hangs up.
+                    client.SendTimeout = 0;
+                    client.SendBufferSize = 512 * 1024;
                     var stream = client.GetStream();
                     if (!TryReadRequest(stream, out string method, out string path, out string range))
                         return;
@@ -247,6 +272,14 @@ namespace TheMovies.Core.Streaming
                 }
                 catch (ObjectDisposedException)
                 {
+                }
+                catch (InvalidOperationException)
+                {
+                    // Closed by CloseConnections
+                }
+                finally
+                {
+                    lock (m_Clients) m_Clients.Remove(client);
                 }
             }
         }

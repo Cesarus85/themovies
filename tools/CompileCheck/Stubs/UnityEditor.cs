@@ -127,6 +127,7 @@ namespace UnityEditor
 
     public static class PlayerSettings
     {
+        public static bool use32BitDisplayBuffer { get; set; }
         public static InsecureHttpOption insecureHttpOption { get; set; }
         public static string companyName { get; set; }
         public static string productName { get; set; }

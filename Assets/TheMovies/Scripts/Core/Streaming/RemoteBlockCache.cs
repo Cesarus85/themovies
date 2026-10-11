@@ -179,6 +179,22 @@ namespace TheMovies.Core.Streaming
             }
         }
 
+        /// <summary>
+        /// Bytes cached in one piece from the block the reader asked for last, i.e. what the player can still read
+        /// without waiting; long.MaxValue if that reaches the end of the file.
+        /// </summary>
+        public long BufferedAheadOfReader()
+        {
+            lock (m_Lock)
+            {
+                int count = 0;
+                while (m_ReadPosition + count < BlockCount && m_Blocks.ContainsKey(m_ReadPosition + count))
+                    count++;
+                if (m_ReadPosition + count >= BlockCount) return long.MaxValue;
+                return (long)count * BlockSize;
+            }
+        }
+
         /// <summary>Number of consecutive cached blocks starting at <paramref name="index"/>.</summary>
         public int ContiguousBlocksFrom(int index)
         {

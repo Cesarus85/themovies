@@ -26,6 +26,12 @@ namespace TheMovies.EditorTools
                 Debug.Log("[TheMovies] Player Settings: 'Allow downloads over HTTP' set to 'Always allowed'.");
             }
 
+            if (!PlayerSettings.use32BitDisplayBuffer)
+            {
+                PlayerSettings.use32BitDisplayBuffer = true;
+                Debug.Log("[TheMovies] Player Settings: 'Use 32-bit Display Buffer' enabled (alpha for passthrough).");
+            }
+
             // Ticks that got lost (controller profiles, passthrough …) are set again before they go missing in the APK.
             var repaired = XRConfigurator.RepairQuest();
             if (repaired.Count > 0)

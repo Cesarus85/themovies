@@ -62,7 +62,7 @@ namespace TheMovies.App
             bool running = hasSubsystem && s_CameraManager.subsystem.running;
             string manifest = ManifestPassthrough();
             state = $"Session {ARSession.state}, Kamera {(hasSubsystem ? (running ? "läuft" : "gestoppt") : "fehlt")}, " +
-                    $"XR_FB_passthrough {(extension ? "aktiv" : "AUS")}, Manifest {manifest}, {runtime}";
+                    $"XR_FB_passthrough {(extension ? "aktiv" : "AUS")}, Manifest {manifest}, {EyeTextureInfo()}, Test {TestModeName}, {runtime}";
             if (!extension)
                 problem = "Passthrough war beim Bauen nicht aktiv: OpenXR/Android 'Meta Quest: Camera (Passthrough)' + 'Meta Quest: Session' anhaken und neu bauen.";
             else if (ARSession.state == ARSessionState.Unsupported)
@@ -167,6 +167,74 @@ namespace TheMovies.App
             return s_ManifestPassthrough;
         }
 
+        // ---------------- Test variants (to narrow down a black passthrough on the device) ----------------
+
+        static int s_TestMode;
+        static Camera s_Camera;
+        static GameObject s_ClearQuad;
+
+        public static int TestMode => s_TestMode;
+        public const int TestModes = 3;
+
+        public static string TestModeName
+        {
+            get
+            {
+                switch (s_TestMode)
+                {
+                    case 1: return "ohne MSAA";
+                    case 2: return "ohne MSAA + Klar-Ebene";
+                    default: return "normal";
+                }
+            }
+        }
+
+        /// <summary>Cycles: normal → without MSAA → without MSAA plus a full-view alpha-0 layer.</summary>
+        public static void CycleTestMode()
+        {
+            s_TestMode = (s_TestMode + 1) % TestModes;
+            ApplyTestMode();
+            Debug.Log("[TheMovies] Mixed reality test mode: " + TestModeName);
+        }
+
+        static void ApplyTestMode()
+        {
+            bool mr = Enabled;
+            bool noMsaa = mr && s_TestMode >= 1;
+            QualitySettings.antiAliasing = noMsaa ? 0 : 4;
+            if (s_Camera != null) s_Camera.allowMSAA = !noMsaa;
+
+            bool quad = mr && s_TestMode >= 2 && s_Camera != null;
+            if (quad && s_ClearQuad == null)
+            {
+                s_ClearQuad = new GameObject("MR Clear Layer");
+                s_ClearQuad.transform.SetParent(s_Camera.transform, false);
+                var mesh = new Mesh { name = "Fullscreen Triangle" };
+                mesh.vertices = new[] { new Vector3(-1, -1, 0), new Vector3(3, -1, 0), new Vector3(-1, 3, 0) };
+                mesh.triangles = new[] { 0, 1, 2 };
+                mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 100000f);
+                s_ClearQuad.AddComponent<MeshFilter>().sharedMesh = mesh;
+                var renderer = s_ClearQuad.AddComponent<MeshRenderer>();
+                renderer.sharedMaterial = new Material(Shader.Find("TheMovies/ClearAlpha"));
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+            if (s_ClearQuad != null) s_ClearQuad.SetActive(quad);
+        }
+
+        static string EyeTextureInfo()
+        {
+            try
+            {
+                var desc = UnityEngine.XR.XRSettings.eyeTextureDesc;
+                return $"Augenbild {desc.graphicsFormat} ×{desc.msaaSamples}";
+            }
+            catch (System.Exception)
+            {
+                return "Augenbild ?";
+            }
+        }
+
         public static void SetEnabled(bool enabled, CinemaEnvironment environment, Camera camera)
         {
             if (enabled && !Available) enabled = false;
@@ -181,7 +249,9 @@ namespace TheMovies.App
                 // Passthrough shows wherever the rendered image is transparent.
                 camera.backgroundColor = enabled ? new Color(0, 0, 0, 0) : Color.black;
                 camera.allowHDR = false;
+                s_Camera = camera;
             }
+            ApplyTestMode();
 
 #if THEMOVIES_ARF
             if (enabled && s_Session == null)

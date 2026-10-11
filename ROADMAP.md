@@ -49,6 +49,7 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der
 - **Schärfere Schrift:** Menü und Untertitel auf TextMeshPro (SDF) umstellen.
 - **Netzwerk-Tests im Editor:** Multiplayer Play Mode + Unity Test Runner für Join/Leave, Host-Wechsel, Streaming.
 - **Logs:** Fehlerprotokoll im App-Ordner, damit Probleme von Mitschauern leichter nachvollziehbar sind.
+- **Eigener Android-Player für Streams:** ExoPlayer (Media3) über ein Java-Plugin statt Unitys VideoPlayer – bessere Puffer- und Spul-Logik für NAS/URL-Streams. Bild über eine OpenXR-Composition-Layer-Surface (XR Composition Layers, Android Surface) oder per Hardware-Buffer-Import in Vulkan.
 - **NAS auf der Quest messen:** Durchsatz SMB/WebDAV über WLAN mit 4K-Remux (Ziel ≥ 15 MB/s), ggf. mehrere Lese-Anfragen parallel.
 - **NAS-Zugangsdaten verschlüsseln:** Android Keystore statt Klartext in den App-Einstellungen.
 - **SMB 3.1.1 + Verschlüsselung:** Pre-Auth-Integrity und AES-GCM, damit auch „Verschlüsselung erzwingen“ funktioniert.

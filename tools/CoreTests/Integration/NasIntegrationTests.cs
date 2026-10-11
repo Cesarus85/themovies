@@ -146,5 +146,30 @@ namespace TheMovies.Tests.Integration
                 }
             }
         }
+
+        [Test]
+        public void SmbCopyToDisk()
+        {
+            string smb = Env("THEMOVIES_SMB");
+            if (string.IsNullOrEmpty(smb)) Assert.Ignore("THEMOVIES_SMB not set");
+            NetworkSource.TryParse(smb + "/filme", out var source, out _);
+            source.User = "tester";
+            source.Password = "geheim";
+            using (var browser = NetworkBrowser.Create(source))
+            {
+                var file = browser.List(source.RootLocation).Single(i => i.Name == "film.mp4");
+                string target = Path.Combine(Path.GetTempPath(), "themovies-copy-" + Guid.NewGuid().ToString("N"), FileDownload.SafeFileName(file.Name));
+                var copy = new FileDownload(() => NetworkBrowser.OpenFile(source, file.Location), target, file.Size);
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                Assert.IsTrue(copy.Start().Wait(60000));
+                Assert.IsNull(copy.Error);
+                Assert.IsTrue(copy.Finished);
+                Assert.AreEqual(file.Size, new FileInfo(target).Length);
+                string local = Env("THEMOVIES_SMB_FILE");
+                if (!string.IsNullOrEmpty(local)) Assert.IsTrue(File.ReadAllBytes(local).AsSpan().SequenceEqual(File.ReadAllBytes(target)));
+                TestContext.WriteLine($"{file.Size / 1e6:0.0} MB in {watch.ElapsedMilliseconds} ms");
+                Directory.Delete(Path.GetDirectoryName(target), true);
+            }
+        }
     }
 }

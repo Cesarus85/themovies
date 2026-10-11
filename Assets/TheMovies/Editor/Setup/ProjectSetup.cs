@@ -303,6 +303,8 @@ namespace TheMovies.EditorTools
             PlayerSettings.Android.minSdkVersion = (AndroidSdkVersions)32;
             PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)32;
             PlayerSettings.Android.forceInternetPermission = true;
+            // 32-bit color with alpha: passthrough shows where the rendered image is transparent.
+            PlayerSettings.use32BitDisplayBuffer = true;
             PlayerSettings.Android.forceSDCardPermission = true;
             // http:// streams (and the local stream server on 127.0.0.1) need cleartext HTTP on Android.
             PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
