@@ -90,7 +90,7 @@ namespace TheMovies.EditorTools
             AddPlayerDependencies(root, path);
 
             // Passthrough feature
-            if (XRConfigurator.IsMetaOpenXrInstalled && File.Exists(libraryManifest))
+            if (File.Exists(libraryManifest)) // own passthrough feature or the Meta OpenXR package
             {
                 bool declared = false;
                 foreach (string m in manifests)

@@ -21,8 +21,21 @@ namespace TheMovies.App
         {
             get
             {
-#if THEMOVIES_ARF
+#if THEMOVIES_ARF || THEMOVIES_OPENXR
                 return true;
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>The own OpenXR passthrough feature (XR_FB_passthrough) is in the build and running.</summary>
+        static bool OwnPassthrough
+        {
+            get
+            {
+#if THEMOVIES_OPENXR
+                return TheMovies.XR.PassthroughFeature.Status != "nicht gestartet";
 #else
                 return false;
 #endif
@@ -56,6 +69,18 @@ namespace TheMovies.App
             problem = string.Empty;
             state = string.Empty;
             if (!Enabled) return;
+#if THEMOVIES_OPENXR
+            if (OwnPassthrough)
+            {
+                bool ext = PassthroughExtensionEnabled(out string rt);
+                state = $"Eigenes Passthrough: {TheMovies.XR.PassthroughFeature.Status}, Bilder {TheMovies.XR.PassthroughFeature.FramesWithPassthrough}, " +
+                        $"XR_FB_passthrough {(ext ? "aktiv" : "AUS")}, Manifest {ManifestPassthrough()}, {EyeTextureInfo()}, {rt}";
+                if (!TheMovies.XR.PassthroughFeature.Ready)
+                    problem = "Passthrough: " + TheMovies.XR.PassthroughFeature.Status;
+                LogDiagnosis(problem, state);
+                return;
+            }
+#endif
 #if THEMOVIES_ARF
             bool extension = PassthroughExtensionEnabled(out string runtime);
             bool hasSubsystem = s_CameraManager != null && s_CameraManager.subsystem != null;
@@ -79,11 +104,17 @@ namespace TheMovies.App
             problem = "Mixed Reality: Paket 'Unity OpenXR: Meta' fehlt.";
             state = "kein AR Foundation";
 #endif
-            string line = problem + " | " + state;
+            LogDiagnosis(problem, state);
+        }
+
+        static void LogDiagnosis(string problem, string state)
+        {
+            // Frame counters change constantly: log only when the rest changes.
+            string line = System.Text.RegularExpressions.Regex.Replace(problem + " | " + state, @"Bilder \d+", "Bilder …");
             if (line != s_LastLogged)
             {
                 s_LastLogged = line;
-                Debug.Log("[TheMovies] Passthrough: " + line);
+                Debug.Log("[TheMovies] Passthrough: " + problem + " | " + state);
             }
         }
 
@@ -131,6 +162,27 @@ namespace TheMovies.App
             }
         }
 #endif
+
+        /// <summary>Shows the own passthrough as soon as its layer exists (the XR session may start after the app).</summary>
+        sealed class OwnPassthroughUpdater : MonoBehaviour
+        {
+            void Update()
+            {
+#if THEMOVIES_OPENXR
+                if (Enabled && TheMovies.XR.PassthroughFeature.Ready && !s_OwnShown)
+                {
+                    TheMovies.XR.PassthroughFeature.SetVisible(true);
+                    s_OwnShown = true;
+                }
+                else if (!Enabled)
+                {
+                    s_OwnShown = false;
+                }
+#endif
+            }
+        }
+
+        static bool s_OwnShown;
 
         static string s_ManifestPassthrough;
 
@@ -252,6 +304,18 @@ namespace TheMovies.App
                 s_Camera = camera;
             }
             ApplyTestMode();
+
+            if (camera != null && camera.GetComponent<OwnPassthroughUpdater>() == null)
+                camera.gameObject.AddComponent<OwnPassthroughUpdater>();
+            if (OwnPassthrough)
+            {
+#if THEMOVIES_OPENXR
+                TheMovies.XR.PassthroughFeature.SetVisible(enabled);
+                s_OwnShown = enabled && TheMovies.XR.PassthroughFeature.Ready;
+                if (enabled) Debug.Log("[TheMovies] Mixed reality on (own passthrough: " + TheMovies.XR.PassthroughFeature.Status + ").");
+#endif
+                return;
+            }
 
 #if THEMOVIES_ARF
             if (enabled && s_Session == null)

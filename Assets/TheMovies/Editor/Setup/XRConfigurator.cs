@@ -22,6 +22,7 @@ namespace TheMovies.EditorTools
         static readonly string[] k_AndroidFeatures =
         {
             "MetaQuestFeature",
+            "PassthroughFeature", // The Movies: own passthrough (XR_FB_passthrough)
             "OculusTouchControllerProfile",
             "MetaQuestTouchPlusControllerProfile",
             "MetaQuestTouchProControllerProfile",
@@ -48,6 +49,7 @@ namespace TheMovies.EditorTools
                 var perTarget = GetOrCreatePerTargetSettings(perTargetType);
                 bool android = SetupLoader(perTarget, metadataStore, BuildTargetGroup.Android);
                 bool desktop = SetupLoader(perTarget, metadataStore, BuildTargetGroup.Standalone);
+                RefreshFeatureList();
                 int androidFeatures = EnableFeatures(openXrSettingsType, BuildTargetGroup.Android, k_AndroidFeatures);
                 EnableFeatures(openXrSettingsType, BuildTargetGroup.Standalone, k_DesktopFeatures);
                 AssetDatabase.SaveAssets();
@@ -230,6 +232,7 @@ namespace TheMovies.EditorTools
                     if (CheckQuest(out _) == Readiness.Ready)
                         changed.Add("OpenXR-Loader / Meta Quest Support");
                 }
+                RefreshFeatureList();
                 var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
                 if (openXrSettingsType != null)
                 {
@@ -248,6 +251,21 @@ namespace TheMovies.EditorTools
                 Debug.LogWarning("[TheMovies] XR repair failed: " + e.Message);
             }
             return changed;
+        }
+
+        /// <summary>Makes OpenXR pick up feature classes added by a pull (e.g. our passthrough feature).</summary>
+        static void RefreshFeatureList()
+        {
+            try
+            {
+                var helpers = FindType("UnityEditor.XR.OpenXR.Features.FeatureHelpers");
+                var refresh = helpers?.GetMethod("RefreshFeatures", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(BuildTargetGroup) }, null);
+                refresh?.Invoke(null, new object[] { BuildTargetGroup.Android });
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[TheMovies] Could not refresh the OpenXR feature list: " + e.Message);
+            }
         }
 
         static void EnableMissingFeatures(Type openXrSettingsType, BuildTargetGroup group, string[] featureTypeNames,
