@@ -282,3 +282,50 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    public class RecentStoreTests
+    {
+        [Test]
+        public void KeepsNewestFirstWithoutDuplicates()
+        {
+            var store = new RecentStore();
+            var t = new DateTime(2026, 1, 1);
+            store.Add(new MediaEntry { Title = "A", Location = "/m/a.mkv", FormatHint = StereoFormat.SideBySideHalf }, t);
+            store.Add(new MediaEntry { Title = "B\tx", Location = "http://h:8096/Videos/1/stream?a=1&b=2", Name = "B.mkv", SourceId = "jellyfin:http://h:8096/", Poster = "http://h/p.jpg", Size = 5 }, t);
+            store.Add(new MediaEntry { Title = "A2", Location = "/m/a.mkv" }, t);
+            Assert.AreEqual(2, store.Count);
+            Assert.AreEqual("A2", store.Latest.Title);
+
+            var back = RecentStore.Deserialize(store.Serialize());
+            Assert.AreEqual(2, back.Count);
+            var b = back.Entries[1];
+            Assert.AreEqual("B\tx", b.Title);
+            Assert.AreEqual("http://h:8096/Videos/1/stream?a=1&b=2", b.Location);
+            Assert.AreEqual("B.mkv", b.FileName);
+            Assert.IsTrue(b.IsNetwork);
+            Assert.AreEqual("http://h/p.jpg", b.Poster);
+            Assert.AreEqual(5, b.Size);
+            Assert.IsNull(back.Entries[0].SourceId);
+            Assert.IsNull(back.Entries[0].FormatHint, "the newer entry of the same movie replaced the old one");
+            store.Add(new MediaEntry { Title = "3D", Location = "/m/3d.mkv", FormatHint = StereoFormat.SideBySideHalf }, t);
+            Assert.AreEqual(StereoFormat.SideBySideHalf, RecentStore.Deserialize(store.Serialize()).Latest.FormatHint);
+
+            for (int i = 0; i < 40; i++) store.Add(new MediaEntry { Title = "x", Location = "/m/" + i + ".mp4" }, t);
+            Assert.AreEqual(RecentStore.MaxEntries, store.Count);
+        }
+    }
+}
+
+namespace TheMovies.Tests
+{
+    public class DurationFormatTests
+    {
+        [TestCase(0, "1 min")]
+        [TestCase(61, "2 min")]
+        [TestCase(3540, "59 min")]
+        [TestCase(3900, "1:05 h")]
+        public void FormatsRemainingTime(double seconds, string expected) => Assert.AreEqual(expected, TextUtil.FormatDuration(seconds));
+    }
+}

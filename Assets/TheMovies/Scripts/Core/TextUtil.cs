@@ -17,6 +17,14 @@ namespace TheMovies.Core
             return h > 0 ? $"{h}:{m:00}:{s:00}" : $"{m}:{s:00}";
         }
 
+        /// <summary>Rough remaining time: "1:05 h", "42 min", "1 min".</summary>
+        public static string FormatDuration(double seconds)
+        {
+            if (double.IsNaN(seconds) || double.IsInfinity(seconds) || seconds < 0) seconds = 0;
+            long minutes = (long)Math.Ceiling(seconds / 60);
+            return minutes >= 60 ? $"{minutes / 60}:{minutes % 60:00} h" : $"{Math.Max(1, minutes)} min";
+        }
+
         public static string FormatSize(long bytes)
         {
             if (bytes <= 0) return string.Empty;

@@ -23,7 +23,6 @@ namespace TheMovies.UI
         const float k_Height = 0.72f;
         const float k_Left = -k_Width * 0.5f + 0.03f;
         const float k_Right = k_Width * 0.5f - 0.03f;
-        const int k_BrowserRows = 7;
 
         AppController m_App;
         Transform m_Root;
@@ -46,7 +45,7 @@ namespace TheMovies.UI
         // Main page
         UILabel m_MainName;
         UILabel m_MainStatus;
-        UIButton m_HostOnline, m_JoinOnline, m_HostLan, m_JoinLan, m_SoloButton;
+        UIButton m_HostOnline, m_JoinOnline, m_HostLan, m_JoinLan, m_SoloButton, m_ContinueButton;
 
         // Keyboard page
         UILabel m_KeyTitle;
@@ -91,22 +90,6 @@ namespace TheMovies.UI
         UILabel m_SessionStatus;
         readonly UILabel[] m_Participants = new UILabel[CinemaEnvironment.MaxParticipants];
         readonly List<UIButton> m_TransportButtons = new List<UIButton>();
-
-        // Browser page
-        UILabel m_BrowserTitle;
-        UILabel m_BrowserInfo;
-        UILabel m_PageLabel;
-        readonly UIButton[] m_Rows = new UIButton[k_BrowserRows];
-        readonly object[] m_RowItems = new object[k_BrowserRows];
-        int m_BrowserPageIndex;
-        bool m_BrowserAssignMode;
-        bool m_BrowserNetwork;
-        bool m_SearchedNetwork;
-        UIButton m_TabLocal, m_TabNetwork;
-        UIButton[] m_LocalBar;
-        UIButton[] m_NetworkBar;
-        float m_RemoveConfirmUntil;
-        float m_DeleteCopiesUntil;
 
         sealed class KeyboardRequest
         {
@@ -343,7 +326,8 @@ namespace TheMovies.UI
             Button(p, "Einstellungen", 0f, -0.195f, 0.275f, 0.06f, () => OpenSettings(m_MainPage), 0.021f, UIIcon.Settings);
             Button(p, "Menü ausblenden", 0.29f, -0.195f, 0.275f, 0.06f, Hide, 0.021f, style: ButtonStyle.Subtle);
 
-            m_MainStatus = Label(p, string.Empty, 0, -0.258f, 0.018f, 70, TextAnchor.MiddleCenter, UIStyle.TextDim);
+            m_ContinueButton = Button(p, "Weiterschauen", 0f, -0.265f, 0.855f, 0.055f, ContinueLast, 0.019f, style: ButtonStyle.Primary);
+            m_MainStatus = Label(p, string.Empty, 0, -0.322f, 0.018f, 70, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
         }
 
@@ -525,41 +509,22 @@ namespace TheMovies.UI
             m_App.SetScreenSize(next);
         }
 
-        GameObject BuildBrowserPage()
-        {
-            var p = Page("Browser Page");
-            m_BrowserTitle = Label(p, string.Empty, k_Left, 0.258f, 0.028f, 28, TextAnchor.MiddleLeft, UIStyle.Accent);
-            m_TabLocal = Button(p, "Dieses Gerät", 0.185f, 0.258f, 0.17f, 0.045f, () => SetBrowserTab(false), 0.017f);
-            m_TabNetwork = Button(p, "Netzwerk", 0.355f, 0.258f, 0.15f, 0.045f, () => SetBrowserTab(true), 0.017f);
-            m_BrowserInfo = Label(p, string.Empty, k_Left, 0.212f, 0.015f, 82, TextAnchor.MiddleLeft, UIStyle.TextDim);
-            m_PageLabel = Label(p, string.Empty, k_Right, 0.212f, 0.016f, 12, TextAnchor.MiddleRight, UIStyle.TextDim);
-            for (int i = 0; i < k_BrowserRows; i++)
-            {
-                int index = i;
-                m_Rows[i] = Button(p, string.Empty, 0, 0.165f - i * 0.058f, k_Width - 0.06f, 0.05f, () => PickRow(index), 0.019f);
-            }
-            m_LocalBar = Row(p, -0.255f, 0.05f, 0.012f,
-                ("Zurück", 0.11f, BrowserBack),
-                ("Vorherige", 0.12f, () => TurnPage(-1)),
-                ("Nächste", 0.11f, () => TurnPage(1)),
-                ("Aktualisieren", 0.14f, () => m_App.Media.Library.Refresh()),
-                ("Adresse eingeben", 0.17f, EnterStreamUrl),
-                ("NAS-Kopien", 0.15f, DeleteCopies));
-            m_NetworkBar = Row(p, -0.255f, 0.05f, 0.012f,
-                ("Zurück", 0.13f, BrowserBack),
-                ("Vorherige", 0.13f, () => TurnPage(-1)),
-                ("Nächste", 0.13f, () => TurnPage(1)),
-                ("Im Netz suchen", 0.17f, NetworkPrimary),
-                ("Hinzufügen", 0.17f, NetworkSecondary));
-            return p;
-        }
-
         // ---------------- Actions ----------------
 
         void StartSolo()
         {
             m_Solo = true;
             ShowPage(m_SessionPage);
+        }
+
+        /// <summary>"Weiterschauen" on the start page: the last movie, alone, from where it was left off.</summary>
+        void ContinueLast()
+        {
+            var last = m_App.Media.Recent.Latest;
+            if (last == null) return;
+            StartSolo();
+            if (!m_App.Media.Select(last, out string error, resume: true))
+                m_App.Media.ReportProblem(error);
         }
 
         void Leave()
@@ -778,413 +743,6 @@ namespace TheMovies.UI
                 request.Submit(text);
         }
 
-        // ---------------- Browser ----------------
-
-        void OpenBrowser(bool assignMode)
-        {
-            m_BrowserAssignMode = assignMode;
-            m_BrowserPageIndex = 0;
-            m_App.Media.Library.Refresh();
-            ShowPage(m_BrowserPage);
-            SetBrowserTab(m_BrowserNetwork);
-        }
-
-        void SetBrowserTab(bool network)
-        {
-            m_BrowserNetwork = network;
-            m_BrowserPageIndex = 0;
-            var library = NetworkLibrary.Instance;
-            if (network && !m_SearchedNetwork && library != null)
-            {
-                m_SearchedNetwork = true;
-                library.Discover();
-            }
-            RefreshBrowser();
-        }
-
-        void BrowserBack()
-        {
-            var library = NetworkLibrary.Instance;
-            if (m_BrowserNetwork && library != null && library.Current != null)
-            {
-                library.Back();
-                m_BrowserPageIndex = 0;
-                RefreshBrowser();
-                return;
-            }
-            ShowPage(m_SessionPage);
-        }
-
-        int BrowserItemCount()
-        {
-            var library = NetworkLibrary.Instance;
-            if (!m_BrowserNetwork) return m_App.Media.Library.Entries.Count;
-            if (library == null) return 0;
-            return library.Current != null ? library.Items.Count : library.Sources.Count;
-        }
-
-        void TurnPage(int delta)
-        {
-            int pages = Mathf.Max(1, Mathf.CeilToInt(BrowserItemCount() / (float)k_BrowserRows));
-            m_BrowserPageIndex = Mathf.Clamp(m_BrowserPageIndex + delta, 0, pages - 1);
-            RefreshBrowser();
-        }
-
-        void PickRow(int index)
-        {
-            var library = NetworkLibrary.Instance;
-            switch (m_RowItems[index])
-            {
-                case MediaEntry entry:
-                    PickEntry(entry);
-                    break;
-                case NetworkSource source when library != null:
-                    if (library.IsSaved(source)) library.OpenSource(source);
-                    else if (source.Kind == NetworkSourceKind.Plex) library.StartPlexLink();
-                    else if (source.Kind == NetworkSourceKind.Smb || source.Kind == NetworkSourceKind.Jellyfin) AskLogin(source.Clone());
-                    else library.AddAndOpen(source.Clone());
-                    m_BrowserPageIndex = 0;
-                    RefreshBrowser();
-                    break;
-                case NetworkItem item when library != null:
-                    if (item.IsFolder)
-                    {
-                        library.OpenFolder(item);
-                        m_BrowserPageIndex = 0;
-                        RefreshBrowser();
-                    }
-                    else if (library.CopyFirst)
-                    {
-                        CopyThenPlay(library, library.ToEntry(item));
-                    }
-                    else
-                    {
-                        PickEntry(library.ToEntry(item));
-                    }
-                    break;
-            }
-        }
-
-        /// <summary>Copies the NAS movie to the headset, then selects (or assigns) the local copy.</summary>
-        void CopyThenPlay(NetworkLibrary library, MediaEntry entry)
-        {
-            if (entry == null) return;
-            bool assign = m_BrowserAssignMode;
-            if (!library.StartCopy(entry, local =>
-                {
-                    m_App.Media.Library.Refresh();
-                    if (assign) m_App.Media.AssignLocalFile(local);
-                    else if (!m_App.Media.Select(local, out string error)) m_App.Media.ReportProblem(error);
-                }, out string problem))
-            {
-                m_BrowserInfo.Text = problem;
-                m_App.Media.ReportProblem(problem);
-                return;
-            }
-            ShowPage(m_SessionPage);
-        }
-
-        void PickEntry(MediaEntry entry)
-        {
-            if (entry == null) return;
-            if (m_BrowserAssignMode)
-            {
-                m_App.Media.AssignLocalFile(entry);
-            }
-            else if (!m_App.Media.Select(entry, out string error))
-            {
-                m_BrowserInfo.Text = error;
-                return;
-            }
-            ShowPage(m_SessionPage);
-        }
-
-        /// <summary>"Im Netz suchen" in the source list; inside a source the copy/stream switch, or "Anmelden"/"Erneut versuchen" after an error.</summary>
-        void NetworkPrimary()
-        {
-            var library = NetworkLibrary.Instance;
-            if (library == null) return;
-            if (library.Current == null && library.IsLinkingPlex) library.CancelPlexLink();
-            else if (library.Current == null) library.Discover();
-            else if (library.Error.Length > 0 && library.Current.Kind == NetworkSourceKind.Plex) library.StartPlexLink();
-            else if (library.Error.Length > 0 && library.Current.Kind != NetworkSourceKind.Dlna) AskLogin(library.Current.Clone());
-            else if (library.Error.Length > 0) library.Reload();
-            else library.CopyFirst = !library.CopyFirst;
-            RefreshBrowser();
-        }
-
-        /// <summary>"NAS hinzufügen" in the source list, "Quelle entfernen" (with confirmation) inside a saved source.</summary>
-        void NetworkSecondary()
-        {
-            var library = NetworkLibrary.Instance;
-            if (library == null) return;
-            if (library.Current == null)
-            {
-                EnterNasAddress();
-                return;
-            }
-            if (library.IsCopying)
-            {
-                library.CancelCopy();
-                RefreshBrowser();
-                return;
-            }
-            if (!library.IsSaved(library.Current)) return;
-            if (Time.unscaledTime < m_RemoveConfirmUntil)
-            {
-                m_RemoveConfirmUntil = 0;
-                library.Remove(library.Current);
-                m_BrowserPageIndex = 0;
-            }
-            else
-            {
-                m_RemoveConfirmUntil = Time.unscaledTime + 3f;
-            }
-            RefreshBrowser();
-        }
-
-        /// <summary>Deletes the movies copied from a NAS (asks once; the movie playing right now is kept).</summary>
-        void DeleteCopies()
-        {
-            if (Time.unscaledTime < m_DeleteCopiesUntil)
-            {
-                m_DeleteCopiesUntil = 0;
-                var current = m_App.Media.CurrentEntry;
-                long before = NetworkLibrary.CopiesSize();
-                int deleted = NetworkLibrary.Instance != null ? NetworkLibrary.Instance.DeleteCopies(current != null && !current.IsUrl ? current.Location : null) : 0;
-                m_App.Media.Library.Refresh();
-                m_BrowserInfo.Text = $"{deleted} Kopien gelöscht, {TextUtil.FormatSize(before - NetworkLibrary.CopiesSize())} frei geworden.";
-            }
-            else
-            {
-                m_DeleteCopiesUntil = Time.unscaledTime + 3f;
-                m_BrowserInfo.Text = $"NAS-Kopien auf der Quest: {TextUtil.FormatSize(NetworkLibrary.CopiesSize())} – nochmal tippen zum Löschen.";
-            }
-            RefreshBrowser();
-        }
-
-        void EnterNasAddress()
-        {
-            OpenKeyboard(new KeyboardRequest
-            {
-                Title = "Adresse von NAS, Netzlaufwerk oder Medienserver",
-                Hint = "smb://192.168.1.10/filme · https://nas:5006/filme (WebDAV) · http://nas:8096 (Jellyfin) · plex",
-                Initial = "smb://",
-                MaxLength = 200,
-                AllowLowercase = true,
-                AllowSpace = true,
-                ReturnPage = m_BrowserPage,
-                Accepts = c => c > ' ' && c != '•',
-                Submit = text =>
-                {
-                    if (!NetworkSource.TryParse(text, out var source, out string error))
-                    {
-                        m_App.Media.ReportProblem(error);
-                        m_BrowserInfo.Text = error;
-                        return;
-                    }
-                    var library = NetworkLibrary.Instance;
-                    if (library == null) return;
-                    if (source.Kind == NetworkSourceKind.Plex)
-                    {
-                        library.StartPlexLink();
-                        return;
-                    }
-                    m_BrowserInfo.Text = "Prüfe " + source.Address + " …";
-                    library.Identify(source, found =>
-                    {
-                        if (found.Kind == NetworkSourceKind.Plex) library.StartPlexLink();
-                        else AskLogin(found);
-                    });
-                },
-            });
-        }
-
-        /// <summary>Asks for user name and password, then tries the source and saves it if it works.</summary>
-        void AskLogin(NetworkSource source)
-        {
-            bool mediaServer = source.Kind == NetworkSourceKind.Jellyfin;
-            OpenKeyboard(new KeyboardRequest
-            {
-                Title = $"Benutzername für {TextUtil.Ellipsize(source.Name, 28)}",
-                Hint = mediaServer ? "Dein Benutzer auf dem Jellyfin/Emby-Server."
-                    : "Leer lassen für Gastzugang. Mit Domäne: DOMÄNE\\name (\\ über Umschalt).",
-                Initial = source.User,
-                MaxLength = 64,
-                AllowLowercase = true,
-                AllowSpace = true,
-                AllowEmpty = !mediaServer,
-                ReturnPage = m_BrowserPage,
-                Accepts = c => c > ' ' && c != '•',
-                Submit = user =>
-                {
-                    source.User = user;
-                    if (user.Length == 0)
-                    {
-                        source.Password = string.Empty;
-                        StartAddingSource(source);
-                        return;
-                    }
-                    OpenKeyboard(new KeyboardRequest
-                    {
-                        Title = $"Passwort für {TextUtil.Ellipsize(user, 30)}",
-                        Hint = "Wird nur auf dieser Brille gespeichert. Sonderzeichen über Umschalt.",
-                        MaxLength = 128,
-                        AllowLowercase = true,
-                        AllowSpace = true,
-                        AllowEmpty = true,
-                        Secret = true,
-                        ReturnPage = m_BrowserPage,
-                        Accepts = c => c >= ' ' && c != '•',
-                        Submit = password =>
-                        {
-                            source.Password = password;
-                            StartAddingSource(source);
-                        },
-                    });
-                },
-            });
-        }
-
-        void StartAddingSource(NetworkSource source)
-        {
-            m_BrowserNetwork = true;
-            m_BrowserPageIndex = 0;
-            NetworkLibrary.Instance?.AddAndOpen(source);
-            RefreshBrowser();
-        }
-
-        void RefreshBrowser()
-        {
-            var library = NetworkLibrary.Instance;
-            bool network = m_BrowserNetwork && library != null;
-            m_TabLocal.Highlighted = !network;
-            m_TabNetwork.Highlighted = network;
-            foreach (var b in m_LocalBar) b.gameObject.SetActive(!network);
-            foreach (var b in m_NetworkBar) b.gameObject.SetActive(network);
-            m_LocalBar[4].gameObject.SetActive(!network && !m_BrowserAssignMode);
-            long copies = network ? 0 : NetworkLibrary.CopiesSize();
-            m_LocalBar[5].gameObject.SetActive(!network && copies > 0);
-            m_LocalBar[5].Label = Time.unscaledTime < m_DeleteCopiesUntil ? "Alle löschen?" : "NAS-Kopien";
-            m_LocalBar[5].Style = Time.unscaledTime < m_DeleteCopiesUntil ? ButtonStyle.Danger : ButtonStyle.Normal;
-
-            if (m_BrowserAssignMode)
-                m_BrowserTitle.Text = "Eigene Datei für: " + Playback.Current.Media.Title;
-            else if (network && library.Current != null)
-                m_BrowserTitle.Text = library.Current.Name;
-            else
-                m_BrowserTitle.Text = "Film wählen";
-
-            m_BrowserInfo.Color = network && library.Error.Length > 0 ? UIStyle.Warning : UIStyle.TextDim;
-            var items = new List<object>();
-            if (!network)
-            {
-                var local = m_App.Media.Library;
-                foreach (var e in local.Entries) items.Add(e);
-                m_BrowserInfo.Text = local.IsScanning
-                    ? "Suche Filme …"
-                    : local.Entries.Count == 0
-                        ? "Keine Filme gefunden. Lege Videos in Movies/ oder Download/ ab, Streams in urls.txt."
-                        : "Gesucht in Movies, Download und " + MediaLibrary.AppMoviesFolder;
-            }
-            else if (library.Current == null)
-            {
-                var sources = library.Sources;
-                foreach (var src in sources) items.Add(src);
-                if (library.IsLinkingPlex)
-                    m_BrowserTitle.Text = library.PlexCode.Length > 0 ? "Plex-Code:  " + library.PlexCode : "Mit Plex verbinden …";
-                m_BrowserInfo.Text = library.IsLinkingPlex
-                        ? library.PlexCode.Length > 0 ? $"Am Handy/PC {PlexServers.LinkPage} öffnen und den Code eingeben – danach geht es hier von selbst weiter." : "Hole einen Code von plex.tv …"
-                    : library.Error.Length > 0 ? library.Error
-                    : library.IsDiscovering ? "Suche NAS und Medienserver im WLAN …"
-                    : sources.Count == 0 ? "Nichts gefunden. Über „Hinzufügen“ die Adresse eingeben (SMB, WebDAV, Jellyfin oder „plex“)."
-                    : "Freigaben (SMB), WebDAV, DLNA, Jellyfin/Emby und Plex";
-                m_NetworkBar[3].Label = library.IsLinkingPlex ? "Abbrechen" : "Im Netz suchen";
-                m_NetworkBar[3].Highlighted = false;
-                m_NetworkBar[3].Interactable = !library.IsDiscovering || library.IsLinkingPlex;
-                m_NetworkBar[4].Label = "Hinzufügen";
-                m_NetworkBar[4].Interactable = true;
-            }
-            else
-            {
-                foreach (var item in library.Items) items.Add(item);
-                string copy = library.CopyStatus;
-                m_BrowserInfo.Text = library.IsBusy ? $"Verbinde mit {library.Current.Address} …"
-                    : copy.Length > 0 ? copy
-                    : library.Error.Length > 0
-                        ? library.Error + (library.LoginRejected || (library.CurrentFailed && library.Current.Kind != NetworkSourceKind.Dlna && library.Current.Kind != NetworkSourceKind.WebDav) ? "  → „Anmelden“" : string.Empty)
-                    : library.Items.Count == 0 ? "Keine Filme oder Ordner hier."
-                    : library.PathLabel;
-                bool failed = library.Error.Length > 0;
-                m_NetworkBar[3].Label = !failed ? (library.CopyFirst ? "Erst kopieren" : "Streamen")
-                    : library.Current.Kind == NetworkSourceKind.Dlna ? "Erneut versuchen" : "Anmelden";
-                m_NetworkBar[3].Highlighted = failed;
-                m_NetworkBar[3].Interactable = !library.IsBusy;
-                bool saved = library.IsSaved(library.Current);
-                m_NetworkBar[4].Label = library.IsCopying ? "Kopieren abbrechen"
-                    : Time.unscaledTime < m_RemoveConfirmUntil ? "Wirklich entfernen?" : "Quelle entfernen";
-                m_NetworkBar[4].Interactable = saved || library.IsCopying;
-            }
-
-            int pages = Mathf.Max(1, Mathf.CeilToInt(items.Count / (float)k_BrowserRows));
-            m_BrowserPageIndex = Mathf.Clamp(m_BrowserPageIndex, 0, pages - 1);
-            m_PageLabel.Text = $"{m_BrowserPageIndex + 1} / {pages}";
-
-            for (int i = 0; i < k_BrowserRows; i++)
-            {
-                int idx = m_BrowserPageIndex * k_BrowserRows + i;
-                object item = idx < items.Count ? items[idx] : null;
-                m_RowItems[i] = item;
-                m_Rows[i].gameObject.SetActive(item != null);
-                if (item != null)
-                    m_Rows[i].Label = RowLabel(item, library);
-            }
-        }
-
-        /// <summary>Wraps long messages (errors) onto at most two lines.</summary>
-        static string TwoLines(string text)
-        {
-            if (string.IsNullOrEmpty(text) || text.Length <= 60) return text;
-            string[] lines = SrtParser.Wrap(text, 60).Split('\n');
-            if (lines.Length <= 2) return string.Join("\n", lines);
-            return lines[0] + "\n" + TextUtil.Ellipsize(string.Join(" ", lines, 1, lines.Length - 1), 60);
-        }
-
-        static string RowLabel(object item, NetworkLibrary library)
-        {
-            var label = new StringBuilder();
-            switch (item)
-            {
-                case MediaEntry entry:
-                {
-                    var format = entry.FormatHint ?? StereoFormats.Detect(entry.FileName);
-                    label.Append(TextUtil.Ellipsize(entry.Title, 48));
-                    if (entry.IsUrl) label.Append("   ·  Stream");
-                    else if (entry.Size > 0) label.Append("   ·  ").Append(TextUtil.FormatSize(entry.Size));
-                    if (format.IsStereo()) label.Append("   ·  ").Append(format.DisplayName());
-                    break;
-                }
-                case NetworkSource source:
-                    label.Append(TextUtil.Ellipsize(source.Name, 40)).Append("   ·  ").Append(source.KindLabel);
-                    if (library != null && !library.IsSaved(source)) label.Append("  ·  gefunden");
-                    else if (source.HasLogin && source.Kind != NetworkSourceKind.Plex) label.Append("  ·  ").Append(TextUtil.Ellipsize(source.User, 16));
-                    break;
-                case NetworkItem networkItem when networkItem.IsFolder:
-                    label.Append(TextUtil.Ellipsize(networkItem.DisplayTitle, 56)).Append("  ›");
-                    break;
-                case NetworkItem file:
-                {
-                    var format = StereoFormats.Detect(file.Name);
-                    label.Append(TextUtil.Ellipsize(file.DisplayTitle, 48));
-                    if (file.Year > 0) label.Append(" (").Append(file.Year).Append(')');
-                    if (file.Size > 0) label.Append("   ·  ").Append(TextUtil.FormatSize(file.Size));
-                    if (format.IsStereo()) label.Append("   ·  ").Append(format.DisplayName());
-                    break;
-                }
-            }
-            return label.ToString();
-        }
-
         // ---------------- Per-frame refresh ----------------
 
         void Update()
@@ -1284,6 +842,16 @@ namespace TheMovies.UI
             m_JoinLan.Interactable = idle;
             m_SoloButton.Interactable = idle;
             m_SoloButton.Label = LocalAuthority.Instance.Media.IsEmpty ? "Allein schauen" : "Weiter allein schauen";
+            var last = m_App.Media.Recent.Latest;
+            m_ContinueButton.gameObject.SetActive(idle && last != null);
+            if (last != null)
+            {
+                var progress = m_App.Media.ProgressOf(last);
+                string rest = progress.HasValue && progress.Value.duration > 0
+                    ? "  ·  noch " + TextUtil.FormatDuration(progress.Value.duration - progress.Value.position)
+                    : string.Empty;
+                m_ContinueButton.Label = "Weiterschauen: " + TextUtil.Ellipsize(last.Title, 40) + rest;
+            }
             bool flatOnQuest = Application.platform == RuntimePlatform.Android && XRRig.Instance != null && !XRRig.Instance.XRActive;
             if (flatOnQuest)
             {

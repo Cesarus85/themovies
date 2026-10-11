@@ -54,6 +54,13 @@ namespace TheMovies.Core
             return e.Position;
         }
 
+        /// <summary>Saved position and duration (duration 0 if unknown), null if there is nothing to resume.</summary>
+        public (double position, double duration)? Progress(string key)
+        {
+            if (string.IsNullOrEmpty(key) || !m_Entries.TryGetValue(key, out var e)) return null;
+            return (e.Position, e.Duration);
+        }
+
         public void Remove(string key)
         {
             if (key != null && m_Entries.Remove(key)) IsDirty = true;

@@ -48,6 +48,12 @@ namespace TheMovies.Video
         /// <summary>Saved position of the movie the local user just picked, offered in the menu ("Weiterschauen").</summary>
         public double? ResumeOffer { get; private set; }
 
+        /// <summary>Movies watched last (newest first).</summary>
+        public RecentStore Recent { get; private set; } = new RecentStore();
+        string m_RecentPath;
+        bool m_AutoResume;
+        int m_RecentVersion = -1;
+
         public ParticipantMediaState LocalState { get; private set; } = ParticipantMediaState.NoMovie;
         public SyncCommand LastCommand { get; private set; }
         public MediaEntry CurrentEntry { get; private set; }
@@ -75,6 +81,17 @@ namespace TheMovies.Video
             m_Player.Failed += OnFailed;
             m_Library.Changed += () => m_RetryMissing = true;
 
+            m_RecentPath = Path.Combine(Application.persistentDataPath, "recent.txt");
+            try
+            {
+                if (File.Exists(m_RecentPath))
+                    Recent = RecentStore.Deserialize(File.ReadAllText(m_RecentPath));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[TheMovies] Could not read {m_RecentPath}: {e.Message}");
+            }
+
             m_ResumePath = Path.Combine(Application.persistentDataPath, "resume.txt");
             try
             {
@@ -100,6 +117,28 @@ namespace TheMovies.Video
         {
             if (m_LoadedKey != null) m_Resume.Remove(m_LoadedKey);
             ResumeOffer = null;
+        }
+
+        /// <summary>Saved position and duration of a movie, null if it was not started or watched to the end.</summary>
+        public (double position, double duration)? ProgressOf(MediaEntry entry)
+        {
+            if (entry == null) return null;
+            if (m_LoadedKey != null && m_LoadedKey == entry.MatchKey && m_Player != null && m_Player.State == MovieState.Ready && m_Player.Duration > 0)
+                return (m_Player.Time, m_Player.Duration);
+            return m_Resume.Progress(entry.MatchKey);
+        }
+
+        public void SaveRecent()
+        {
+            if (!Recent.IsDirty || m_RecentPath == null) return;
+            try
+            {
+                File.WriteAllText(m_RecentPath, Recent.Serialize());
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[TheMovies] Could not save {m_RecentPath}: {e.Message}");
+            }
         }
 
         void RecordResume(bool force)
@@ -140,11 +179,12 @@ namespace TheMovies.Video
 
         // ---------------- Commands from the UI ----------------
 
-        /// <summary>Selects a movie for everybody in the cinema.</summary>
-        public bool Select(MediaEntry entry, out string error)
+        /// <summary>Selects a movie for everybody in the cinema. <paramref name="resume"/>: jump to the saved position right away.</summary>
+        public bool Select(MediaEntry entry, out string error, bool resume = false)
         {
             error = null;
             if (entry == null) return false;
+            m_AutoResume = resume;
             if (!Playback.FitsNetwork(entry))
             {
                 error = "Die Adresse ist zu lang (max. 500 Zeichen).";
@@ -524,6 +564,12 @@ namespace TheMovies.Video
             var auth = Playback.Current;
             var media = auth.Media;
             bool pickedByMe = m_PendingSelectionKey != null && media.Key.ToString() == m_PendingSelectionKey;
+            if (m_RecentVersion != media.Version && CurrentEntry != null && !IsStreaming)
+            {
+                m_RecentVersion = media.Version;
+                Recent.Add(CurrentEntry, DateTime.UtcNow);
+                SaveRecent();
+            }
             if (pickedByMe && m_ResumeOfferVersion != media.Version)
             {
                 m_ResumeOfferVersion = media.Version;
@@ -532,6 +578,7 @@ namespace TheMovies.Video
                 {
                     ResumeOffer = saved;
                     m_ResumeOfferUntil = Time.unscaledTime + 60f;
+                    if (m_AutoResume) AcceptResume();
                 }
             }
 

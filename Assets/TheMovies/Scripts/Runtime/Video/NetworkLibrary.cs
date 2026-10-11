@@ -516,6 +516,85 @@ namespace TheMovies.Video
             Changed?.Invoke();
         }
 
+        // ---------------- Posters ----------------
+
+        const int k_MaxPosterBytes = 6 * 1024 * 1024;
+        static System.Net.Http.HttpClient s_PosterHttp;
+
+        /// <summary>
+        /// Loads the poster of a listed item (its own picture, the one named in its .nfo, or for SMB/WebDAV folders
+        /// poster.jpg/folder.jpg inside). Title and year from the .nfo are applied to the item. Calls back on the
+        /// main thread with the image bytes (null if there is none).
+        /// </summary>
+        public void LoadArtwork(NetworkItem item, Action<byte[]> done)
+        {
+            var source = Current;
+            if (source == null || item == null)
+            {
+                done(null);
+                return;
+            }
+            var browser = BrowserFor(source);
+            string poster = item.Poster;
+            string nfoLocation = item.Nfo;
+            bool folderLookup = item.IsFolder && poster == null && (source.Kind == NetworkSourceKind.Smb || source.Kind == NetworkSourceKind.WebDav);
+            RunAsync<(byte[] data, NfoInfo nfo, string poster)>(browser, () =>
+            {
+                NfoInfo nfo = null;
+                if (nfoLocation != null)
+                {
+                    byte[] text = browser.ReadSmallFile(nfoLocation, 512 * 1024);
+                    if (text != null) nfo = Artwork.ParseNfo(System.Text.Encoding.UTF8.GetString(text));
+                }
+                string picture = poster ?? nfo?.Thumb;
+                if (picture == null && folderLookup)
+                    picture = Artwork.FolderPoster(browser.List(item.Location)) ?? string.Empty;
+                if (string.IsNullOrEmpty(picture)) return (null, nfo, picture);
+                return (ReadPicture(browser, picture), nfo, picture);
+            }, (result, error) =>
+            {
+                if (error != null)
+                {
+                    Debug.Log($"[TheMovies] No poster for '{item.Name}': {Describe(error)}");
+                    done(null);
+                    return;
+                }
+                if (result.nfo != null)
+                {
+                    if (!string.IsNullOrEmpty(result.nfo.Title)) item.Title = result.nfo.Title;
+                    if (result.nfo.Year > 0) item.Year = result.nfo.Year;
+                }
+                item.Nfo = null; // read once
+                if (item.Poster == null && result.poster != null) item.Poster = result.poster; // "" = looked, nothing there
+                done(result.data);
+            });
+        }
+
+        /// <summary>Loads a poster remembered with a movie (recently watched list).</summary>
+        public void LoadPoster(MediaEntry entry, Action<byte[]> done)
+        {
+            var source = entry?.SourceId != null ? FindSource(entry.SourceId) : null;
+            if (entry == null || string.IsNullOrEmpty(entry.Poster) || (source == null && !MediaMatcher.LooksLikeUrl(entry.Poster)))
+            {
+                done(null);
+                return;
+            }
+            INetworkBrowser browser = source != null ? BrowserFor(source) : null;
+            string picture = entry.Poster;
+            RunAsync(browser ?? new object(), () => ReadPicture(browser, picture), (data, error) => done(error == null ? data : null));
+        }
+
+        static byte[] ReadPicture(INetworkBrowser browser, string picture)
+        {
+            // Pictures from the internet (TMDB address in a .nfo) are not on the NAS.
+            bool fromInternet = MediaMatcher.LooksLikeUrl(picture) &&
+                                (browser == null || browser.Source.Kind == NetworkSourceKind.Smb ||
+                                 (browser.Source.Kind == NetworkSourceKind.WebDav && !picture.StartsWith(browser.Source.Address, StringComparison.OrdinalIgnoreCase)));
+            if (!fromInternet) return browser.ReadSmallFile(picture, k_MaxPosterBytes);
+            s_PosterHttp ??= NetHttp.CreateClient();
+            return NetHttp.ReadSmall(s_PosterHttp, picture, k_MaxPosterBytes);
+        }
+
         // ---------------- Playback ----------------
 
         /// <summary>Returns the address the video player should open, or null (see <paramref name="error"/>).</summary>
