@@ -392,7 +392,7 @@ namespace TheMovies.UI
             for (int i = 0; i < m_Participants.Length; i++)
                 m_Participants[i] = Label(p, string.Empty, 0.1f, 0.205f - i * 0.026f, 0.016f, 34);
 
-            m_ProblemLabel = Label(p, string.Empty, k_Left, 0.09f, 0.016f, 60, TextAnchor.MiddleLeft, UIStyle.Warning);
+            m_ProblemLabel = Label(p, string.Empty, k_Left, 0.09f, 0.0145f, 64, TextAnchor.MiddleLeft, UIStyle.Warning);
             m_AssignButton = Button(p, "Datei zuordnen", 0.34f, 0.09f, 0.18f, 0.04f, () => OpenBrowser(true), 0.016f);
             m_ResumeButton = Button(p, "Fortsetzen", 0.2f, 0.09f, 0.17f, 0.042f, () => m_App.Media.AcceptResume(), 0.017f, UIIcon.Play, ButtonStyle.Primary);
             m_RestartButton = Button(p, "Von vorne", 0.36f, 0.09f, 0.13f, 0.042f, () => m_App.Media.DeclineResume(), 0.016f, style: ButtonStyle.Subtle);
@@ -1041,6 +1041,15 @@ namespace TheMovies.UI
             }
         }
 
+        /// <summary>Wraps long messages (errors) onto at most two lines.</summary>
+        static string TwoLines(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= 60) return text;
+            string[] lines = SrtParser.Wrap(text, 60).Split('\n');
+            if (lines.Length <= 2) return string.Join("\n", lines);
+            return lines[0] + "\n" + TextUtil.Ellipsize(string.Join(" ", lines, 1, lines.Length - 1), 60);
+        }
+
         static string RowLabel(object item, NetworkLibrary library)
         {
             var label = new StringBuilder();
@@ -1227,10 +1236,10 @@ namespace TheMovies.UI
             m_RestartButton.gameObject.SetActive(resume.HasValue && !missing);
             m_ProblemLabel.Color = resume.HasValue && !waiting ? UIStyle.Text : UIStyle.Warning;
             string mrProblem = MixedReality.Problem;
-            m_ProblemLabel.Text = waiting ? "Pausiert – warte, bis alle bereit sind …"
+            m_ProblemLabel.Text = TwoLines(waiting ? "Pausiert – warte, bis alle bereit sind …"
                 : resume.HasValue && !missing ? $"Zuletzt bei {TextUtil.FormatTime(resume.Value)} aufgehört."
                 : !string.IsNullOrEmpty(coordinator.Problem) ? coordinator.Problem
-                : mrProblem;
+                : mrProblem);
             m_AssignButton.gameObject.SetActive(missing);
 
             // Seek bar and time

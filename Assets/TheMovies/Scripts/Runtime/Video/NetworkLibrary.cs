@@ -34,6 +34,7 @@ namespace TheMovies.Video
         LocalStreamServer m_Server;
         SourceStreamer m_Streamer;
         int m_StreamCounter;
+        int m_RequestsAtServe;
 
         /// <summary>Fires on the main thread whenever sources, the folder listing or the busy state change.</summary>
         public event Action Changed;
@@ -401,7 +402,22 @@ namespace TheMovies.Video
             m_Streamer = new SourceStreamer(() => browser.OpenFile(location), entry.Size);
             string ext = Path.GetExtension(entry.FileName).ToLowerInvariant();
             if (ext.Length < 2 || ext.Length > 6) ext = ".mp4";
-            return m_Server.Serve($"/nas/{++m_StreamCounter}/movie{ext}", m_Streamer, LocalStreamServer.ContentTypeFor(entry.FileName));
+            m_RequestsAtServe = m_Server.RequestCount;
+            string url = m_Server.Serve($"/nas/{++m_StreamCounter}/movie{ext}", m_Streamer, LocalStreamServer.ContentTypeFor(entry.FileName));
+            Debug.Log($"[TheMovies] NAS stream {entry.Location} ({entry.Size} bytes) via {url}");
+            return url;
+        }
+
+        /// <summary>After a player error: what the proxy saw, to tell "player can't reach the proxy" from "NAS doesn't deliver".</summary>
+        public string DescribePlaybackFailure(MediaEntry entry)
+        {
+            if (entry == null || !entry.IsNetwork) return string.Empty;
+            if (m_Streamer == null) return "direkt vom Medienserver (DLNA)";
+            int requests = m_Server.RequestCount - m_RequestsAtServe;
+            if (m_Streamer.Error != null) return "NAS: " + m_Streamer.Error;
+            if (requests == 0) return "Der Player hat den lokalen NAS-Proxy nicht erreicht (HTTP blockiert?)";
+            if (m_Streamer.BytesReceived == 0) return $"Proxy: {requests} Anfragen, noch keine Daten vom NAS";
+            return $"Proxy: {requests} Anfragen, {m_Streamer.BytesReceived / 1024} KB vom NAS gelesen – Format/Codec?";
         }
 
         public void StopPlayback()

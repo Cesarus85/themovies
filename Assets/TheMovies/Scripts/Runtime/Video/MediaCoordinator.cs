@@ -505,7 +505,11 @@ namespace TheMovies.Video
         void OnFailed(string error)
         {
             LocalState = ParticipantMediaState.Error;
-            Problem = "Wiedergabefehler: " + TextUtil.Ellipsize(error, 80);
+            string hint = CurrentEntry != null && CurrentEntry.IsNetwork && NetworkLibrary.Instance != null
+                ? NetworkLibrary.Instance.DescribePlaybackFailure(CurrentEntry)
+                : string.Empty;
+            Problem = "Wiedergabefehler: " + TextUtil.Ellipsize(error, 90) + (hint.Length > 0 ? " · " + hint : string.Empty);
+            Debug.LogWarning("[TheMovies] " + Problem);
             m_Screen.SetTexture(null);
         }
     }
