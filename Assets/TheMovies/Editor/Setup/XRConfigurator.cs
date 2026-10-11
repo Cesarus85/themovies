@@ -110,9 +110,9 @@ namespace TheMovies.EditorTools
 
                 var t = perTarget.GetType();
                 var settings = t.GetMethod("SettingsForBuildTarget", new[] { typeof(BuildTargetGroup) })?.Invoke(perTarget, new object[] { BuildTargetGroup.Android });
-                var manager = settings?.GetType().GetProperty("Manager")?.GetValue(settings);
-                var loaders = (manager?.GetType().GetProperty("activeLoaders")?.GetValue(manager) ??
-                               manager?.GetType().GetProperty("loaders")?.GetValue(manager)) as System.Collections.IEnumerable;
+                var manager = Prop(settings, "Manager")?.GetValue(settings);
+                var loaders = (Prop(manager, "activeLoaders")?.GetValue(manager) ??
+                               Prop(manager, "loaders")?.GetValue(manager)) as System.Collections.IEnumerable;
                 if (settings == null || manager == null || loaders == null)
                 {
                     problem = "Für Android ist kein XR-Plug-in ausgewählt.";
@@ -135,7 +135,7 @@ namespace TheMovies.EditorTools
                     return Readiness.NotReady;
                 }
 
-                var openXrSettings = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static)
+                var openXrSettings = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup))
                     ?.Invoke(null, new object[] { BuildTargetGroup.Android });
                 var features = openXrSettings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(openXrSettings, null) as Array;
                 if (features == null) return Readiness.Unknown;
@@ -147,7 +147,7 @@ namespace TheMovies.EditorTools
                     string name = feature.GetType().Name;
                     if (name.IndexOf("Meta", StringComparison.OrdinalIgnoreCase) < 0 &&
                         name.IndexOf("Oculus", StringComparison.OrdinalIgnoreCase) < 0) continue;
-                    bool on = feature.GetType().GetProperty("enabled")?.GetValue(feature) is bool b && b;
+                    bool on = Prop(feature, "enabled")?.GetValue(feature) is bool b && b;
                     metaFeatures.Add(name + (on ? " ✓" : " –"));
                     if (name == "MetaQuestFeature")
                     {
@@ -167,7 +167,7 @@ namespace TheMovies.EditorTools
             }
             catch (Exception e)
             {
-                Debug.LogWarning("[TheMovies] XR check failed: " + e.Message);
+                Debug.LogWarning("[TheMovies] XR check failed: " + e.GetType().Name + ": " + e.Message + "\n" + e.StackTrace);
                 return Readiness.Unknown;
             }
         }
@@ -201,10 +201,10 @@ namespace TheMovies.EditorTools
 
             var settings = Invoke(t, perTarget, "SettingsForBuildTarget", group);
             if (settings == null) return false;
-            var initOnStart = settings.GetType().GetProperty("InitManagerOnStart");
+            var initOnStart = Prop(settings, "InitManagerOnStart");
             initOnStart?.SetValue(settings, true);
-            var manager = settings.GetType().GetProperty("Manager")?.GetValue(settings) ??
-                          settings.GetType().GetProperty("AssignedSettings")?.GetValue(settings);
+            var manager = Prop(settings, "Manager")?.GetValue(settings) ??
+                          Prop(settings, "AssignedSettings")?.GetValue(settings);
             if (manager == null) return false;
 
             var assign = metadataStore.GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -271,14 +271,14 @@ namespace TheMovies.EditorTools
         static void EnableMissingFeatures(Type openXrSettingsType, BuildTargetGroup group, string[] featureTypeNames,
             System.Collections.Generic.List<string> changed, string label)
         {
-            var get = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static);
+            var get = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup));
             var settings = get?.Invoke(null, new object[] { group });
             var features = settings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
             if (features == null) return;
             foreach (var feature in features)
             {
                 if (feature == null || !featureTypeNames.Contains(feature.GetType().Name) || IsEnabled(feature)) continue;
-                var prop = feature.GetType().GetProperty("enabled");
+                var prop = Prop(feature, "enabled");
                 if (prop == null) continue;
                 prop.SetValue(feature, true);
                 if (feature is Object o) EditorUtility.SetDirty(o);
@@ -323,7 +323,7 @@ namespace TheMovies.EditorTools
             foreach (var feature in features)
             {
                 if (feature == null || !wanted(DisplayName(feature)) || IsEnabled(feature)) continue;
-                var prop = feature.GetType().GetProperty("enabled");
+                var prop = Prop(feature, "enabled");
                 if (prop == null) continue;
                 prop.SetValue(feature, true);
                 if (feature is Object o) EditorUtility.SetDirty(o);
@@ -342,7 +342,7 @@ namespace TheMovies.EditorTools
             settings = null;
             var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
             if (openXrSettingsType == null) return null;
-            var get = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static);
+            var get = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup));
             settings = get?.Invoke(null, new object[] { BuildTargetGroup.Android });
             return settings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
         }
@@ -352,16 +352,16 @@ namespace TheMovies.EditorTools
         {
             var type = feature.GetType();
             object value = type.GetField("nameUi", BindingFlags.Public | BindingFlags.Instance)?.GetValue(feature) ??
-                           type.GetProperty("nameUi", BindingFlags.Public | BindingFlags.Instance)?.GetValue(feature);
+                           Prop(feature, "nameUi")?.GetValue(feature);
             return value as string ?? type.Name;
         }
 
         static bool IsEnabled(object feature) =>
-            feature.GetType().GetProperty("enabled")?.GetValue(feature) is bool on && on;
+            Prop(feature, "enabled")?.GetValue(feature) is bool on && on;
 
         static int EnableFeatures(Type openXrSettingsType, BuildTargetGroup group, string[] featureTypeNames)
         {
-            var get = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static);
+            var get = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup));
             var settings = get?.Invoke(null, new object[] { group });
             if (settings == null) return 0;
             var features = settings.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
@@ -371,7 +371,7 @@ namespace TheMovies.EditorTools
             foreach (var feature in features)
             {
                 if (feature == null || !featureTypeNames.Contains(feature.GetType().Name)) continue;
-                var prop = feature.GetType().GetProperty("enabled");
+                var prop = Prop(feature, "enabled");
                 if (prop == null) continue;
                 prop.SetValue(feature, true);
                 if (feature is Object o) EditorUtility.SetDirty(o);
@@ -380,6 +380,26 @@ namespace TheMovies.EditorTools
             if (settings is Object s) EditorUtility.SetDirty(s);
             return enabled;
         }
+
+        /// <summary>
+        /// Public instance property of the object's class, the most derived one if a subclass hides a base
+        /// property ("new"): a plain GetProperty throws "Ambiguous match found" then.
+        /// </summary>
+        static PropertyInfo Prop(object target, string name)
+        {
+            if (target == null) return null;
+            for (var t = target.GetType(); t != null; t = t.BaseType)
+            {
+                foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                    if (p.Name == name && p.GetIndexParameters().Length == 0)
+                        return p;
+            }
+            return null;
+        }
+
+        /// <summary>Public static method with exactly these parameters (other overloads don't make it ambiguous).</summary>
+        static MethodInfo StaticMethod(Type type, string name, params Type[] parameters) =>
+            type.GetMethod(name, BindingFlags.Public | BindingFlags.Static, null, parameters, null);
 
         static object Invoke(Type type, object target, string method, BuildTargetGroup group)
         {

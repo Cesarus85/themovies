@@ -20,9 +20,12 @@
   <ItemGroup>
     <Compile Include="../../Assets/TheMovies/Scripts/**/*.cs" />
     <Compile Include="../../Assets/TheMovies/Editor/**/*.cs" Condition="'$(Android)' != 'true'" />
+    <Compile Include="../../Assets/TheMovies/Tests/**/*.cs" Condition="'$(Android)' != 'true'" />
     <Compile Include="Stubs/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" />
+    <!-- Editor tests: compiled against .NET Standard 2.1 like in Unity (catches APIs only newer .NET has). -->
+    <PackageReference Include="NUnit" Version="3.14.0" PrivateAssets="all" Condition="'$(Android)' != 'true'" />
   </ItemGroup>
 </Project>

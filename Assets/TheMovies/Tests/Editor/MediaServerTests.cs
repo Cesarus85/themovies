@@ -113,7 +113,7 @@ namespace TheMovies.Tests
         [Test]
         public void LogsInAndBrowses()
         {
-            int port = 18000 + Environment.ProcessId % 1000;
+            int port = 18000 + new Random().Next(1000);
             using (var listener = new HttpListener())
             {
                 listener.Prefixes.Add($"http://127.0.0.1:{port}/jf/");
