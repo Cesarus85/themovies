@@ -8,21 +8,13 @@ namespace TheMovies.World
     {
         static Material s_Lit;
         static Material s_Flat;
-        static Material s_Room;
-        static Material s_Lamp;
         static readonly int k_Color = Shader.PropertyToID("_Color");
 
-        /// <summary>Slightly shaded, for 3D objects like avatars and seats.</summary>
-        public static Material Lit => s_Lit != null ? s_Lit : s_Lit = Create(shading: 1f, glow: 0f, roomLight: 0f);
+        /// <summary>Slightly shaded, dims with the house lights and picks up the screen glow (avatars, controllers).</summary>
+        public static Material Lit => s_Lit != null ? s_Lit : s_Lit = Create(shading: 1f, glow: 0.8f, roomLight: 0.6f);
 
         /// <summary>Completely flat.</summary>
         public static Material Flat => s_Flat != null ? s_Flat : s_Flat = Create(shading: 0f, glow: 0f, roomLight: 0f);
-
-        /// <summary>Room surfaces: dim with the house lights and pick up the screen glow.</summary>
-        public static Material Room => s_Room != null ? s_Room : s_Room = Create(shading: 0.6f, glow: 1.1f, roomLight: 1f);
-
-        /// <summary>Wall lamps: unshaded, dim with the house lights.</summary>
-        public static Material Lamp => s_Lamp != null ? s_Lamp : s_Lamp = Create(shading: 0f, glow: 0f, roomLight: 1f);
 
         static Material Create(float shading, float glow, float roomLight)
         {

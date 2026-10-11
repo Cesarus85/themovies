@@ -12,8 +12,12 @@ namespace TheMovies.World
     {
         public static readonly float[] Widths = { 7f, 10f, 14f, 19f };
         public static readonly string[] SizeNames = { "Klein", "Mittel", "Groß", "Riesig" };
-        const float k_MaxHeight = 12f;
-        const float k_BottomGap = 0.9f;
+        /// <summary>Radius of the screen's curve (seats are about this far away, so the picture wraps around them a little).</summary>
+        const float k_CurveRadius = 30f;
+        const int k_CurveSegments = 32;
+        float m_MaxHeight = 8f;
+        Mesh m_PictureMesh;
+        Mesh m_MaskingMesh;
 
         static readonly int k_LeftEyeST = Shader.PropertyToID("_LeftEyeST");
         static readonly int k_RightEyeST = Shader.PropertyToID("_RightEyeST");
@@ -38,30 +42,41 @@ namespace TheMovies.World
         float m_RoomLightTarget = 1f;
 
         public int SizeIndex => m_SizeIndex;
-        public Vector3 Center => m_ScreenTransform.position;
+        public Vector3 Center => transform.TransformPoint(new Vector3(0, Size.y * 0.5f, 0));
         public Vector2 Size { get; private set; }
 
-        public static ScreenController Create(Transform parent, float z)
+        /// <param name="localPosition">Bottom center of the screen.</param>
+        public static ScreenController Create(Transform parent, Vector3 localPosition, Quaternion localRotation, float maxHeight)
         {
             var go = new GameObject("Screen");
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = new Vector3(0, 0, z);
+            go.transform.localPosition = localPosition;
+            go.transform.localRotation = localRotation;
             var screen = go.AddComponent<ScreenController>();
+            screen.m_MaxHeight = maxHeight;
             screen.Build();
             return screen;
         }
 
         void Build()
         {
-            m_Frame = Shapes.Create(PrimitiveType.Cube, transform, "Masking", Vector3.zero, Vector3.one, new Color(0.01f, 0.01f, 0.012f), Shapes.Flat).transform;
+            m_MaskingMesh = new Mesh { name = "Screen Masking" };
+            var masking = UIFactory.CreateEmpty(transform, "Masking", Vector3.zero);
+            masking.AddComponent<MeshFilter>().sharedMesh = m_MaskingMesh;
+            var maskingRenderer = masking.AddComponent<MeshRenderer>();
+            maskingRenderer.sharedMaterial = Shapes.Flat;
+            maskingRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            Shapes.SetColor(maskingRenderer, new Color(0.006f, 0.006f, 0.008f));
+            m_Frame = masking.transform;
 
             m_Material = new Material(UIFactory.FindShader("TheMovies/StereoVideo"));
-            var quad = UIFactory.CreateEmpty(transform, "Picture", Vector3.zero);
-            quad.AddComponent<MeshFilter>().sharedMesh = UIFactory.QuadMesh;
-            var mr = quad.AddComponent<MeshRenderer>();
+            m_PictureMesh = new Mesh { name = "Screen Picture" };
+            var picture = UIFactory.CreateEmpty(transform, "Picture", Vector3.zero);
+            picture.AddComponent<MeshFilter>().sharedMesh = m_PictureMesh;
+            var mr = picture.AddComponent<MeshRenderer>();
             mr.sharedMaterial = m_Material;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            m_ScreenTransform = quad.transform;
+            m_ScreenTransform = picture.transform;
 
             m_GlowTexture = new RenderTexture(32, 16, 0, RenderTextureFormat.ARGB32)
             {
@@ -83,6 +98,8 @@ namespace TheMovies.World
         {
             if (m_GlowTexture != null) m_GlowTexture.Release();
             if (m_Material != null) Destroy(m_Material);
+            if (m_PictureMesh != null) Destroy(m_PictureMesh);
+            if (m_MaskingMesh != null) Destroy(m_MaskingMesh);
         }
 
         public void SetTexture(Texture texture)
@@ -141,20 +158,57 @@ namespace TheMovies.World
             float aspect = (float)m_Format.DisplayAspect(m_VideoWidth, m_VideoHeight);
             float width = Widths[m_SizeIndex];
             float height = width / aspect;
-            if (height > k_MaxHeight)
+            if (height > m_MaxHeight)
             {
-                height = k_MaxHeight;
+                height = m_MaxHeight;
                 width = height * aspect;
             }
 
             Size = new Vector2(width, height);
-            m_ScreenTransform.localScale = new Vector3(width, height, 1f);
-            m_ScreenTransform.localPosition = new Vector3(0, k_BottomGap + height * 0.5f, 0);
-            m_Frame.localScale = new Vector3(width + 0.5f, height + 0.5f, 0.05f);
-            m_Frame.localPosition = new Vector3(0, k_BottomGap + height * 0.5f, 0.05f);
+            BuildCurved(m_PictureMesh, width, height, 0f, 0f);
+            BuildCurved(m_MaskingMesh, width + 0.7f, height + 0.7f, -0.35f, 0.04f);
 
-            Vector3 c = m_ScreenTransform.position;
+            Vector3 c = transform.TransformPoint(new Vector3(0, height * 0.5f, 0));
             Shader.SetGlobalVector(k_ScreenCenter, new Vector4(c.x, c.y, c.z, 14f + width * 0.6f));
+        }
+
+        /// <summary>A section of a cylinder around the audience; the edges come slightly forward.</summary>
+        static void BuildCurved(Mesh mesh, float width, float height, float bottom, float back)
+        {
+            float angle = width / k_CurveRadius;
+            var vertices = new Vector3[(k_CurveSegments + 1) * 2];
+            var normals = new Vector3[vertices.Length];
+            var uvs = new Vector2[vertices.Length];
+            var triangles = new int[k_CurveSegments * 6];
+            for (int i = 0; i <= k_CurveSegments; i++)
+            {
+                float f = (float)i / k_CurveSegments;
+                float a = (f - 0.5f) * angle;
+                float x = Mathf.Sin(a) * k_CurveRadius;
+                float z = -(1f - Mathf.Cos(a)) * k_CurveRadius + back;
+                var n = new Vector3(-Mathf.Sin(a), 0, -Mathf.Cos(a));
+                vertices[i * 2] = new Vector3(x, bottom, z);
+                vertices[i * 2 + 1] = new Vector3(x, bottom + height, z);
+                normals[i * 2] = normals[i * 2 + 1] = n;
+                uvs[i * 2] = new Vector2(f, 0);
+                uvs[i * 2 + 1] = new Vector2(f, 1);
+            }
+            for (int i = 0; i < k_CurveSegments; i++)
+            {
+                int a = i * 2, t = i * 6;
+                triangles[t] = a;
+                triangles[t + 1] = a + 1;
+                triangles[t + 2] = a + 3;
+                triangles[t + 3] = a;
+                triangles[t + 4] = a + 3;
+                triangles[t + 5] = a + 2;
+            }
+            mesh.Clear();
+            mesh.vertices = vertices;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateBounds();
         }
 
         void LateUpdate()

@@ -4,13 +4,18 @@ Eine Unity-App für die **Meta Quest 3**, mit der du mit **bis zu 3 weiteren Per
 gemeinsam Filme schaust – auch in **3D** (Side-by-Side / Over-Under). Alle sitzen nebeneinander in
 einem virtuellen Kinosaal, sehen sich als Avatare und hören sich (optional) per Sprachchat.
 
-Jede Person spielt **ihre eigene Kopie** des Films ab (Datei auf der Quest oder Stream-URL). Die App
-synchronisiert nur Start, Pause und Position – dadurch volle Bildqualität bei minimaler Bandbreite.
+Am besten spielt jede Person **ihre eigene Kopie** des Films ab (Datei auf der Quest oder Stream-URL) –
+die App synchronisiert dann nur Start, Pause und Position: volle Bildqualität bei minimaler Bandbreite.
+Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
 
 ## Funktionen
 
-- **Kinosaal** mit großer Leinwand (4 Größen), Sitzreihen, Vorhängen, Saallicht, das beim Abspielen
-  dunkler wird, und Wänden, die das Licht der Leinwand aufnehmen
+- **Kinosaal** mit leicht gewölbter Leinwand (4 Größen), ansteigenden Sitzreihen mit Samtsesseln,
+  gemustertem Teppich, Stoffwänden mit Holzpilastern und Wandleuchten, Sternenhimmel, Vorhängen und Bühne.
+  Das Saallicht dimmt beim Abspielen, Wände und Sitze nehmen das Licht der Leinwand auf. Alles wird zur
+  Laufzeit erzeugt (keine externen Assets) – oder du bindest ein eigenes Kino-Modell ein (siehe unten).
+- **Sitzhöhe**: Beim Ausrichten sitzt du automatisch auf Kino-Augenhöhe, egal wie du zu Hause sitzt;
+  im Menü mit „Sitz höher/tiefer“ feinjustierbar
 - **3D-Filme**: Side-by-Side und Over-Under, jeweils Half oder Full, „Augen tauschen“; das Format wird
   aus dem Dateinamen (`3D.HSBS`, `Half-OU`, `SBS`, …) und der Bildgröße erkannt
 - **Gemeinsam schauen** mit bis zu 4 Personen:
@@ -18,6 +23,9 @@ synchronisiert nur Start, Pause und Position – dadurch volle Bildqualität bei
   - **LAN** direkt per IP-Adresse (ohne Unity-Konto)
 - **Synchronisation**: Uhrenabgleich zum Gastgeber, geplanter gemeinsamer Start, sanfte
   Geschwindigkeitskorrektur bei kleinen Abweichungen, Sprung bei großen
+- **Host-Streaming**: Hat jemand die Datei nicht, streamt der Gastgeber sie über die bestehende Verbindung
+  (auch per Raum-Code/Relay, ohne Portfreigabe) – ohne Neukodierung, mit Spulen
+- **Warten auf alle**: Lädt oder puffert jemand, pausiert das Kino automatisch und läuft weiter, sobald alle bereit sind
 - Alle dürfen Play/Pause/Spulen/Film wählen; die Teilnehmerliste zeigt, wer bereit ist, wer puffert und
   wem die Datei fehlt
 - **Avatare** (Kopf, Hände, Name, Mundbewegung beim Sprechen) auf festen Plätzen nebeneinander
@@ -92,7 +100,21 @@ automatisch (über Name und Größe); falls nicht, gibt es im Menü den Knopf **
 - **3D-Erkennung** über den Dateinamen: `HSBS`/`Half-SBS` → SBS Half, `SBS` + doppelt breites Bild →
   SBS Full, `HOU`/`TAB`/`OU` → Over-Under. Sonst einfach im Menü auf **Format** tippen.
 
-### Streams
+### Vom Gastgeber streamen
+
+Wählt der **Gastgeber** eine eigene Datei, bekommen alle, die sie nicht selbst haben, den Film
+automatisch von seiner Quest gestreamt (Anzeige im Menü: „Stream vom Gastgeber … MB/s“).
+Die Datei wird unverändert übertragen, daher gilt:
+
+- Die **Upload-Geschwindigkeit des Gastgebers** muss für alle Zuschauer ohne Datei reichen
+  (z. B. 1080p-Film mit 8 Mbit/s × 2 Zuschauer = 16 Mbit/s Upload).
+- Über den Raum-Code (Relay) sind pro Zuschauer grob **10–15 Mbit/s** möglich, im LAN deutlich mehr.
+  Für 4K-Dateien mit hoher Bitrate besser die Datei vorher verteilen.
+- Reicht es nicht, pausiert das Kino automatisch, bis wieder genug gepuffert ist.
+- Unity Relay ist bis zu einem Freikontingent kostenlos; ganze Filme über Relay zu streamen kann dieses
+  Kontingent aufbrauchen (Übersicht im Unity Cloud Dashboard).
+
+### Streams aus dem Netz
 
 Statt Dateien gehen auch **http(s)-Adressen** (z. B. direkter Link von deinem NAS/Medienserver),
 solange alle Teilnehmer darauf zugreifen können:
@@ -117,6 +139,7 @@ verwenden, die du besitzt bzw. abspielen darfst.
 | 10 s zurück / vor | Stick nach links / rechts | Pfeiltasten |
 | Umschauen | Kopf | rechte Maustaste halten + ziehen |
 | Platz/Blickrichtung neu ausrichten | „Ausrichten“ im Menü oder Meta-Taste lang drücken | – |
+| Sitzhöhe anpassen | „Sitz höher“ / „Sitz tiefer“ im Menü | dito |
 
 **Ablauf:** Eine Person tippt **„Kino eröffnen“** und sagt den anderen den **Raum-Code** (steht oben im
 Menü). Die anderen tippen **„Mit Code beitreten“**. Dann *Film wählen* → *Abspielen*. Das Menü blendet
@@ -173,6 +196,21 @@ tools/                 dotnet-Projekte für Tests und Compile-Check
 
 Szene und Prefabs werden vom Setup-Menü erzeugt (nicht im Repository). Die `.meta`-Dateien, die Unity
 beim ersten Öffnen anlegt, solltest du mit einchecken.
+
+## Eigenes Kino-Modell (Asset Store o. Ä.)
+
+Statt des eingebauten Saals kannst du ein beliebiges 3D-Kino verwenden (z. B. ein Kino-Paket aus dem
+Unity Asset Store):
+
+1. Modell in die Szene ziehen und so ausrichten, dass die Leinwand Richtung **+Z** zeigt.
+2. Vier leere GameObjects **`Seat1`** bis **`Seat4`** anlegen: jeweils auf den **Boden** vor dem Sitz,
+   Blickrichtung (blaue Achse) zur Leinwand.
+3. Ein leeres GameObject **`ScreenAnchor`** an die **Unterkante Mitte** der Leinwand setzen, ebenfalls zur
+   Leinwand ausgerichtet (die App setzt ihre eigene, gewölbte Leinwand dorthin).
+4. Alles als Prefab unter **`Assets/TheMovies/Resources/TheMovies/CustomCinema.prefab`** speichern.
+
+Die App nutzt das Prefab automatisch. Tipp für die Quest: Modelle mit wenigen Draw Calls und
+gebackenem Licht (Lightmaps im Prefab bzw. „Unlit“-Materialien) laufen am flüssigsten.
 
 ## Bekannte Grenzen / Ideen
 
