@@ -329,3 +329,32 @@ namespace TheMovies.Tests
         public void FormatsRemainingTime(double seconds, string expected) => Assert.AreEqual(expected, TextUtil.FormatDuration(seconds));
     }
 }
+
+namespace TheMovies.Tests
+{
+    public class TextFitTests
+    {
+        // Monospace for the test: every character is 1 wide, "W" 2.
+        static float W(char c) => c == 'W' ? 2f : 1f;
+
+        [Test]
+        public void WrapsLongFileNamesAtDots()
+        {
+            string wrapped = TextFit.Wrap("Avatar.2009.3D.HSBS.1080p", 12, 3, W);
+            foreach (string line in wrapped.Split('\n'))
+                Assert.LessOrEqual(TextFit.Width(line, W), 12f, line);
+            Assert.AreEqual("Avatar.2009.\n3D.HSBS.\n1080p", wrapped);
+        }
+
+        [Test]
+        public void CutsWhatDoesNotFit()
+        {
+            Assert.AreEqual("Der Herr der\nRinge – Die…", TextFit.Wrap("Der Herr der Ringe – Die Gefährten", 12, 2, W));
+            Assert.AreEqual("Supercalifra\ngilistic", TextFit.Wrap("Supercalifragilistic", 12, 3, W));
+            Assert.AreEqual("WWWWW…", TextFit.Ellipsize("WWWWWWWW", 11, W));
+            Assert.AreEqual("kurz", TextFit.Ellipsize("kurz", 11, W));
+            Assert.AreEqual("Avatar 2009 3D HSBS", TextUtil.PrettyTitle("Avatar.2009.3D.HSBS"));
+            Assert.AreEqual("Dr. No", TextUtil.PrettyTitle("Dr. No"));
+        }
+    }
+}

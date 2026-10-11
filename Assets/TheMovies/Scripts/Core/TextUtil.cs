@@ -35,6 +35,17 @@ namespace TheMovies.Core
                 : (bytes / mb).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " MB";
         }
 
+        /// <summary>
+        /// Readable title from a file name: "Avatar.2009.3D.HSBS.1080p" → "Avatar 2009 3D HSBS 1080p"
+        /// (only when the name has no spaces; dots in "Dr. No" stay).
+        /// </summary>
+        public static string PrettyTitle(string name)
+        {
+            if (string.IsNullOrEmpty(name) || name.IndexOf(' ') >= 0) return name ?? string.Empty;
+            if (name.IndexOf('.') < 0 && name.IndexOf('_') < 0) return name;
+            return name.Replace('.', ' ').Replace('_', ' ').Trim();
+        }
+
         /// <summary>Cuts a string to the given length, adding an ellipsis.</summary>
         public static string Ellipsize(string s, int maxChars)
         {

@@ -628,7 +628,7 @@ namespace TheMovies.UI
                     else if (entry.IsUrl) details.Append("Stream");
                     else if (entry.Size > 0) details.Append(TextUtil.FormatSize(entry.Size));
                     if (format != StereoFormat.Mono) details.Append(details.Length > 0 ? " · " : string.Empty).Append(format.ShortLabel());
-                    tile.Set(entry.Title, details.ToString(), PosterCache.Instance.Get(entry), false, fraction);
+                    tile.Set(TextUtil.PrettyTitle(entry.Title), details.ToString(), PosterCache.Instance.Get(entry), false, fraction);
                     break;
                 }
                 case NetworkItem networkItem:
@@ -648,7 +648,7 @@ namespace TheMovies.UI
                     {
                         details.Append("Ordner");
                     }
-                    tile.Set(networkItem.DisplayTitle, details.ToString(), PosterCache.Instance.Get(networkItem, library), networkItem.IsFolder, fraction);
+                    tile.Set(networkItem.Title != null ? networkItem.Title : TextUtil.PrettyTitle(networkItem.DisplayTitle), details.ToString(), PosterCache.Instance.Get(networkItem, library), networkItem.IsFolder, fraction);
                     break;
                 }
             }

@@ -317,6 +317,21 @@ namespace TheMovies.UI
             return tm;
         }
 
+        /// <summary>
+        /// Width of each character at the given text height, from the font's real glyph advances (for fitting text into
+        /// tiles). Loads the glyphs of <paramref name="text"/> into the font texture first.
+        /// </summary>
+        public static Func<char, float> CharWidth(string text, float height)
+        {
+            var font = Font;
+            float fallback = height * 0.55f;
+            if (font == null) return c => fallback;
+            font.RequestCharactersInTexture((text ?? string.Empty) + "…", k_FontSize, FontStyle.Normal);
+            return c => font.GetCharacterInfo(c, out CharacterInfo info, k_FontSize, FontStyle.Normal) && info.advance > 0
+                ? info.advance * height / k_FontSize
+                : fallback;
+        }
+
         /// <summary>Rough width of a text line for layout (the built-in font averages about half the line height per character).</summary>
         public static float EstimateTextWidth(string text, float height) => (text?.Length ?? 0) * height * 0.5f;
 

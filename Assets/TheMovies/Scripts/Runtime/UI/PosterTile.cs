@@ -12,6 +12,10 @@ namespace TheMovies.UI
         const float k_PosterWidth = 0.119f;
         const float k_PosterHeight = 0.15f;
         const float k_Margin = 0.008f;
+        const float k_TextWidth = Width - 0.014f;
+        const float k_TitleHeight = 0.0118f;
+        const float k_DetailsHeight = 0.0098f;
+        const float k_PlaceholderHeight = 0.0125f;
 
         static Material s_ImageMaterial;
         static readonly int k_MainTex = Shader.PropertyToID("_MainTex");
@@ -32,6 +36,7 @@ namespace TheMovies.UI
         readonly MaterialPropertyBlock m_Block = new MaterialPropertyBlock();
         Texture m_Texture;
         string m_TitleText;
+        string m_DetailsText;
         string m_PlaceholderText;
 
         public GameObject gameObject => m_Button.gameObject;
@@ -57,7 +62,7 @@ namespace TheMovies.UI
                 UIStyle.PanelInset, UIFactory.WidgetMaterial, 0.3f);
             m_Placeholder.transform.localPosition = posterPos + new Vector3(0, 0, -UIStyle.Layer * 0.25f);
             m_PlaceholderIcon = UIIcons.Create(t, UIIcon.Film, posterPos + new Vector3(0, 0.045f, -UIStyle.Layer), 0.03f, UIStyle.TextDim * 0.8f);
-            m_PlaceholderTitle = UIFactory.CreateText(t, string.Empty, posterPos + new Vector3(0, -0.012f, -UIStyle.Layer), 0.0125f,
+            m_PlaceholderTitle = UIFactory.CreateText(t, string.Empty, posterPos + new Vector3(0, -0.012f, -UIStyle.Layer), k_PlaceholderHeight,
                 TextAnchor.MiddleCenter, UIStyle.Text);
 
             m_Poster = UIFactory.CreateQuad(t, "Poster", posterPos + new Vector3(0, 0, -UIStyle.Layer * 0.75f),
@@ -71,8 +76,8 @@ namespace TheMovies.UI
                 new Vector2(k_PosterWidth - 0.016f, 0.004f), UIStyle.Accent, UIFactory.OverlayMaterial);
 
             float textTop = posterY - k_PosterHeight * 0.5f;
-            m_Title = UIFactory.CreateText(t, string.Empty, new Vector3(0, textTop - 0.0115f, -UIStyle.Layer), 0.0118f, TextAnchor.MiddleCenter);
-            m_Details = UIFactory.CreateText(t, string.Empty, new Vector3(0, textTop - 0.0255f, -UIStyle.Layer), 0.0098f,
+            m_Title = UIFactory.CreateText(t, string.Empty, new Vector3(0, textTop - 0.0115f, -UIStyle.Layer), k_TitleHeight, TextAnchor.MiddleCenter);
+            m_Details = UIFactory.CreateText(t, string.Empty, new Vector3(0, textTop - 0.0255f, -UIStyle.Layer), k_DetailsHeight,
                 TextAnchor.MiddleCenter, UIStyle.TextDim);
             SetProgress(-1);
         }
@@ -90,20 +95,24 @@ namespace TheMovies.UI
         public void Set(string title, string details, Texture poster, bool folder, float progress)
         {
             title = title ?? string.Empty;
+            details = details ?? string.Empty;
+            string placeholder = poster != null ? string.Empty : title;
+            // Text is fitted with the real glyph widths only when it changes (the menu refreshes often).
             if (m_TitleText != title)
             {
                 m_TitleText = title;
-                m_Title.text = TextUtil.Ellipsize(title, 21);
+                m_Title.text = TextFit.Ellipsize(title, k_TextWidth, UIFactory.CharWidth(title, k_TitleHeight));
             }
-            details = details ?? string.Empty;
-            if (m_Details.text != details) m_Details.text = details;
+            if (m_DetailsText != details)
+            {
+                m_DetailsText = details;
+                m_Details.text = TextFit.Ellipsize(details, k_TextWidth, UIFactory.CharWidth(details, k_DetailsHeight));
+            }
             SetPoster(poster);
-
-            string placeholder = poster != null ? string.Empty : Wrap(title, 15, 4);
             if (m_PlaceholderText != placeholder)
             {
                 m_PlaceholderText = placeholder;
-                m_PlaceholderTitle.text = placeholder;
+                m_PlaceholderTitle.text = TextFit.Wrap(placeholder, k_PosterWidth - 0.014f, 5, UIFactory.CharWidth(placeholder, k_PlaceholderHeight));
             }
             m_PlaceholderIcon.gameObject.SetActive(poster == null && !folder);
             m_Placeholder.gameObject.SetActive(poster == null);
@@ -144,16 +153,6 @@ namespace TheMovies.UI
             tr.localScale = new Vector3(w, tr.localScale.y, 1);
             var p = tr.localPosition;
             tr.localPosition = new Vector3(-full * 0.5f + w * 0.5f, p.y, p.z);
-        }
-
-        /// <summary>Breaks a title into at most <paramref name="maxLines"/> centered lines.</summary>
-        static string Wrap(string text, int width, int maxLines)
-        {
-            if (string.IsNullOrEmpty(text)) return string.Empty;
-            string[] lines = SrtParser.Wrap(text, width).Split('\n');
-            if (lines.Length <= maxLines) return string.Join("\n", lines);
-            lines[maxLines - 1] = TextUtil.Ellipsize(lines[maxLines - 1] + " " + lines[maxLines], width);
-            return string.Join("\n", lines, 0, maxLines);
         }
     }
 }
