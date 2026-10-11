@@ -16,6 +16,7 @@ Shader "TheMovies/StereoVideo"
         _DepthTex ("Depth (2D to 3D)", 2D) = "gray" {}
         _Convert3D ("2D to 3D shift per eye (uv)", Float) = 0
         _Convergence ("Depth on the screen plane", Float) = 0.6
+        _ShowDepth ("Show the depth map", Float) = 0
     }
     SubShader
     {
@@ -37,6 +38,7 @@ Shader "TheMovies/StereoVideo"
             sampler2D _DepthTex;
             float _Convert3D;
             float _Convergence;
+            float _ShowDepth;
 
             struct appdata
             {
@@ -68,6 +70,8 @@ Shader "TheMovies/StereoVideo"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 float4 st = unity_StereoEyeIndex == 0 ? _LeftEyeST : _RightEyeST;
                 float2 uv = i.uv * st.xy + st.zw;
+                if (_Convert3D > 0 && _ShowDepth > 0)
+                    return fixed4(tex2D(_DepthTex, uv).rrr, 1);
                 if (_Convert3D > 0)
                 {
                     // Near parts move right for the left eye and left for the right eye (they come out of the

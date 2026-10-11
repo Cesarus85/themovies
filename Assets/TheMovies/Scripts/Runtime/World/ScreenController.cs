@@ -37,6 +37,7 @@ namespace TheMovies.World
         static readonly int k_DepthTex = Shader.PropertyToID("_DepthTex");
         static readonly int k_Convert3D = Shader.PropertyToID("_Convert3D");
         static readonly int k_Convergence = Shader.PropertyToID("_Convergence");
+        static readonly int k_ShowDepth = Shader.PropertyToID("_ShowDepth");
         static readonly int k_GlowStrength = Shader.PropertyToID("_Strength");
         static readonly int k_GlowFalloff = Shader.PropertyToID("_Falloff");
         static readonly int k_GlowScreenSize = Shader.PropertyToID("_ScreenSize");
@@ -286,13 +287,16 @@ namespace TheMovies.World
 
         public void SetBrightness(float brightness) => m_Material.SetFloat(k_Brightness, brightness);
 
-        /// <summary>2D→3D for 2D movies on the flat screen: 0 = off, 1 = light, 2 = strong. Only for this viewer.</summary>
+        /// <summary>Shows the depth map instead of the picture (bright = near), to see what 2D→3D works with.</summary>
+        public bool ShowDepth { get; set; }
+
+        /// <summary>2D→3D for 2D movies on the flat screen: 0 = off, 1 = light, 2 = medium, 3 = strong. Only for this viewer.</summary>
         public int Convert3D
         {
             get => m_Convert3D;
             set
             {
-                m_Convert3D = Mathf.Clamp(value, 0, 2);
+                m_Convert3D = Mathf.Clamp(value, 0, Conversion3D.Levels - 1);
                 if (m_Convert3D == 0 && m_Depth != null)
                 {
                     m_Depth.Dispose();
@@ -327,13 +331,20 @@ namespace TheMovies.World
             if (!IsConverting)
             {
                 m_Material.SetFloat(k_Convert3D, 0f);
+                m_Material.SetFloat(k_ShowDepth, 0f);
                 return;
             }
             m_Depth ??= new DepthEstimator();
             m_Depth.Update(m_Texture);
+            // The strength is an angle, so it depends on how far away the screen is.
+            var rig = XRRig.Instance;
+            Transform head = rig != null && rig.Head != null ? rig.Head : Camera.main != null ? Camera.main.transform : null;
+            float distance = head != null ? Vector3.Distance(head.position, Center) : 12f;
+            Conversion3D.Parameters(m_Convert3D, Size.x, distance, out float shift, out float convergence);
             m_Material.SetTexture(k_DepthTex, m_Depth.Depth);
-            m_Material.SetFloat(k_Convergence, Conversion3D.Convergence);
-            m_Material.SetFloat(k_Convert3D, Conversion3D.ShiftUv(m_Convert3D, Size.x));
+            m_Material.SetFloat(k_Convergence, convergence);
+            m_Material.SetFloat(k_Convert3D, shift);
+            m_Material.SetFloat(k_ShowDepth, ShowDepth ? 1f : 0f);
         }
 
         /// <summary>Places the glow quad behind the screen, larger than the picture, with the left eye's part of the frame.</summary>

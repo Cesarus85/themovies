@@ -131,24 +131,46 @@ namespace TheMovies.Core
         }
     }
 
-    /// <summary>Numbers for 2D→3D: how far each eye's picture is shifted.</summary>
+    /// <summary>
+    /// Numbers for 2D→3D: how far each eye's picture is shifted. The strength is an angle (the usual comfort
+    /// measure for stereo): near parts come out of the screen by up to that much disparity, far parts go behind it
+    /// by at most the eye distance (more would make the eyes diverge). The screen plane is placed in between.
+    /// </summary>
     public static class Conversion3D
     {
-        /// <summary>Depth value that stays on the screen plane; nearer parts come out, farther ones go behind it.</summary>
-        public const float Convergence = 0.6f;
+        public const int Levels = 4; // off, light, medium, strong
+
+        /// <summary>Most the eyes can be apart for far parts without diverging (minus a little margin).</summary>
+        public const float MaxFarSeparation = 0.058f;
+
+        /// <summary>Crossed disparity of the nearest parts in degrees, per level.</summary>
+        public static float NearDisparityDegrees(int level)
+        {
+            switch (level)
+            {
+                case 1: return 0.45f;
+                case 2: return 0.85f;
+                case 3: return 1.3f;
+                default: return 0f;
+            }
+        }
 
         /// <summary>
-        /// Separation of the farthest parts between both eyes, in meters on the screen, per level
-        /// (0 = off, 1 = light, 2 = strong). Stays below the eye distance (~6.4 cm), so the eyes never diverge.
+        /// Shift per eye in texture units and the depth value that stays on the screen plane, for a picture
+        /// <paramref name="screenWidth"/> meters wide seen from <paramref name="viewDistance"/> meters.
+        /// A depth d (0 = far, 1 = near) ends up 2 · shift · (d − convergence) · width apart between the eyes.
         /// </summary>
-        public static float FarSeparationMeters(int level) => level <= 0 ? 0f : level == 1 ? 0.035f : 0.058f;
-
-        /// <summary>Shift per eye in texture units for a picture <paramref name="screenWidth"/> meters wide.</summary>
-        public static float ShiftUv(int level, float screenWidth)
+        public static void Parameters(int level, float screenWidth, float viewDistance, out float shiftUv, out float convergence)
         {
-            if (level <= 0 || screenWidth <= 0) return 0f;
-            // Far parts (depth 0) end up 2 · shift · convergence · width apart.
-            return FarSeparationMeters(level) / (2f * Convergence * screenWidth);
+            shiftUv = 0f;
+            convergence = 0.5f;
+            if (level <= 0 || screenWidth <= 0) return;
+            viewDistance = Math.Max(viewDistance, 0.5f);
+            float near = (float)(2.0 * viewDistance * Math.Tan(NearDisparityDegrees(level) * Math.PI / 360.0));
+            float far = Math.Min(MaxFarSeparation, near * 0.6f);
+            float range = near + far;
+            shiftUv = range / (2f * screenWidth);
+            convergence = far / range;
         }
     }
 }

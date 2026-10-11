@@ -19,7 +19,8 @@ namespace TheMovies.UI
         GameObject m_PicturePage;
 
         // Picture page
-        readonly UIButton[] m_Convert3DButtons = new UIButton[3];
+        readonly UIButton[] m_Convert3DButtons = new UIButton[Conversion3D.Levels];
+        UIButton m_ShowDepthButton;
         readonly UIButton[] m_GlowButtons = new UIButton[3];
         UILabel m_Convert3DStatus;
 
@@ -80,16 +81,18 @@ namespace TheMovies.UI
             Button(p, "Zurück", 0.35f, 0.305f, 0.16f, 0.045f, () => ShowPage(m_SettingsPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
             Divider(p, 0.272f);
 
-            string[] levels = { "Aus", "Leicht", "Stark" };
+            string[] levels = { "Aus", "Leicht", "Mittel", "Stark" };
             float y = 0.215f;
-            SettingRow(p, "2D → 3D umrechnen", y, divider: false);
-            for (int i = 0; i < 3; i++)
+            SettingRow(p, "2D → 3D", y, divider: false);
+            for (int i = 0; i < levels.Length; i++)
             {
                 int level = i;
-                m_Convert3DButtons[i] = Button(p, levels[i], 0.07f + i * 0.13f, y, 0.12f, 0.05f, () => m_App.SetConvert3D(level), 0.018f);
+                m_Convert3DButtons[i] = Button(p, levels[i], -0.08f + i * 0.11f, y, 0.1f, 0.05f, () => m_App.SetConvert3D(level), 0.017f);
             }
+            m_ShowDepthButton = Button(p, "Tiefenbild", 0.37f, y, 0.13f, 0.05f, () => m_App.Screen.ShowDepth = !m_App.Screen.ShowDepth, 0.016f,
+                style: ButtonStyle.Subtle);
             m_Convert3DStatus = Label(p, string.Empty, k_Left, y - 0.048f, 0.015f, 90, TextAnchor.MiddleLeft, UIStyle.Accent);
-            Label(p, "Macht aus normalen 2D-Filmen 3D – nur für dich, die anderen sehen ihre eigene Einstellung.\n" +
+            Label(p, "Macht aus normalen 2D-Filmen 3D – nur für dich. „Tiefenbild“ zeigt die Tiefe statt des Films (hell = nah).\n" +
                      "Ohne KI-Modell wird die Tiefe aus dem Bild geschätzt (Boden vorn, Himmel hinten). Deutlich besser mit KI:\n" +
                      "im Unity-Editor „The Movies > 2D→3D mit KI einrichten“, dann neu bauen.",
                 k_Left, y - 0.11f, 0.0135f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
@@ -111,11 +114,12 @@ namespace TheMovies.UI
         void RefreshPicture()
         {
             var screen = m_App.Screen;
-            for (int i = 0; i < 3; i++)
-            {
+            for (int i = 0; i < m_Convert3DButtons.Length; i++)
                 m_Convert3DButtons[i].Highlighted = screen.Convert3D == i;
+            for (int i = 0; i < m_GlowButtons.Length; i++)
                 m_GlowButtons[i].Highlighted = screen.GlowLevel == i;
-            }
+            m_ShowDepthButton.Highlighted = screen.ShowDepth;
+            m_ShowDepthButton.Interactable = screen.Convert3D > 0;
             m_Convert3DStatus.Text = screen.Convert3D == 0 ? string.Empty : "Stand: " + screen.Convert3DStatus;
         }
 

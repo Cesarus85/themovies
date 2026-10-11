@@ -415,16 +415,22 @@ namespace TheMovies.Tests
         }
 
         [Test]
-        public void KeepsFarPartsBelowEyeDistance()
+        public void KeepsFarPartsBelowEyeDistanceAndBringsNearPartsOut()
         {
-            foreach (float width in new[] { 2f, 4.9f, 14f, 19f })
+            foreach (var (width, distance) in new[] { (4.9f, 4.2f), (14f, 12f), (19f, 12f) })
             {
-                float shift = Conversion3D.ShiftUv(2, width);
-                float farSeparation = 2f * shift * Conversion3D.Convergence * width;
-                Assert.Less(farSeparation, 0.064f);
-                Assert.Greater(farSeparation, 0.03f);
+                for (int level = 1; level < Conversion3D.Levels; level++)
+                {
+                    Conversion3D.Parameters(level, width, distance, out float shift, out float convergence);
+                    float far = 2f * shift * convergence * width;            // uncrossed, depth 0
+                    float near = 2f * shift * (1f - convergence) * width;    // crossed, depth 1
+                    Assert.LessOrEqual(far, Conversion3D.MaxFarSeparation + 1e-4f);
+                    double nearDegrees = 2 * Math.Atan(near / 2 / distance) * 180 / Math.PI;
+                    Assert.AreEqual(Conversion3D.NearDisparityDegrees(level), nearDegrees, 0.01);
+                }
             }
-            Assert.AreEqual(0f, Conversion3D.ShiftUv(0, 10f));
+            Conversion3D.Parameters(0, 10f, 10f, out float off, out _);
+            Assert.AreEqual(0f, off);
         }
     }
 }
