@@ -42,6 +42,7 @@ namespace TheMovies.App
             Screen.SetRoomLight(0.7f, immediate: true);
 
             m_Rig = XRRig.Create();
+            m_Rig.SetHeightOffset(Settings.HeightOffset);
             var seat = CinemaEnvironment.SeatPose(1);
             m_Rig.SetSeat(seat.position, seat.rotation);
 
@@ -133,6 +134,13 @@ namespace TheMovies.App
         {
             Settings.Volume = Mathf.Clamp01(Mathf.Round((Settings.Volume + delta) * 10f) / 10f);
             Media.Player.Volume = Settings.Volume;
+            Settings.Save();
+        }
+
+        public void ChangeHeight(float delta)
+        {
+            m_Rig.SetHeightOffset(Mathf.Round((m_Rig.HeightOffset + delta) * 100f) / 100f);
+            Settings.HeightOffset = m_Rig.HeightOffset;
             Settings.Save();
         }
 

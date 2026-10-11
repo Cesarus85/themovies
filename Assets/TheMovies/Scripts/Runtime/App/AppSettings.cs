@@ -12,6 +12,7 @@ namespace TheMovies.App
         const string k_LastRoom = "tm.lastRoom";
         const string k_LastHost = "tm.lastHost";
         const string k_LightsOnWhenPaused = "tm.lightsPaused";
+        const string k_Height = "tm.height";
 
         public string Name;
         public int ScreenSize;
@@ -20,6 +21,7 @@ namespace TheMovies.App
         public string LastRoomCode;
         public string LastLanHost;
         public bool LightsOnWhenPaused;
+        public float HeightOffset;
 
         public static AppSettings Load()
         {
@@ -32,6 +34,7 @@ namespace TheMovies.App
                 LastRoomCode = PlayerPrefs.GetString(k_LastRoom, string.Empty),
                 LastLanHost = PlayerPrefs.GetString(k_LastHost, "192.168."),
                 LightsOnWhenPaused = PlayerPrefs.GetInt(k_LightsOnWhenPaused, 1) == 1,
+                HeightOffset = PlayerPrefs.GetFloat(k_Height, 0f),
             };
         }
 
@@ -44,6 +47,7 @@ namespace TheMovies.App
             PlayerPrefs.SetString(k_LastRoom, LastRoomCode ?? string.Empty);
             PlayerPrefs.SetString(k_LastHost, LastLanHost ?? string.Empty);
             PlayerPrefs.SetInt(k_LightsOnWhenPaused, LightsOnWhenPaused ? 1 : 0);
+            PlayerPrefs.SetFloat(k_Height, HeightOffset);
             PlayerPrefs.Save();
         }
     }

@@ -18,7 +18,7 @@ namespace TheMovies.UI
     public sealed class MenuUI : MonoBehaviour
     {
         const float k_Width = 0.92f;
-        const float k_Height = 0.6f;
+        const float k_Height = 0.66f;
         const float k_Left = -k_Width * 0.5f + 0.03f;
         const float k_Right = k_Width * 0.5f - 0.03f;
         const int k_BrowserRows = 7;
@@ -166,7 +166,7 @@ namespace TheMovies.UI
             if (rig == null) return;
             Pose seat = rig.Seat;
             bool xr = rig.XRActive;
-            Vector3 local = xr ? new Vector3(0, 0.82f, 0.55f) : new Vector3(0, 1.0f, 0.85f);
+            Vector3 local = xr ? new Vector3(0, 0.82f + rig.HeightOffset, 0.55f) : new Vector3(0, 1.05f + rig.HeightOffset, 0.85f);
             float tilt = xr ? 35f : 8f;
             transform.SetPositionAndRotation(seat.position + seat.rotation * local, seat.rotation * Quaternion.Euler(tilt, 0, 0));
         }
@@ -307,20 +307,24 @@ namespace TheMovies.UI
             m_SwapButton = row2[2];
             m_SizeButton = row2[3];
 
-            var row3 = Row(p, -0.198f, 0.055f, 0.01f,
-                ("Licht", 0.14f, CycleLights),
-                ("Leiser", 0.1f, () => m_App.ChangeVolume(-0.1f)),
-                ("Lauter", 0.1f, () => m_App.ChangeVolume(0.1f)),
-                ("Mikro", 0.14f, ToggleMic),
-                ("Ausrichten", 0.13f, () => XRRig.Instance?.RequestAlign()),
-                ("Ausblenden", 0.13f, Hide),
-                ("Verlassen", 0.12f, Leave));
+            var row3 = Row(p, -0.198f, 0.055f, 0.012f,
+                ("Licht", 0.15f, CycleLights),
+                ("Leiser", 0.12f, () => m_App.ChangeVolume(-0.1f)),
+                ("Lauter", 0.12f, () => m_App.ChangeVolume(0.1f)),
+                ("Mikro", 0.15f, ToggleMic),
+                ("Ausblenden", 0.15f, Hide),
+                ("Verlassen", 0.14f, Leave));
             m_LightButton = row3[0];
             m_MicButton = row3[3];
-            m_LeaveButton = row3[6];
+            m_LeaveButton = row3[5];
             m_LeaveButton.BaseColor = UIStyle.Danger;
 
-            m_SessionStatus = Label(p, string.Empty, 0, -0.262f, 0.016f, 90, TextAnchor.MiddleCenter, UIStyle.TextDim);
+            Row(p, -0.264f, 0.05f, 0.012f,
+                ("Ausrichten", 0.16f, () => XRRig.Instance?.RequestAlign()),
+                ("Sitz tiefer", 0.16f, () => m_App.ChangeHeight(-0.05f)),
+                ("Sitz höher", 0.16f, () => m_App.ChangeHeight(0.05f)));
+
+            m_SessionStatus = Label(p, string.Empty, 0, -0.312f, 0.016f, 90, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
         }
 
@@ -744,7 +748,8 @@ namespace TheMovies.UI
             string sync = coordinator.LocalState == ParticipantMediaState.Ready && networked
                 ? $"Sync {cmd.Drift * 1000:+0;-0;0} ms · Ping {auth.RoundTrip * 1000:0} ms  ·  "
                 : string.Empty;
-            m_SessionStatus.Text = sync + $"Lautstärke {Mathf.RoundToInt(m_App.Settings.Volume * 100)} %  ·  Menü: Trigger ins Leere / B / Y";
+            float height = XRRig.Instance != null ? XRRig.Instance.HeightOffset : 0f;
+            m_SessionStatus.Text = sync + $"Lautstärke {Mathf.RoundToInt(m_App.Settings.Volume * 100)} %  ·  Sitzhöhe {height * 100:+0;-0;0} cm  ·  Menü: B / Y";
         }
 
         void RefreshParticipants(bool networked)

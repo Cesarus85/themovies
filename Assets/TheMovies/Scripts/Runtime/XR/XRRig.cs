@@ -14,7 +14,10 @@ namespace TheMovies.XR
     public sealed class XRRig : MonoBehaviour
     {
         /// <summary>Eye height used when there is no headset or no floor tracking.</summary>
-        public const float SeatedEyeHeight = 1.15f;
+        public const float SeatedEyeHeight = 1.2f;
+
+        /// <summary>Extra eye height chosen by the user (menu "Sitzhöhe"), in meters.</summary>
+        public float HeightOffset { get; private set; }
 
         public static XRRig Instance { get; private set; }
 
@@ -165,6 +168,27 @@ namespace TheMovies.XR
             Quaternion rigRotation = m_Seat.rotation * Quaternion.Euler(0f, -headYaw, 0f);
             Vector3 flatHead = rigRotation * new Vector3(headLocal.x, 0f, headLocal.z);
             transform.SetPositionAndRotation(m_Seat.position - flatHead, rigRotation);
+            ApplyHeight();
+        }
+
+        /// <summary>
+        /// Puts the eyes at a cinema seat's eye height regardless of how the user sits or stands at home
+        /// (and regardless of how well the Quest's floor level is calibrated).
+        /// </summary>
+        void ApplyHeight()
+        {
+            if (!XRActive) return;
+            float headAboveRig = m_Offset.localPosition.y + Head.localPosition.y;
+            Vector3 p = transform.position;
+            p.y = m_Seat.position.y + SeatedEyeHeight + HeightOffset - headAboveRig;
+            transform.position = p;
+        }
+
+        public void SetHeightOffset(float offset)
+        {
+            HeightOffset = Mathf.Clamp(offset, -0.5f, 0.8f);
+            if (XRActive) ApplyHeight();
+            else Head.localPosition = new Vector3(0, SeatedEyeHeight + HeightOffset, 0);
         }
 
         void UpdateMode(bool force = false)
@@ -181,7 +205,7 @@ namespace TheMovies.XR
             else
             {
                 m_Offset.localPosition = Vector3.zero;
-                Head.localPosition = new Vector3(0, SeatedEyeHeight, 0);
+                Head.localPosition = new Vector3(0, SeatedEyeHeight + HeightOffset, 0);
                 Head.localRotation = Quaternion.identity;
                 m_DesktopYaw = 0;
                 m_DesktopPitch = 0;
