@@ -149,11 +149,15 @@ namespace TheMovies.UI
             ShowPage(m_MainPage);
 
             LaserPointer.PressedOnNothing += OnPressedOnNothing;
+            if (XRRig.Instance != null)
+                XRRig.Instance.Aligned += OnRigAligned;
         }
 
         void OnDestroy()
         {
             LaserPointer.PressedOnNothing -= OnPressedOnNothing;
+            if (XRRig.Instance != null)
+                XRRig.Instance.Aligned -= OnRigAligned;
         }
 
         // ---------------- Visibility & placement ----------------
@@ -184,6 +188,13 @@ namespace TheMovies.UI
             else Show();
         }
 
+        // After a recenter (or the initial alignment) bring the menu back in front of the user.
+        void OnRigAligned()
+        {
+            if (m_Visible && !m_Handle.IsDragging)
+                PlaceInFrontOfUser();
+        }
+
         void OnPressedOnNothing()
         {
             if (!m_Visible) Show();
@@ -193,7 +204,7 @@ namespace TheMovies.UI
         public void PlaceInFrontOfUser()
         {
             var rig = XRRig.Instance;
-            if (rig == null || !rig.HeadReady)
+            if (rig == null || !rig.Ready)
             {
                 m_PlacementPending = true;
                 return;

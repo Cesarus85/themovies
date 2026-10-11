@@ -44,6 +44,18 @@ namespace TheMovies.XR
         /// <summary>True once the head pose is known (immediately on a desktop).</summary>
         public bool HeadReady => !XRActive || m_HeadTrackedSince >= 0;
 
+        /// <summary>
+        /// True once tracking has settled and the user was placed on the seat. The very first head poses after
+        /// start are placeholders; anything positioned relative to the head before this ends up in the wrong place.
+        /// </summary>
+        public bool Ready => !XRActive || (m_HasAligned && Time.unscaledTime - m_HeadTrackedSince > 1.0f);
+
+        /// <summary>Raised after the user was (re)placed on the seat, e.g. after a recenter.</summary>
+        public event Action Aligned;
+
+        bool m_HasAligned;
+        bool m_SecondAlignDone;
+
         /// <summary>Vertical thumbstick input of either controller (-1..1).</summary>
         public float StickY { get; private set; }
 
@@ -181,6 +193,8 @@ namespace TheMovies.XR
             Vector3 flatHead = rigRotation * new Vector3(headLocal.x, 0f, headLocal.z);
             transform.SetPositionAndRotation(m_Seat.position - flatHead, rigRotation);
             ApplyHeight();
+            m_HasAligned = true;
+            Aligned?.Invoke();
         }
 
         /// <summary>
@@ -213,6 +227,8 @@ namespace TheMovies.XR
                 ConfigureTracking();
                 m_Offset.localPosition = new Vector3(0, m_FloorOrigin ? 0f : SeatedEyeHeight, 0);
                 m_HeadTrackedSince = -1;
+                m_HasAligned = false;
+                m_SecondAlignDone = false;
             }
             else
             {
@@ -289,6 +305,12 @@ namespace TheMovies.XR
             m_Inputs.UpdateButtons();
 
             // Head tracking needs a moment after startup before alignment makes sense.
+            // Align once tracking runs, and once more a bit later when the first poses have settled.
+            if (!m_SecondAlignDone && m_HasAligned && Time.unscaledTime - m_HeadTrackedSince > 1.5f)
+            {
+                m_SecondAlignDone = true;
+                m_AlignPending = true;
+            }
             if (m_AlignPending && m_HeadTrackedSince >= 0 && Time.unscaledTime - m_HeadTrackedSince > 0.3f)
                 Align();
 

@@ -36,12 +36,14 @@ namespace TheMovies.App
             {
                 if (!Enabled) return string.Empty;
 #if THEMOVIES_ARF
+                // Short diagnostic so problems can be reported from inside the headset.
+                string session = ARSession.state.ToString();
                 if (s_CameraManager == null || s_CameraManager.subsystem == null)
-                    return "Passthrough aus: In Unity unter OpenXR (Android) 'Meta Quest: Camera (Passthrough)' aktivieren.";
+                    return $"Passthrough: kein Kamera-Subsystem (Session {session}) – 'Meta Quest: Camera (Passthrough)' in OpenXR/Android aktiv?";
                 if (ARSession.state == ARSessionState.Unsupported)
-                    return "Passthrough wird nicht unterstützt (OpenXR-Feature 'Meta Quest: Session' aktiv?).";
+                    return "Passthrough: Session 'Unsupported' – OpenXR-Feature 'Meta Quest: Session' aktiv?";
                 if (!s_CameraManager.subsystem.running)
-                    return "Passthrough startet …";
+                    return $"Passthrough: Kamera startet noch (Session {session}, Manager {(s_CameraManager.enabled ? "an" : "aus")}) …";
                 return string.Empty;
 #else
                 return "Mixed Reality: Paket 'Unity OpenXR: Meta' fehlt.";
