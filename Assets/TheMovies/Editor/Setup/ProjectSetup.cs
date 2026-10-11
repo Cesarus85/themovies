@@ -147,8 +147,11 @@ namespace TheMovies.EditorTools
                         "Für Mixed Reality wird das Paket 'Unity OpenXR: Meta' (" + XRConfigurator.MetaOpenXrPackage + ") benötigt. " +
                         "Jetzt installieren?\n\nDanach diesen Menüpunkt noch einmal aufrufen.", "Installieren", "Abbrechen"))
                 {
-                    UnityEditor.PackageManager.Client.Add(XRConfigurator.MetaOpenXrPackage);
-                    Debug.Log("[TheMovies] Installing " + XRConfigurator.MetaOpenXrPackage + " – run 'Mixed Reality einrichten' again afterwards.");
+                    string id = XRConfigurator.MetaOpenXrPackage + "@" + MetaOpenXrVersionForThisEditor();
+                    Debug.Log("[TheMovies] Installing " + id + " – run 'Mixed Reality einrichten' again afterwards.");
+                    s_AddRequest = UnityEditor.PackageManager.Client.Add(id);
+                    EditorApplication.update -= WatchAddRequest;
+                    EditorApplication.update += WatchAddRequest;
                 }
                 return;
             }
@@ -158,6 +161,40 @@ namespace TheMovies.EditorTools
                 ? $"Passthrough eingerichtet ({enabled} OpenXR-Features aktiviert). Neu bauen – dann gibt es in den Einstellungen die Umgebung 'Mixed Reality'."
                 : "Die Passthrough-Features wurden nicht gefunden. Bitte unter Project Settings > XR Plug-in Management > OpenXR (Android) " +
                   "'Meta Quest: Session' und 'Meta Quest: Camera (Passthrough)' anhaken.", "OK");
+        }
+
+        static UnityEditor.PackageManager.Requests.AddRequest s_AddRequest;
+
+        /// <summary>
+        /// Versions Unity's own AR Foundation samples use with each editor line (Unity 6.3 → 2.3.0 etc.);
+        /// installing without a version can pick one that needs a newer editor.
+        /// </summary>
+        static string MetaOpenXrVersionForThisEditor()
+        {
+            string v = Application.unityVersion;
+            if (v.StartsWith("6000.5", StringComparison.Ordinal)) return "2.5.0";
+            if (v.StartsWith("6000.4", StringComparison.Ordinal)) return "2.4.0";
+            return "2.3.0";
+        }
+
+        static void WatchAddRequest()
+        {
+            if (s_AddRequest == null || !s_AddRequest.IsCompleted) return;
+            EditorApplication.update -= WatchAddRequest;
+            var request = s_AddRequest;
+            s_AddRequest = null;
+            if (request.Status == UnityEditor.PackageManager.StatusCode.Success)
+            {
+                EditorUtility.DisplayDialog("The Movies",
+                    "Paket installiert: " + request.Result.packageId + "\n\nBitte 'The Movies > Mixed Reality (Passthrough) einrichten' jetzt noch einmal aufrufen.", "OK");
+            }
+            else
+            {
+                string error = request.Error != null ? request.Error.message : "unbekannter Fehler";
+                Debug.LogError("[TheMovies] Installing the Meta OpenXR package failed: " + error);
+                EditorUtility.DisplayDialog("The Movies",
+                    "Installation fehlgeschlagen:\n" + error + "\n\nBitte diese Meldung an den Entwickler schicken.", "OK");
+            }
         }
 
         [MenuItem("The Movies/Szene öffnen", priority = 40)]

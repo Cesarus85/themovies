@@ -296,8 +296,10 @@ namespace TheMovies.XR
             if (m_RightIsActive && !RightTracked && LeftTracked) m_RightIsActive = false;
             if (!m_RightIsActive && !LeftTracked && RightTracked) m_RightIsActive = true;
 
-            m_LeftPointer.Tick(LeftTracked, new Ray(m_LeftAim.position, m_LeftAim.forward), leftDown, !m_RightIsActive, ShowRays);
-            m_RightPointer.Tick(RightTracked, new Ray(m_RightAim.position, m_RightAim.forward), rightDown, m_RightIsActive, ShowRays);
+            // Both hands can always click; the ray of the hand used last is drawn permanently,
+            // the other one only while it points at something.
+            m_LeftPointer.Tick(LeftTracked, new Ray(m_LeftAim.position, m_LeftAim.forward), leftDown, true, ShowRays && !m_RightIsActive);
+            m_RightPointer.Tick(RightTracked, new Ray(m_RightAim.position, m_RightAim.forward), rightDown, true, ShowRays && m_RightIsActive);
             m_MousePointer.Tick(false, default, false, false, false);
 
             if (m_Inputs.WasPressed("LMenu") || m_Inputs.WasPressed("RMenu") ||

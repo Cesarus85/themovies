@@ -37,6 +37,11 @@ namespace UnityEditor
         public static Build.Reporting.BuildReport BuildPlayer(BuildPlayerOptions options) => null;
     }
 
+    public static class EditorApplication
+    {
+        public static System.Action update;
+    }
+
     public static class EditorUserBuildSettings
     {
         public static BuildTarget activeBuildTarget => default;
@@ -168,13 +173,27 @@ namespace UnityEditor.PackageManager
     public sealed class PackageInfo
     {
         public static PackageInfo FindForAssetPath(string assetPath) => null;
+        public string packageId => null;
     }
 }
 
 namespace UnityEditor.PackageManager
 {
+    public enum StatusCode { InProgress, Success, Failure }
+    public class Error { public string message => null; }
     public static class Client
     {
-        public static object Add(string identifier) => null;
+        public static Requests.AddRequest Add(string identifier) => null;
+    }
+}
+
+namespace UnityEditor.PackageManager.Requests
+{
+    public class AddRequest
+    {
+        public bool IsCompleted => false;
+        public UnityEditor.PackageManager.StatusCode Status => default;
+        public UnityEditor.PackageManager.Error Error => null;
+        public UnityEditor.PackageManager.PackageInfo Result => null;
     }
 }

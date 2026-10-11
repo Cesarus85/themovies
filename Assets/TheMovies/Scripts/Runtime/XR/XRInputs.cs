@@ -54,6 +54,19 @@ namespace TheMovies.XR
         readonly PoseActions m_LeftGrip = new PoseActions("<XRController>{LeftHand}", "devicePosition", "deviceRotation");
         readonly PoseActions m_RightGrip = new PoseActions("<XRController>{RightHand}", "devicePosition", "deviceRotation");
 
+        // Trigger as an analog value: more reliable than a single "pressed" flag, and a light pull is enough.
+        readonly InputAction m_LeftTrigger = Axis("<XRController>{LeftHand}/trigger");
+        readonly InputAction m_RightTrigger = Axis("<XRController>{RightHand}/trigger");
+        const float k_TriggerPress = 0.35f;
+        const float k_TriggerRelease = 0.2f;
+
+        static InputAction Axis(string binding)
+        {
+            var action = new InputAction(type: InputActionType.Value, binding: binding, expectedControlType: "Axis");
+            action.Enable();
+            return action;
+        }
+
         readonly Dictionary<string, bool> m_PreviousButtons = new Dictionary<string, bool>();
         readonly Dictionary<string, bool> m_CurrentButtons = new Dictionary<string, bool>();
 
@@ -64,6 +77,8 @@ namespace TheMovies.XR
             m_RightAim.Dispose();
             m_LeftGrip.Dispose();
             m_RightGrip.Dispose();
+            m_LeftTrigger.Dispose();
+            m_RightTrigger.Dispose();
         }
 
         public bool TryGetHead(out Vector3 position, out Quaternion rotation)
@@ -110,8 +125,8 @@ namespace TheMovies.XR
                 m_PreviousButtons[kv.Key] = kv.Value;
             m_CurrentButtons.Clear();
 
-            Sample("LTrigger", true, XRCommonUsages.triggerButton);
-            Sample("RTrigger", false, XRCommonUsages.triggerButton);
+            SampleTrigger("LTrigger", true, m_LeftTrigger);
+            SampleTrigger("RTrigger", false, m_RightTrigger);
             Sample("LPrimary", true, XRCommonUsages.primaryButton);
             Sample("RPrimary", false, XRCommonUsages.primaryButton);
             Sample("LSecondary", true, XRCommonUsages.secondaryButton);
@@ -135,6 +150,29 @@ namespace TheMovies.XR
             var device = Device(left);
             if (device.isValid)
                 device.SendHapticImpulse(0u, amplitude, duration);
+        }
+
+        /// <summary>Trigger value of a hand (0..1), from the Input System or the XR input API, whichever reports more.</summary>
+        public float TriggerValue(bool left)
+        {
+            float value = 0f;
+            var action = left ? m_LeftTrigger : m_RightTrigger;
+            if (action.controls.Count > 0)
+                value = action.ReadValue<float>();
+            if (Device(left).TryGetFeatureValue(XRCommonUsages.trigger, out float legacy))
+                value = Mathf.Max(value, legacy);
+            return value;
+        }
+
+        void SampleTrigger(string key, bool left, InputAction action)
+        {
+            float value = TriggerValue(left);
+            bool wasDown = m_PreviousButtons.TryGetValue(key, out bool before) && before;
+            bool down = wasDown ? value > k_TriggerRelease : value > k_TriggerPress;
+            // The XR input API's own "pressed" flag counts as well (some runtimes only report that).
+            if (!down && Device(left).TryGetFeatureValue(XRCommonUsages.triggerButton, out bool pressed) && pressed)
+                down = true;
+            m_CurrentButtons[key] = down;
         }
 
         void Sample(string key, bool left, InputFeatureUsage<bool> usage)

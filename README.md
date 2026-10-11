@@ -215,8 +215,12 @@ In *Einstellungen → Umgebung* lässt sich zwischen **Kino** und **Mixed Realit
 Im Mixed-Reality-Modus siehst du dein echtes Zimmer, die Leinwand schwebt in TV-Größe etwa 4 m vor dir.
 
 Einmalig im Unity-Projekt: **The Movies → Mixed Reality (Passthrough) einrichten**. Das installiert das
-Paket *Unity OpenXR: Meta* und aktiviert die OpenXR-Features „Meta Quest: Session“ und
-„Meta Quest: Camera (Passthrough)“. Danach neu bauen. Ohne das Paket ist der Knopf ausgegraut.
+Paket *Unity OpenXR: Meta* in der zur Unity-Version passenden Version (Unity 6.3 → 2.3.0, wie in Unitys
+AR-Foundation-Beispielen) und – beim zweiten Aufruf – aktiviert die OpenXR-Features „Meta Quest: Session“
+und „Meta Quest: Camera (Passthrough)“. Danach neu bauen. Ohne das Paket ist der Knopf ausgegraut.
+
+Manuell geht es auch: *Window → Package Manager → + → Add package by name* →
+`com.unity.xr.meta-openxr`, Version `2.3.0` (für Unity 6.3).
 
 ## Eigenes Kino-Modell (Asset Store o. Ä.)
 
