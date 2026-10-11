@@ -245,6 +245,8 @@ namespace TheMovies.EditorTools
             PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)32;
             PlayerSettings.Android.forceInternetPermission = true;
             PlayerSettings.Android.forceSDCardPermission = true;
+            // http:// streams (and the local stream server on 127.0.0.1) need cleartext HTTP on Android.
+            PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan });
 

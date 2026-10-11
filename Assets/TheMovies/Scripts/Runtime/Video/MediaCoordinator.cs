@@ -42,6 +42,9 @@ namespace TheMovies.Video
         public MediaEntry CurrentEntry { get; private set; }
         public MoviePlayer Player => m_Player;
         public MediaLibrary Library => m_Library;
+
+        /// <summary>True while the movie comes from the host's stream instead of a local file.</summary>
+        public bool IsStreaming { get; private set; }
         public LightMode Lights { get; set; } = LightMode.Auto;
 
         /// <summary>Last problem worth telling the user about (missing file, decoder error, …).</summary>
@@ -235,7 +238,14 @@ namespace TheMovies.Video
             else m_Player.Pause();
             m_Player.SetSpeed(cmd.Speed);
 
-            LocalState = m_Player.IsStalled ? ParticipantMediaState.Buffering : ParticipantMediaState.Ready;
+            bool buffering = m_Player.IsStalled;
+            if (IsStreaming && !cmd.ReachedEnd && HostStreamService.Instance != null)
+            {
+                // Report "buffering" early so the host waits, and only "ready" again with some reserve.
+                float ahead = HostStreamService.Instance.BufferedSeconds(m_Player.Time, m_Player.Duration);
+                buffering |= ahead < (timeline.Playing ? 1.0f : 6f);
+            }
+            LocalState = buffering ? ParticipantMediaState.Buffering : ParticipantMediaState.Ready;
         }
 
         void UpdateLights(bool playing)
@@ -260,6 +270,18 @@ namespace TheMovies.Video
             MediaEntry entry;
             if (!m_Assignments.TryGetValue(key, out entry))
                 entry = m_Library.FindMatch(key, media.IsUrl, media.Size);
+
+            // No own copy: use the host's stream if it offers one.
+            bool stream = false;
+            if (entry == null && media.HostStream && Playback.Current is CinemaSync sync && !sync.IsServer && HostStreamService.Instance != null)
+            {
+                string url = HostStreamService.Instance.PrepareStream(media.Version, key, media.Size);
+                entry = new MediaEntry { Title = media.Title.ToString(), Location = url, IsUrl = true };
+                stream = true;
+            }
+            if (!stream && IsStreaming)
+                HostStreamService.Instance?.StopStream();
+            IsStreaming = stream;
 
             if (entry == null)
             {
@@ -287,6 +309,11 @@ namespace TheMovies.Video
 
         void UnloadMovie()
         {
+            if (IsStreaming)
+            {
+                HostStreamService.Instance?.StopStream();
+                IsStreaming = false;
+            }
             m_Player.Unload();
             m_Screen.SetTexture(null);
             CurrentEntry = null;

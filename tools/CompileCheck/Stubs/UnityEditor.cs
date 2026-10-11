@@ -99,8 +99,11 @@ namespace UnityEditor
         public static Object GetSerializedAssetInterfaceSingleton(string className) => null;
     }
 
+    public enum InsecureHttpOption { NotAllowed = 0, DevelopmentOnly = 1, AlwaysAllowed = 2 }
+
     public static class PlayerSettings
     {
+        public static InsecureHttpOption insecureHttpOption { get; set; }
         public static string companyName { get; set; }
         public static string productName { get; set; }
         public static ColorSpace colorSpace { get; set; }

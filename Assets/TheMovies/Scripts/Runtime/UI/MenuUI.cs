@@ -277,7 +277,7 @@ namespace TheMovies.UI
             m_VoiceLabel = Label(p, string.Empty, k_Right, 0.255f, 0.017f, 40, TextAnchor.MiddleRight, UIStyle.TextDim);
 
             m_TitleLabel = Label(p, string.Empty, k_Left, 0.205f, 0.027f, 30);
-            m_InfoLabel = Label(p, string.Empty, k_Left, 0.168f, 0.018f, 44, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            m_InfoLabel = Label(p, string.Empty, k_Left, 0.168f, 0.016f, 62, TextAnchor.MiddleLeft, UIStyle.TextDim);
             for (int i = 0; i < m_Participants.Length; i++)
                 m_Participants[i] = Label(p, string.Empty, 0.06f, 0.215f - i * 0.026f, 0.017f, 34);
 
@@ -711,12 +711,18 @@ namespace TheMovies.UI
             {
                 m_TitleLabel.Text = media.Title.ToString();
                 string res = coordinator.Player.State == MovieState.Ready ? $"{coordinator.Player.Width}×{coordinator.Player.Height}" : string.Empty;
+                string source = string.Empty;
+                if (coordinator.IsStreaming && HostStreamService.Instance != null)
+                    source = $"  ·  Stream vom Gastgeber {HostStreamService.Instance.ReceiveRate / 1e6f:0.0} MB/s";
+                else if (media.HostStream && sessions.IsHost)
+                    source = "  ·  wird bei Bedarf gestreamt";
                 m_InfoLabel.Text = media.StereoFormat.DisplayName() + (media.SwapEyes ? " (getauscht)" : string.Empty) +
-                                   (res.Length > 0 ? "  ·  " + res : string.Empty);
+                                   (res.Length > 0 ? "  ·  " + res : string.Empty) + source;
             }
 
             bool missing = !media.IsEmpty && (coordinator.LocalState == ParticipantMediaState.Missing || coordinator.LocalState == ParticipantMediaState.Error);
-            m_ProblemLabel.Text = coordinator.Problem;
+            bool waiting = CinemaSync.Instance != null && CinemaSync.Instance.IsSpawned && CinemaSync.Instance.WaitingForOthers;
+            m_ProblemLabel.Text = waiting ? "Pausiert – warte, bis alle bereit sind …" : coordinator.Problem;
             m_AssignButton.gameObject.SetActive(missing);
 
             // Seek bar and time

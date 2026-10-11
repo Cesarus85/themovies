@@ -57,6 +57,14 @@ namespace TheMovies.App
 
             Menu = MenuUI.Create(this);
 
+            HostStreamService.Create();
+            HostStreamService.HostFileProvider = version =>
+            {
+                var media = Playback.Current.Media;
+                var entry = Media.CurrentEntry;
+                return media.Version == version && media.HostStream && entry != null && !entry.IsUrl ? entry.Location : null;
+            };
+
             NetworkPlayer.LocalNameProvider = () => Settings.Name;
             NetworkPlayer.LocalVoiceIdProvider = () => SessionManager.ServicesPlayerId;
             NetworkPlayer.LocalStatusProvider = Media.BuildStatus;

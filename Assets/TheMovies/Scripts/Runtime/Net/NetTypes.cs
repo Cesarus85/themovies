@@ -27,6 +27,9 @@ namespace TheMovies.Net
         public byte Format;
         public bool SwapEyes;
 
+        /// <summary>The host streams its file to participants who don't have a copy.</summary>
+        public bool HostStream;
+
         public bool IsEmpty => Version == 0;
         public StereoFormat StereoFormat => (StereoFormat)Format;
 
@@ -40,11 +43,13 @@ namespace TheMovies.Net
             serializer.SerializeValue(ref Duration);
             serializer.SerializeValue(ref Format);
             serializer.SerializeValue(ref SwapEyes);
+            serializer.SerializeValue(ref HostStream);
         }
 
         public bool Equals(MediaDescriptor other) =>
             Version == other.Version && Key.Equals(other.Key) && Title.Equals(other.Title) && IsUrl == other.IsUrl &&
-            Size == other.Size && Duration.Equals(other.Duration) && Format == other.Format && SwapEyes == other.SwapEyes;
+            Size == other.Size && Duration.Equals(other.Duration) && Format == other.Format && SwapEyes == other.SwapEyes &&
+            HostStream == other.HostStream;
 
         public override bool Equals(object obj) => obj is MediaDescriptor other && Equals(other);
 

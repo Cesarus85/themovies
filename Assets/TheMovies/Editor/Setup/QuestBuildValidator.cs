@@ -19,6 +19,13 @@ namespace TheMovies.EditorTools
             if (report.summary.platform != BuildTarget.Android)
                 return;
 
+            // The host stream is served to the video player via http://127.0.0.1, which Android blocks by default.
+            if (PlayerSettings.insecureHttpOption != InsecureHttpOption.AlwaysAllowed)
+            {
+                PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
+                Debug.Log("[TheMovies] Player Settings: 'Allow downloads over HTTP' set to 'Always allowed'.");
+            }
+
             if (XRConfigurator.CheckQuest(out string problem, out string details) == XRConfigurator.Readiness.NotReady)
             {
                 Debug.LogWarning("[TheMovies] Möglicherweise startet die App auf der Quest nur als flaches Fenster: " + problem +

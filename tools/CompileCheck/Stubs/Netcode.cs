@@ -7,10 +7,10 @@ using UnityEngine;
 namespace Unity.Netcode
 {
     public interface IReaderWriter { bool IsReader { get; } bool IsWriter { get; } }
-    public interface INetworkSerializable { void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter; }
-    public interface INetworkSerializeByMemcpy { }
 
-    public struct FastBufferWriter
+    public enum NetworkDelivery { Unreliable, UnreliableSequenced, Reliable, ReliableSequenced, ReliableFragmentedSequenced }
+
+    public struct FastBufferWriter : IDisposable
     {
         public struct ForPrimitives { }
         public struct ForEnums { }
@@ -18,7 +18,31 @@ namespace Unity.Netcode
         public struct ForNetworkSerializable { }
         public struct ForFixedStrings { }
         public struct ForGeneric { }
+
+        public FastBufferWriter(int size, Allocator allocator, int maxSize = -1) { }
+        public int Length => 0;
+        public void Dispose() { }
+        public void WriteBytesSafe(byte[] value, int size = -1, int offset = 0) { }
+        public void WriteValueSafe<T>(in T value, ForPrimitives unused = default) where T : unmanaged, IComparable, IConvertible, IComparable<T>, IEquatable<T> { }
     }
+
+    public struct FastBufferReader : IDisposable
+    {
+        public void Dispose() { }
+        public void ReadBytesSafe(ref byte[] value, int size, int offset = 0) { }
+        public void ReadValueSafe<T>(out T value, FastBufferWriter.ForPrimitives unused = default) where T : unmanaged, IComparable, IConvertible, IComparable<T>, IEquatable<T> { value = default; }
+    }
+
+    public class CustomMessagingManager
+    {
+        public delegate void HandleNamedMessageDelegate(ulong senderClientId, FastBufferReader messagePayload);
+        public void RegisterNamedMessageHandler(string name, HandleNamedMessageDelegate callback) { }
+        public void UnregisterNamedMessageHandler(string name) { }
+        public void SendNamedMessage(string messageName, ulong clientId, FastBufferWriter messageStream, NetworkDelivery networkDelivery = NetworkDelivery.ReliableSequenced) { }
+    }
+    public interface INetworkSerializable { void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter; }
+    public interface INetworkSerializeByMemcpy { }
+
 
     public ref struct BufferSerializer<TReaderWriter> where TReaderWriter : IReaderWriter
     {
@@ -159,6 +183,7 @@ namespace Unity.Netcode
         public bool IsConnectedClient => false;
         public string DisconnectReason => null;
         public RpcTarget RpcTarget => null;
+        public CustomMessagingManager CustomMessagingManager { get; private set; }
 
         public class ConnectionApprovalResponse
         {
@@ -204,6 +229,7 @@ namespace Unity.Netcode.Transports.UTP
 
 namespace Unity.Collections
 {
+
     public interface INativeList<T> where T : unmanaged { }
     public interface IUTF8Bytes { }
 
