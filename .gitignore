@@ -45,3 +45,7 @@ crashlytics-build.properties
 /tools/**/bin/
 /tools/**/obj/
 !/tools/**/*.csproj
+
+# 2D→3D depth model (downloaded by "The Movies > 2D→3D mit KI einrichten", ~100 MB)
+Assets/TheMovies/Resources/TheMovies/DepthModel.onnx
+Assets/TheMovies/Resources/TheMovies/DepthModel.onnx.meta

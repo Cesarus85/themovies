@@ -14,7 +14,8 @@
         "Unity.XR.ARFoundation",
         "Unity.XR.ARSubsystems",
         "Unity.XR.CoreUtils",
-        "Unity.XR.OpenXR"
+        "Unity.XR.OpenXR",
+        "Unity.InferenceEngine"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -48,6 +49,11 @@
             "name": "com.unity.xr.openxr",
             "expression": "1.0.0",
             "define": "THEMOVIES_OPENXR"
+        },
+        {
+            "name": "com.unity.ai.inference",
+            "expression": "2.2.0",
+            "define": "THEMOVIES_INFERENCE"
         }
     ],
     "noEngineReferences": false

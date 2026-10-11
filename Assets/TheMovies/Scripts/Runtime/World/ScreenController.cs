@@ -34,6 +34,22 @@ namespace TheMovies.World
         static readonly int k_ScreenCenter = Shader.PropertyToID("_TM_ScreenCenter");
         static readonly int k_RoomLight = Shader.PropertyToID("_TM_RoomLight");
         static readonly int k_GlowEnabled = Shader.PropertyToID("_TM_GlowEnabled");
+        static readonly int k_DepthTex = Shader.PropertyToID("_DepthTex");
+        static readonly int k_Convert3D = Shader.PropertyToID("_Convert3D");
+        static readonly int k_Convergence = Shader.PropertyToID("_Convergence");
+        static readonly int k_GlowStrength = Shader.PropertyToID("_Strength");
+        static readonly int k_GlowFalloff = Shader.PropertyToID("_Falloff");
+        static readonly int k_GlowScreenSize = Shader.PropertyToID("_ScreenSize");
+        static readonly int k_GlowQuadSize = Shader.PropertyToID("_QuadSize");
+        static readonly int k_GlowEyeSt = Shader.PropertyToID("_EyeST");
+
+        // 2D→3D (per viewer, not synced) and the light around the screen in mixed reality
+        int m_Convert3D;
+        DepthEstimator m_Depth;
+        int m_GlowLevel = 1;
+        bool m_MixedReality;
+        MeshRenderer m_Glow;
+        Material m_GlowMaterial;
 
         Transform m_ScreenTransform;
         Transform m_Frame;
@@ -108,6 +124,10 @@ namespace TheMovies.World
             m_Sphere = sphere.transform;
             sphere.SetActive(false);
 
+            m_GlowMaterial = new Material(UIFactory.FindShader("TheMovies/ScreenGlow"));
+            m_Glow = UIFactory.CreateQuad(transform, "Screen Glow", Vector3.zero, Vector2.one, Color.white, m_GlowMaterial);
+            m_Glow.gameObject.SetActive(false);
+
             m_GlowTexture = new RenderTexture(32, 16, 0, RenderTextureFormat.ARGB32)
             {
                 name = "TheMovies Screen Glow",
@@ -131,6 +151,8 @@ namespace TheMovies.World
             if (m_PictureMesh != null) Destroy(m_PictureMesh);
             if (m_MaskingMesh != null) Destroy(m_MaskingMesh);
             if (m_SphereMesh != null) Destroy(m_SphereMesh);
+            if (m_GlowMaterial != null) Destroy(m_GlowMaterial);
+            m_Depth?.Dispose();
         }
 
         public void SetTexture(Texture texture)
@@ -139,6 +161,7 @@ namespace TheMovies.World
             m_Material.mainTexture = texture;
             m_Material.SetFloat(k_HasVideo, texture != null ? 1f : 0f);
             Shader.SetGlobalFloat(k_GlowEnabled, texture != null ? 1f : 0f);
+            LayoutGlow();
         }
 
         public void SetVideoSize(int width, int height)
@@ -158,6 +181,7 @@ namespace TheMovies.World
             Layout();
             ApplyImmersion();
             if (wasImmersive != IsImmersive) ImmersiveChanged?.Invoke(IsImmersive);
+            LayoutGlow();
         }
 
         void ApplyImmersion()
@@ -253,6 +277,7 @@ namespace TheMovies.World
         /// <summary>Mixed reality: a TV-sized screen a few meters in front of the seats instead of the cinema screen.</summary>
         public void SetMixedRealityLayout(bool mixedReality)
         {
+            m_MixedReality = mixedReality;
             transform.localPosition = mixedReality ? new Vector3(0f, 0.35f, 4.2f) : m_CinemaPosition;
             transform.localRotation = mixedReality ? Quaternion.identity : m_CinemaRotation;
             m_SizeScale = mixedReality ? 0.35f : 1f;
@@ -260,6 +285,75 @@ namespace TheMovies.World
         }
 
         public void SetBrightness(float brightness) => m_Material.SetFloat(k_Brightness, brightness);
+
+        /// <summary>2D→3D for 2D movies on the flat screen: 0 = off, 1 = light, 2 = strong. Only for this viewer.</summary>
+        public int Convert3D
+        {
+            get => m_Convert3D;
+            set
+            {
+                m_Convert3D = Mathf.Clamp(value, 0, 2);
+                if (m_Convert3D == 0 && m_Depth != null)
+                {
+                    m_Depth.Dispose();
+                    m_Depth = null;
+                }
+            }
+        }
+
+        /// <summary>The movie is converted right now (2D movie, flat screen, setting on).</summary>
+        public bool IsConverting => m_Convert3D > 0 && m_Format == StereoFormat.Mono && m_Texture != null;
+
+        /// <summary>Which depth source 2D→3D uses (for the settings page).</summary>
+        public string Convert3DStatus =>
+            m_Convert3D == 0 ? "Aus"
+            : m_Format != StereoFormat.Mono ? "Nur für 2D-Filme (dieser ist " + m_Format.DisplayName() + ")"
+            : m_Texture == null ? "Wartet auf einen Film"
+            : m_Depth != null ? m_Depth.Status : "startet …";
+
+        /// <summary>Light around the screen in mixed reality: 0 = off, 1 = soft, 2 = strong.</summary>
+        public int GlowLevel
+        {
+            get => m_GlowLevel;
+            set
+            {
+                m_GlowLevel = Mathf.Clamp(value, 0, 2);
+                LayoutGlow();
+            }
+        }
+
+        void UpdateConversion()
+        {
+            if (!IsConverting)
+            {
+                m_Material.SetFloat(k_Convert3D, 0f);
+                return;
+            }
+            m_Depth ??= new DepthEstimator();
+            m_Depth.Update(m_Texture);
+            m_Material.SetTexture(k_DepthTex, m_Depth.Depth);
+            m_Material.SetFloat(k_Convergence, Conversion3D.Convergence);
+            m_Material.SetFloat(k_Convert3D, Conversion3D.ShiftUv(m_Convert3D, Size.x));
+        }
+
+        /// <summary>Places the glow quad behind the screen, larger than the picture, with the left eye's part of the frame.</summary>
+        void LayoutGlow()
+        {
+            if (m_Glow == null) return;
+            bool on = m_GlowLevel > 0 && m_MixedReality && !IsImmersive && m_Texture != null;
+            m_Glow.gameObject.SetActive(on);
+            if (!on) return;
+            float spread = Mathf.Max(Size.x, Size.y) * 0.32f;
+            var quad = new Vector2(Size.x + 2 * spread, Size.y + 2 * spread);
+            m_Glow.transform.localPosition = new Vector3(0, Size.y * 0.5f, 0.06f);
+            m_Glow.transform.localScale = new Vector3(quad.x, quad.y, 1f);
+            var eye = m_Format.EyeUv(0, m_SwapEyes);
+            m_GlowMaterial.SetVector(k_GlowEyeSt, new Vector4(eye.ScaleX, eye.ScaleY, eye.OffsetX, eye.OffsetY));
+            m_GlowMaterial.SetVector(k_GlowScreenSize, new Vector4(Size.x, Size.y, 0, 0));
+            m_GlowMaterial.SetVector(k_GlowQuadSize, new Vector4(quad.x, quad.y, 0, 0));
+            m_GlowMaterial.SetFloat(k_GlowStrength, m_GlowLevel == 1 ? 0.45f : 0.8f);
+            m_GlowMaterial.SetFloat(k_GlowFalloff, spread * (m_GlowLevel == 1 ? 0.3f : 0.45f));
+        }
 
         /// <summary>1 = house lights on, 0 = dark cinema. Fades smoothly.</summary>
         public void SetRoomLight(float target, bool immediate = false)
@@ -297,6 +391,7 @@ namespace TheMovies.World
 
             Vector3 c = transform.TransformPoint(new Vector3(0, height * 0.5f, 0));
             Shader.SetGlobalVector(k_ScreenCenter, new Vector4(c.x, c.y, c.z, 14f + width * 0.6f));
+            LayoutGlow();
         }
 
         /// <summary>A section of a cylinder around the audience; the edges come slightly forward.</summary>
@@ -350,6 +445,7 @@ namespace TheMovies.World
 
             if (m_Texture != null)
                 Graphics.Blit(m_Texture, m_GlowTexture);
+            UpdateConversion();
         }
     }
 }

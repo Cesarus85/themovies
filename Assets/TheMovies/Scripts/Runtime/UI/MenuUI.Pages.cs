@@ -16,6 +16,12 @@ namespace TheMovies.UI
 
         GameObject m_TracksPage;
         GameObject m_LogPage;
+        GameObject m_PicturePage;
+
+        // Picture page
+        readonly UIButton[] m_Convert3DButtons = new UIButton[3];
+        readonly UIButton[] m_GlowButtons = new UIButton[3];
+        UILabel m_Convert3DStatus;
 
         // Tracks page
         UILabel m_TracksInfo;
@@ -48,18 +54,69 @@ namespace TheMovies.UI
         {
             m_TracksPage = BuildTracksPage();
             m_LogPage = BuildLogPage();
+            m_PicturePage = BuildPicturePage();
         }
 
         void HideExtraPages()
         {
             m_TracksPage.SetActive(false);
             m_LogPage.SetActive(false);
+            m_PicturePage.SetActive(false);
         }
 
         void RefreshExtraPages()
         {
             if (m_CurrentPage == m_TracksPage) RefreshTracks();
             else if (m_CurrentPage == m_LogPage) RefreshLog();
+            else if (m_CurrentPage == m_PicturePage) RefreshPicture();
+        }
+
+        // ---------------- Bild & 3D ----------------
+
+        GameObject BuildPicturePage()
+        {
+            var p = Page("Picture Page");
+            Label(p, "Bild & 3D", k_Left, 0.305f, 0.026f, 0, TextAnchor.MiddleLeft, UIStyle.Accent);
+            Button(p, "Zurück", 0.35f, 0.305f, 0.16f, 0.045f, () => ShowPage(m_SettingsPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
+            Divider(p, 0.272f);
+
+            string[] levels = { "Aus", "Leicht", "Stark" };
+            float y = 0.215f;
+            SettingRow(p, "2D → 3D umrechnen", y, divider: false);
+            for (int i = 0; i < 3; i++)
+            {
+                int level = i;
+                m_Convert3DButtons[i] = Button(p, levels[i], 0.07f + i * 0.13f, y, 0.12f, 0.05f, () => m_App.SetConvert3D(level), 0.018f);
+            }
+            m_Convert3DStatus = Label(p, string.Empty, k_Left, y - 0.048f, 0.015f, 90, TextAnchor.MiddleLeft, UIStyle.Accent);
+            Label(p, "Macht aus normalen 2D-Filmen 3D – nur für dich, die anderen sehen ihre eigene Einstellung.\n" +
+                     "Ohne KI-Modell wird die Tiefe aus dem Bild geschätzt (Boden vorn, Himmel hinten). Deutlich besser mit KI:\n" +
+                     "im Unity-Editor „The Movies > 2D→3D mit KI einrichten“, dann neu bauen.",
+                k_Left, y - 0.11f, 0.0135f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            Divider(p, y - 0.165f);
+
+            y = -0.02f;
+            SettingRow(p, "Leuchten um die Leinwand", y, divider: false);
+            levels = new[] { "Aus", "Schwach", "Stark" };
+            for (int i = 0; i < 3; i++)
+            {
+                int level = i;
+                m_GlowButtons[i] = Button(p, levels[i], 0.07f + i * 0.13f, y, 0.12f, 0.05f, () => m_App.SetScreenGlow(level), 0.018f);
+            }
+            Label(p, "In Mixed Reality strahlen die Farben vom Bildrand weich ins Zimmer (wie Ambilight).",
+                k_Left, y - 0.05f, 0.0135f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            return p;
+        }
+
+        void RefreshPicture()
+        {
+            var screen = m_App.Screen;
+            for (int i = 0; i < 3; i++)
+            {
+                m_Convert3DButtons[i].Highlighted = screen.Convert3D == i;
+                m_GlowButtons[i].Highlighted = screen.GlowLevel == i;
+            }
+            m_Convert3DStatus.Text = screen.Convert3D == 0 ? string.Empty : "Stand: " + screen.Convert3DStatus;
         }
 
         // ---------------- Ton & Untertitel ----------------

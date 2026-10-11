@@ -46,6 +46,8 @@ namespace TheMovies.App
             Screen = cinema.Screen;
             Screen.SetSize(Settings.ScreenSize);
             Screen.SetRoomLight(0.7f, immediate: true);
+            Screen.Convert3D = Settings.Convert3D;
+            Screen.GlowLevel = Settings.ScreenGlow;
 
             m_Rig = XRRig.Create();
             m_Rig.SetHeightOffset(Settings.HeightOffset);
@@ -172,6 +174,22 @@ namespace TheMovies.App
         {
             MixedReality.SetEnabled(enabled, m_Cinema, m_Rig.Camera);
             Settings.MixedReality = MixedReality.Enabled;
+            Settings.Save();
+        }
+
+        /// <summary>2D→3D for 2D movies (only for this viewer): 0 = off, 1 = light, 2 = strong.</summary>
+        public void SetConvert3D(int level)
+        {
+            Screen.Convert3D = level;
+            Settings.Convert3D = Screen.Convert3D;
+            Settings.Save();
+        }
+
+        /// <summary>Light around the screen in mixed reality: 0 = off, 1 = soft, 2 = strong.</summary>
+        public void SetScreenGlow(int level)
+        {
+            Screen.GlowLevel = level;
+            Settings.ScreenGlow = Screen.GlowLevel;
             Settings.Save();
         }
 

@@ -484,10 +484,11 @@ namespace TheMovies.UI
             m_SetHeight = Label(p, string.Empty, valueX, y, 0.02f, 10, TextAnchor.MiddleCenter);
             Button(p, null, plusX, y, small, small, () => m_App.ChangeHeight(0.05f), 0.02f, UIIcon.Plus);
 
-            Button(p, "Ton & Untertitel", -0.33f, -0.322f, 0.205f, 0.042f, () => ShowPage(m_TracksPage), 0.016f, style: ButtonStyle.Subtle);
-            Button(p, "Protokoll", -0.11f, -0.322f, 0.205f, 0.042f, OpenLog, 0.016f, style: ButtonStyle.Subtle);
-            Button(p, "Platz ausrichten", 0.11f, -0.322f, 0.205f, 0.042f, () => XRRig.Instance?.RequestAlign(), 0.016f, style: ButtonStyle.Subtle);
-            Button(p, "Menü herholen", 0.33f, -0.322f, 0.205f, 0.042f, PlaceInFrontOfUser, 0.016f, style: ButtonStyle.Subtle);
+            Button(p, "Bild & 3D", -0.352f, -0.322f, 0.166f, 0.042f, () => ShowPage(m_PicturePage), 0.015f, style: ButtonStyle.Subtle);
+            Button(p, "Ton & Untertitel", -0.176f, -0.322f, 0.166f, 0.042f, () => ShowPage(m_TracksPage), 0.015f, style: ButtonStyle.Subtle);
+            Button(p, "Protokoll", 0f, -0.322f, 0.166f, 0.042f, OpenLog, 0.015f, style: ButtonStyle.Subtle);
+            Button(p, "Platz ausrichten", 0.176f, -0.322f, 0.166f, 0.042f, () => XRRig.Instance?.RequestAlign(), 0.015f, style: ButtonStyle.Subtle);
+            Button(p, "Menü herholen", 0.352f, -0.322f, 0.166f, 0.042f, PlaceInFrontOfUser, 0.015f, style: ButtonStyle.Subtle);
             return p;
         }
 

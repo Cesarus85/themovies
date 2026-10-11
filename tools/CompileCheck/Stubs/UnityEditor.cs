@@ -85,6 +85,7 @@ namespace UnityEditor
         public static bool DisplayDialog(string title, string message, string ok) => true;
         public static bool DisplayDialog(string title, string message, string ok, string cancel) => true;
         public static void DisplayProgressBar(string title, string info, float progress) { }
+        public static bool DisplayCancelableProgressBar(string title, string info, float progress) => false;
         public static void ClearProgressBar() { }
         public static void RevealInFinder(string path) { }
     }
@@ -94,6 +95,7 @@ namespace UnityEditor
         public static T LoadAssetAtPath<T>(string assetPath) where T : Object => null;
         public static void CreateAsset(Object asset, string path) { }
         public static void SaveAssets() { }
+        public static void ImportAsset(string path) { }
         public static void Refresh() { }
         public static bool IsValidFolder(string path) => false;
         public static string CreateFolder(string parentFolder, string newFolderName) => null;

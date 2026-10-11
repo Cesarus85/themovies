@@ -18,6 +18,11 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
   im Menü mit „Sitz höher/tiefer“ feinjustierbar
 - **3D-Filme**: Side-by-Side und Over-Under, jeweils Half oder Full, „Augen tauschen“; das Format wird
   aus dem Dateinamen (`3D.HSBS`, `Half-OU`, `SBS`, …) und der Bildgröße erkannt
+- **2D → 3D**: normale Filme in 3D umrechnen (*Einstellungen → Bild & 3D*, Leicht/Stark, nur für dich).
+  Ohne Zusatz schätzt die App die Tiefe aus dem Bild; mit KI-Tiefe (Depth Anything V2 Small über Unitys
+  Inference Engine) deutlich besser – einrichten im Editor über *The Movies → 2D→3D mit KI einrichten*
+  (lädt Paket und ca. 100 MB Modell, danach neu bauen)
+- **Leuchten um die Leinwand** in Mixed Reality: die Farben vom Bildrand strahlen weich ins Zimmer (wie Ambilight)
 - **180°/360°-Videos** (2D und 3D, SBS/OU): rund um dich statt auf der Leinwand, der Saal wird dafür
   ausgeblendet; erkannt an `VR180`, `_180_LR`, `_360`, `360_TB`, `360x180` …, für alle synchron
 - **Gemeinsam schauen** mit bis zu 4 Personen:

@@ -358,3 +358,73 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    public class DepthNormalizerTests
+    {
+        // A "scene": the lower rows are nearer (bigger values), rows arrive top-down like from the model.
+        static float[] Scene(int w, int h, float offset, bool topDown = true)
+        {
+            var raw = new float[w * h];
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                int fromBottom = topDown ? h - 1 - y : y;
+                raw[y * w + x] = offset + 10f * (1f - fromBottom / (float)(h - 1));
+            }
+            return raw;
+        }
+
+        [Test]
+        public void NormalizesAndOrientsBottomNear()
+        {
+            var n = new DepthNormalizer(8, 6);
+            for (int i = 0; i < 10; i++) n.Add(Scene(8, 6, 100f));
+            Assert.IsTrue(n.OrientationDecided);
+            Assert.IsTrue(n.TopDown);
+            Assert.Greater(n.Map[0], 0.9f, "bottom row (texture row 0) is near");
+            Assert.Less(n.Map[5 * 8], 0.1f, "top row is far");
+
+            var flipped = new DepthNormalizer(8, 6);
+            for (int i = 0; i < 10; i++) flipped.Add(Scene(8, 6, 0f, topDown: false));
+            Assert.IsFalse(flipped.TopDown);
+            Assert.Greater(flipped.Map[0], 0.9f);
+        }
+
+        [Test]
+        public void SmoothsButFollowsCuts()
+        {
+            var n = new DepthNormalizer(4, 4) { Smoothing = 0.5f };
+            var a = new float[16];
+            var b = new float[16];
+            for (int i = 0; i < 16; i++)
+            {
+                a[i] = i < 8 ? 0 : 1;      // top half far, bottom half near
+                b[i] = i < 8 ? 1 : 0;      // completely different picture
+            }
+            n.Add(a);
+            float before = n.Map[0];
+            n.Add(b);
+            Assert.AreNotEqual(before, n.Map[0]);
+            Assert.AreEqual(1f - before, n.Map[0], 1e-3f, "a cut replaces the map instead of blending");
+
+            var bytes = new byte[16];
+            n.ToBytes(bytes);
+            Assert.AreEqual((byte)(n.Map[3] * 255 + 0.5f), bytes[3]);
+        }
+
+        [Test]
+        public void KeepsFarPartsBelowEyeDistance()
+        {
+            foreach (float width in new[] { 2f, 4.9f, 14f, 19f })
+            {
+                float shift = Conversion3D.ShiftUv(2, width);
+                float farSeparation = 2f * shift * Conversion3D.Convergence * width;
+                Assert.Less(farSeparation, 0.064f);
+                Assert.Greater(farSeparation, 0.03f);
+            }
+            Assert.AreEqual(0f, Conversion3D.ShiftUv(0, 10f));
+        }
+    }
+}

@@ -16,6 +16,8 @@ namespace TheMovies.App
         const string k_Subtitles = "tm.subtitles";
         const string k_MixedReality = "tm.mixedReality";
         const string k_AudioDelay = "tm.audioDelay";
+        const string k_Convert3D = "tm.convert3d";
+        const string k_ScreenGlow = "tm.screenGlow";
 
         public string Name;
         public int ScreenSize;
@@ -28,6 +30,12 @@ namespace TheMovies.App
         public bool Subtitles;
         public bool MixedReality;
         public int AudioDelayMs;
+
+        /// <summary>2D→3D: 0 = off, 1 = light, 2 = strong.</summary>
+        public int Convert3D;
+
+        /// <summary>Light around the screen in mixed reality: 0 = off, 1 = soft, 2 = strong.</summary>
+        public int ScreenGlow;
 
         public static AppSettings Load()
         {
@@ -44,6 +52,8 @@ namespace TheMovies.App
                 Subtitles = PlayerPrefs.GetInt(k_Subtitles, 1) == 1,
                 MixedReality = PlayerPrefs.GetInt(k_MixedReality, 0) == 1,
                 AudioDelayMs = PlayerPrefs.GetInt(k_AudioDelay, 0),
+                Convert3D = PlayerPrefs.GetInt(k_Convert3D, 0),
+                ScreenGlow = PlayerPrefs.GetInt(k_ScreenGlow, 1),
             };
         }
 
@@ -60,6 +70,8 @@ namespace TheMovies.App
             PlayerPrefs.SetInt(k_Subtitles, Subtitles ? 1 : 0);
             PlayerPrefs.SetInt(k_MixedReality, MixedReality ? 1 : 0);
             PlayerPrefs.SetInt(k_AudioDelay, AudioDelayMs);
+            PlayerPrefs.SetInt(k_Convert3D, Convert3D);
+            PlayerPrefs.SetInt(k_ScreenGlow, ScreenGlow);
             PlayerPrefs.Save();
         }
     }
