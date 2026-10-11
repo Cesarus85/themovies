@@ -135,7 +135,7 @@ namespace TheMovies.Net
             if (m_Server == null)
                 m_Server = new LocalStreamServer();
 
-            m_Cache = new RemoteBlockCache(size, RemoteBlockCache.DefaultBlockSize, capacityBlocks: 384, readAheadBlocks: 40);
+            m_Cache = new RemoteBlockCache(size, RemoteBlockCache.DefaultBlockSize, capacityBlocks: 320, readAheadBlocks: 120);
             m_CacheVersion = mediaVersion;
             m_LastBytes = 0;
             ReceiveRate = 0;
@@ -153,6 +153,14 @@ namespace TheMovies.Net
             m_CacheVersion = -1;
             CurrentUrl = null;
             m_Server?.StopServing();
+        }
+
+        /// <summary>Seconds of video the read-ahead window can hold at most (estimated from the average bitrate).</summary>
+        public float ReadAheadSeconds(double duration)
+        {
+            var cache = m_Cache;
+            if (cache == null || duration <= 0) return float.MaxValue;
+            return (float)((double)cache.ReadAheadBlocks * cache.BlockSize / (cache.TotalSize / duration));
         }
 
         /// <summary>Seconds of video buffered ahead of the given position (estimated from the average bitrate).</summary>

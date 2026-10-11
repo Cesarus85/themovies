@@ -106,3 +106,48 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    using NUnit.Framework;
+    using TheMovies.Core;
+
+    public class AutoWaitTests
+    {
+        [Test]
+        public void PausesWhileBufferingAndResumesWithReserve()
+        {
+            var w = new AutoWait();
+            Assert.AreEqual(AutoWaitAction.None, w.Update(true, true, 0));
+            Assert.AreEqual(AutoWaitAction.None, w.Update(true, false, 1));
+            Assert.AreEqual(AutoWaitAction.None, w.Update(true, false, 1.5));
+            Assert.AreEqual(AutoWaitAction.Pause, w.Update(true, false, 2.1));
+            Assert.IsTrue(w.Waiting);
+            Assert.AreEqual(AutoWaitAction.None, w.Update(false, false, 3));
+            Assert.AreEqual(AutoWaitAction.None, w.Update(false, true, 4));
+            Assert.AreEqual(AutoWaitAction.None, w.Update(false, false, 4.5)); // reserve dropped again
+            Assert.AreEqual(AutoWaitAction.None, w.Update(false, true, 5));
+            Assert.AreEqual(AutoWaitAction.Resume, w.Update(false, true, 6.1));
+            Assert.IsFalse(w.Waiting);
+        }
+
+        [Test]
+        public void ShortHiccupsAndUserPausesAreLeftAlone()
+        {
+            var w = new AutoWait();
+            w.Update(true, false, 0);
+            Assert.AreEqual(AutoWaitAction.None, w.Update(true, true, 0.5));
+            Assert.AreEqual(AutoWaitAction.None, w.Update(true, false, 1.0));
+            Assert.AreEqual(AutoWaitAction.None, w.Update(true, false, 1.9));
+            // User pause: never resumed automatically
+            Assert.AreEqual(AutoWaitAction.None, w.Update(false, true, 3));
+            Assert.AreEqual(AutoWaitAction.None, w.Update(false, true, 10));
+
+            w.Update(true, false, 20);
+            Assert.AreEqual(AutoWaitAction.Pause, w.Update(true, false, 21.5));
+            w.Cancel();
+            Assert.AreEqual(AutoWaitAction.None, w.Update(false, true, 22));
+            Assert.AreEqual(AutoWaitAction.None, w.Update(false, true, 30));
+        }
+    }
+}

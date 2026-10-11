@@ -1256,7 +1256,9 @@ namespace TheMovies.UI
             m_RestartButton.gameObject.SetActive(resume.HasValue && !missing);
             m_ProblemLabel.Color = resume.HasValue && !waiting ? UIStyle.Text : UIStyle.Warning;
             string mrProblem = MixedReality.Problem;
+            bool buffering = Playback.Current is LocalAuthority solo && solo.WaitingForBuffer;
             m_ProblemLabel.Text = TwoLines(waiting ? "Pausiert – warte, bis alle bereit sind …"
+                : buffering ? "Lade nach … geht gleich weiter."
                 : resume.HasValue && !missing ? $"Zuletzt bei {TextUtil.FormatTime(resume.Value)} aufgehört."
                 : !string.IsNullOrEmpty(coordinator.Problem) ? coordinator.Problem
                 : mrProblem);

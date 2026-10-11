@@ -268,9 +268,11 @@ Manuell geht es auch: *Window → Package Manager → + → Add package by name*
 `com.unity.xr.meta-openxr`, Version `2.3.0` (für Unity 6.3).
 
 Bleibt es schwarz: In den Einstellungen steht bei aktivem Mixed Reality eine Statuszeile (Session, Kamera,
-`XR_FB_passthrough`, Manifest-Eintrag `com.oculus.feature.PASSTHROUGH`). **„Mixed Reality“ erneut
-antippen** startet die Passthrough-Kamera neu; das passiert auch automatisch, sobald das Tracking steht und
-nachdem die App den Fokus zurückbekommt. Fehlt der Manifest-Eintrag, ergänzt ihn der Build automatisch.
+`XR_FB_passthrough`, Manifest-Eintrag `com.oculus.feature.PASSTHROUGH`). Die Passthrough-Kamera startet
+erst, wenn das Tracking läuft, und wird danach nie mehr ausgeschaltet („Kino“ deckt sie nur ab) – das
+Meta-OpenXR-Paket hat einen bekannten Fehler, nach dem Passthrough nach einem Stopp schwarz bleibt. Prüfe im
+Package Manager, ob es für *Unity OpenXR: Meta* ein neueres 2.3.x-Update gibt. Fehlt der Manifest-Eintrag,
+ergänzt ihn der Build automatisch.
 
 ## Eigenes Kino-Modell (Asset Store o. Ä.)
 

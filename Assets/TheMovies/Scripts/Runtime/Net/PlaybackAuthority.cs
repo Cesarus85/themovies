@@ -91,6 +91,26 @@ namespace TheMovies.Net
         MediaDescriptor m_Media;
         PlaybackTimeline m_Timeline;
         int m_LastVersion;
+        readonly AutoWait m_AutoWait = new AutoWait();
+
+        /// <summary>True while paused automatically because the stream is still buffering.</summary>
+        public bool WaitingForBuffer => m_AutoWait.Waiting;
+
+        /// <summary>Called every frame with whether this device has enough of the movie to play on.</summary>
+        public void UpdateBuffering(bool ready)
+        {
+            if (m_Media.IsEmpty) return;
+            double now = HostNow;
+            switch (m_AutoWait.Update(m_Timeline.Playing && !m_Timeline.IsPreRoll(now), ready, now))
+            {
+                case AutoWaitAction.Pause:
+                    m_Timeline = m_Timeline.WithPause(now);
+                    break;
+                case AutoWaitAction.Resume:
+                    m_Timeline = m_Timeline.WithPlay(now, 0.05);
+                    break;
+            }
+        }
 
         public bool IsNetworked => false;
         public MediaDescriptor Media => m_Media;
@@ -101,12 +121,14 @@ namespace TheMovies.Net
 
         public void RequestPlay()
         {
+            m_AutoWait.Cancel();
             if (m_Media.IsEmpty || m_Timeline.Playing) return;
             m_Timeline = m_Timeline.WithPlay(HostNow, 0.05);
         }
 
         public void RequestPause()
         {
+            m_AutoWait.Cancel();
             if (!m_Timeline.Playing) return;
             m_Timeline = m_Timeline.WithPause(HostNow);
         }
@@ -121,6 +143,7 @@ namespace TheMovies.Net
 
         public void RequestSelectMedia(MediaEntry entry, StereoFormat format)
         {
+            m_AutoWait.Cancel();
             m_LastVersion = Math.Max(m_LastVersion, m_Media.Version) + 1;
             m_Media = Playback.Describe(entry, format, m_LastVersion);
             m_Timeline = new PlaybackTimeline { Revision = m_Timeline.Revision + 1 };
@@ -128,6 +151,7 @@ namespace TheMovies.Net
 
         public void RequestStop()
         {
+            m_AutoWait.Cancel();
             m_LastVersion = Math.Max(m_LastVersion, m_Media.Version);
             m_Media = default;
             m_Timeline = new PlaybackTimeline { Revision = m_Timeline.Revision + 1 };

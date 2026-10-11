@@ -332,20 +332,31 @@ namespace TheMovies.Video
                 ResumeOffer = null;
 
             bool buffering = m_Player.IsStalled;
-            float ahead = float.MaxValue;
+            float ahead = float.MaxValue, window = float.MaxValue;
+            double position = m_Player.IsSeeking ? cmd.Target : m_Player.Time;
             if (IsStreaming && HostStreamService.Instance != null)
-                ahead = HostStreamService.Instance.BufferedSeconds(m_Player.Time, m_Player.Duration);
+            {
+                ahead = HostStreamService.Instance.BufferedSeconds(position, m_Player.Duration);
+                window = HostStreamService.Instance.ReadAheadSeconds(m_Player.Duration);
+            }
             else if (CurrentEntry != null && CurrentEntry.IsNetwork && NetworkLibrary.Instance != null && NetworkLibrary.Instance.IsProxyStreaming)
-                ahead = NetworkLibrary.Instance.BufferedSeconds(m_Player.Time, m_Player.Duration);
+            {
+                ahead = NetworkLibrary.Instance.BufferedSeconds(position, m_Player.Duration);
+                window = NetworkLibrary.Instance.ReadAheadSeconds(m_Player.Duration);
+            }
             if (!cmd.ReachedEnd)
             {
-                // Report "buffering" early so the others wait, and only "ready" again with some reserve.
-                buffering |= ahead < (timeline.Playing ? 1.0f : 6f);
+                // Report "buffering" early so playback waits, and "ready" again only with some reserve
+                // (at most what the read-ahead window can hold, else a high-bitrate movie would never be ready).
+                float reserve = Mathf.Clamp(window * 0.6f, 1.5f, 6f);
+                buffering |= ahead < (timeline.Playing ? 1.0f : reserve);
             }
             string nasError = CurrentEntry != null && CurrentEntry.IsNetwork ? NetworkLibrary.Instance?.StreamError : null;
             if (buffering && nasError != null)
                 ReportProblem("NAS: " + TextUtil.Ellipsize(nasError, 70));
             LocalState = buffering ? ParticipantMediaState.Buffering : ParticipantMediaState.Ready;
+            if (auth is LocalAuthority solo)
+                solo.UpdateBuffering(!buffering);
         }
 
         void UpdateLights(bool playing)
@@ -426,6 +437,11 @@ namespace TheMovies.Video
             Problem = string.Empty;
             LocalState = ParticipantMediaState.Loading;
             m_Screen.SetTexture(null);
+            // Streams: no speed correction (it distorts the sound when the player has to resample) and fewer,
+            // larger corrective seeks (each seek means buffering again).
+            bool streamed = stream || entry.IsUrl || entry.IsNetwork;
+            m_Sync.Settings.AllowSpeedCorrection = !streamed;
+            m_Sync.Settings.SeekThresholdWithoutSpeed = streamed ? 0.6 : 0.25;
             m_Player.Load(location);
             LoadSubtitles(entry, media, stream);
         }
@@ -469,13 +485,14 @@ namespace TheMovies.Video
             RecordResume(true);
             SubtitleService.Instance?.Clear();
             ResumeOffer = null;
+            // Close the streams first: a decoder waiting for data then gets an immediate end instead of a timeout.
             if (IsStreaming)
             {
                 HostStreamService.Instance?.StopStream();
                 IsStreaming = false;
             }
-            m_Player.Unload();
             NetworkLibrary.Instance?.StopPlayback();
+            m_Player.Unload();
             m_Screen.SetTexture(null);
             bool hadMovie = CurrentEntry != null;
             CurrentEntry = null;

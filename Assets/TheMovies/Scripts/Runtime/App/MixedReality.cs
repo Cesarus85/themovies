@@ -62,11 +62,13 @@ namespace TheMovies.App
             bool running = hasSubsystem && s_CameraManager.subsystem.running;
             string manifest = ManifestPassthrough();
             state = $"Session {ARSession.state}, Kamera {(hasSubsystem ? (running ? "läuft" : "gestoppt") : "fehlt")}, " +
-                    $"XR_FB_passthrough {(extension ? "aktiv" : "AUS")}, Manifest {manifest}, Neustarts {s_Restarts}, {runtime}";
+                    $"XR_FB_passthrough {(extension ? "aktiv" : "AUS")}, Manifest {manifest}, {runtime}";
             if (!extension)
                 problem = "Passthrough war beim Bauen nicht aktiv: OpenXR/Android 'Meta Quest: Camera (Passthrough)' + 'Meta Quest: Session' anhaken und neu bauen.";
             else if (ARSession.state == ARSessionState.Unsupported)
                 problem = "Passthrough: Session 'Unsupported' – OpenXR-Feature 'Meta Quest: Session' aktiv?";
+            else if (s_CameraManager == null)
+                problem = "Passthrough startet, sobald das Tracking läuft …";
             else if (!hasSubsystem)
                 problem = "Passthrough: kein Kamera-Subsystem – 'Meta Quest: Camera (Passthrough)' in OpenXR/Android aktiv?";
             else if (!running)
@@ -109,52 +111,25 @@ namespace TheMovies.App
         static ARCameraManager s_CameraManager;
 
         /// <summary>
-        /// Starts the passthrough camera again once the headset is tracking, and after the app got the focus back
-        /// (Quest menu, standby). Enabled at startup the camera can start before the OpenXR session is ready
-        /// and then stays black.
+        /// Adds the AR camera manager (which starts passthrough) only once head tracking runs, and never switches it
+        /// off again: started too early it stays black, and the Meta OpenXR package has a known problem bringing
+        /// passthrough back after it was stopped. "Cinema" mode simply covers it with an opaque background.
         /// </summary>
         sealed class PassthroughKeeper : MonoBehaviour
         {
-            float m_RestartAt = -1f;
-            bool m_RestartedAfterTracking;
-
-            void OnEnable() => m_RestartedAfterTracking = false;
-
-            void OnApplicationFocus(bool focused)
-            {
-                if (focused) m_RestartAt = Time.unscaledTime + 0.5f;
-            }
-
             void Update()
             {
-                if (!Enabled || s_CameraManager == null) return;
+                if (!Enabled || s_CameraManager != null) return;
                 var rig = TheMovies.XR.XRRig.Instance;
-                if (!m_RestartedAfterTracking && rig != null && rig.Ready)
-                {
-                    m_RestartedAfterTracking = true;
-                    m_RestartAt = Time.unscaledTime;
-                }
-                if (m_RestartAt >= 0 && Time.unscaledTime >= m_RestartAt)
-                {
-                    m_RestartAt = -1f;
-                    Restart();
-                }
+                if (rig != null && !rig.Ready) return;
+                var manager = gameObject.GetComponent<ARCameraManager>();
+                if (manager == null) manager = gameObject.AddComponent<ARCameraManager>();
+                s_CameraManager = manager;
+                s_CameraManager.enabled = true;
+                Debug.Log("[TheMovies] Passthrough camera started. Subsystem: " +
+                          (s_CameraManager.subsystem != null ? s_CameraManager.subsystem.GetType().Name : "none"));
             }
         }
-
-        /// <summary>Switches the passthrough camera off and on again (also offered in the settings).</summary>
-        public static void Restart()
-        {
-            if (!Enabled || s_CameraManager == null) return;
-            s_Restarts++;
-            s_CameraManager.enabled = false;
-            s_CameraManager.enabled = true;
-            Debug.Log("[TheMovies] Passthrough camera restarted.");
-        }
-
-        static int s_Restarts;
-#else
-        public static void Restart() { }
 #endif
 
         static string s_ManifestPassthrough;
@@ -214,15 +189,11 @@ namespace TheMovies.App
                 s_Session = new GameObject("AR Session").AddComponent<ARSession>();
                 Object.DontDestroyOnLoad(s_Session.gameObject);
             }
-            if (camera != null && s_CameraManager == null && enabled)
-                s_CameraManager = camera.gameObject.AddComponent<ARCameraManager>();
-            if (s_Session != null) s_Session.enabled = enabled;
-            if (s_CameraManager != null) s_CameraManager.enabled = enabled;
+            // The camera manager is added by the keeper once tracking runs and then stays on.
             if (camera != null && enabled && camera.GetComponent<PassthroughKeeper>() == null)
                 camera.gameObject.AddComponent<PassthroughKeeper>();
             if (enabled)
-                Debug.Log("[TheMovies] Mixed reality on. Camera subsystem: " +
-                          (s_CameraManager != null && s_CameraManager.subsystem != null ? s_CameraManager.subsystem.GetType().Name : "none"));
+                Debug.Log("[TheMovies] Mixed reality on.");
 #endif
         }
     }

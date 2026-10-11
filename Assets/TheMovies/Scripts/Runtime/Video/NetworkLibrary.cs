@@ -399,7 +399,8 @@ namespace TheMovies.Video
 
             m_Server ??= new LocalStreamServer();
             string location = entry.Location;
-            m_Streamer = new SourceStreamer(() => browser.OpenFile(location), entry.Size);
+            // ~40 MB ahead, ~80 MB cache, 3 parallel connections.
+            m_Streamer = new SourceStreamer(() => browser.OpenFile(location), entry.Size, capacityBlocks: 320, readAheadBlocks: 160);
             string ext = Path.GetExtension(entry.FileName).ToLowerInvariant();
             if (ext.Length < 2 || ext.Length > 6) ext = ".mp4";
             m_RequestsAtServe = m_Server.RequestCount;
@@ -426,6 +427,14 @@ namespace TheMovies.Video
             m_Server?.StopServing();
             m_Streamer.Dispose();
             m_Streamer = null;
+        }
+
+        /// <summary>Seconds of video the read-ahead window can hold at most (estimated from the average bitrate).</summary>
+        public float ReadAheadSeconds(double duration)
+        {
+            var streamer = m_Streamer;
+            if (streamer == null || duration <= 0) return float.MaxValue;
+            return (float)(streamer.ReadAheadBytes / (streamer.TotalSize / duration));
         }
 
         /// <summary>Seconds buffered ahead of the playback position (estimated from the average bitrate).</summary>

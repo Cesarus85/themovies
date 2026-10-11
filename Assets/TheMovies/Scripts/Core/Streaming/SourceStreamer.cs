@@ -6,25 +6,35 @@ using TheMovies.Core.Network;
 namespace TheMovies.Core.Streaming
 {
     /// <summary>
-    /// Feeds a <see cref="RemoteBlockCache"/> from an <see cref="IRandomAccessSource"/> (NAS file) on a background
-    /// thread, so <see cref="LocalStreamServer"/> can serve it to the video player. Fetches the blocks the player
-    /// waits for first, then reads ahead; reconnects after errors.
+    /// Feeds a <see cref="RemoteBlockCache"/> from an <see cref="IRandomAccessSource"/> (NAS file) on background
+    /// threads, so <see cref="LocalStreamServer"/> can serve it to the video player. Several workers, each with its
+    /// own connection, fetch in parallel (hides the network latency of single reads). Blocks the player waits
+    /// for come first, then read-ahead; connections are re-opened after errors.
     /// </summary>
     public sealed class SourceStreamer : IBlockSource, IDisposable
     {
+        public const int DefaultWorkers = 3;
+
         readonly Func<IRandomAccessSource> m_Factory;
         readonly RemoteBlockCache m_Cache;
-        readonly Thread m_Thread;
+        readonly object m_TakeLock = new object();
+        readonly IRandomAccessSource[] m_Sources;
+        readonly Stopwatch m_Clock = Stopwatch.StartNew();
         volatile bool m_Stopped;
-        volatile IRandomAccessSource m_Source;
         volatile string m_Error;
 
-        public SourceStreamer(Func<IRandomAccessSource> factory, long size, int capacityBlocks = 160, int readAheadBlocks = 48)
+        /// <param name="readAheadBlocks">How far ahead of the player to fetch (blocks of 256 KB).</param>
+        public SourceStreamer(Func<IRandomAccessSource> factory, long size, int capacityBlocks = 160, int readAheadBlocks = 48,
+            int workers = DefaultWorkers)
         {
             m_Factory = factory;
             m_Cache = new RemoteBlockCache(size, RemoteBlockCache.DefaultBlockSize, capacityBlocks, readAheadBlocks);
-            m_Thread = new Thread(Run) { IsBackground = true, Name = "TheMovies source streamer" };
-            m_Thread.Start();
+            m_Sources = new IRandomAccessSource[Math.Max(1, workers)];
+            for (int i = 0; i < m_Sources.Length; i++)
+            {
+                int worker = i;
+                new Thread(() => Run(worker)) { IsBackground = true, Name = "TheMovies source streamer " + i }.Start();
+            }
         }
 
         public long TotalSize => m_Cache.TotalSize;
@@ -37,7 +47,10 @@ namespace TheMovies.Core.Streaming
 
         public long BytesReceived => m_Cache.BytesReceived;
 
-        /// <summary>Number of consecutive cached blocks from the given byte offset.</summary>
+        /// <summary>How many bytes the streamer keeps ready ahead of the player at most.</summary>
+        public long ReadAheadBytes => (long)m_Cache.ReadAheadBlocks * m_Cache.BlockSize;
+
+        /// <summary>Number of consecutive cached bytes from the given byte offset (long.MaxValue if that reaches the end).</summary>
         public long BufferedBytesFrom(long offset)
         {
             int index = m_Cache.BlockIndexOf(offset);
@@ -50,32 +63,46 @@ namespace TheMovies.Core.Streaming
         {
             m_Stopped = true;
             m_Cache.Close();
-            // Closing the connection also wakes the thread if it is blocked in a read.
-            try { m_Source?.Dispose(); }
-            catch (Exception) { }
+            // Closing the connections also wakes workers blocked in a read.
+            for (int i = 0; i < m_Sources.Length; i++)
+            {
+                try { m_Sources[i]?.Dispose(); }
+                catch (Exception) { }
+            }
         }
 
-        void Run()
+        /// <summary>Takes exactly one block to fetch (or -1).</summary>
+        int TakeOne()
         {
-            var clock = Stopwatch.StartNew();
+            lock (m_TakeLock)
+            {
+                var requests = m_Cache.TakeRequests(m_Clock.Elapsed.TotalSeconds, m_Cache.InFlightCount + 1, 120);
+                if (requests.Count == 0) return -1;
+                for (int i = 1; i < requests.Count; i++)
+                    m_Cache.OnBlockFailed(requests[i]); // hand extra ones back
+                return requests[0];
+            }
+        }
+
+        void Run(int worker)
+        {
             int failures = 0;
             while (!m_Stopped)
             {
-                var requests = m_Cache.TakeRequests(clock.Elapsed.TotalSeconds, 1, 120);
-                if (requests.Count == 0)
+                int index = TakeOne();
+                if (index < 0)
                 {
-                    Thread.Sleep(8);
+                    Thread.Sleep(6);
                     continue;
                 }
 
-                int index = requests[0];
                 try
                 {
-                    var source = m_Source;
+                    var source = m_Sources[worker];
                     if (source == null)
                     {
                         source = m_Factory();
-                        m_Source = source;
+                        m_Sources[worker] = source;
                         source.Open();
                         if (source.Length != m_Cache.TotalSize)
                             throw new System.IO.IOException("Die Datei hat sich auf dem Server geändert.");
@@ -92,15 +119,15 @@ namespace TheMovies.Core.Streaming
                     if (m_Stopped) break;
                     failures++;
                     m_Error = e.Message;
-                    try { m_Source?.Dispose(); }
+                    try { m_Sources[worker]?.Dispose(); }
                     catch (Exception) { }
-                    m_Source = null;
+                    m_Sources[worker] = null;
                     Thread.Sleep(Math.Min(5000, 300 * failures));
                 }
             }
-            try { m_Source?.Dispose(); }
+            try { m_Sources[worker]?.Dispose(); }
             catch (Exception) { }
-            m_Source = null;
+            m_Sources[worker] = null;
         }
     }
 }
