@@ -21,6 +21,7 @@ namespace TheMovies.Net
         static readonly int[] k_SeatOrder = { 1, 2, 0, 3 };
 
         static readonly List<NetworkPlayer> s_All = new List<NetworkPlayer>();
+        static float s_LastReactionAt = -10f;
 
         public static IReadOnlyList<NetworkPlayer> All => s_All;
         public static NetworkPlayer Local { get; private set; }
@@ -98,6 +99,36 @@ namespace TheMovies.Net
             if (Local == this) Local = null;
             if (m_Avatar != null) Destroy(m_Avatar.gameObject);
             RosterChanged?.Invoke();
+        }
+
+        /// <summary>Sends a reaction from the local user (also works alone, without a session).</summary>
+        public static void SendLocalReaction(ReactionType type)
+        {
+            // A little rate limit, so holding the trigger on a button doesn't flood everyone.
+            if (Time.unscaledTime - s_LastReactionAt < 0.35f) return;
+            s_LastReactionAt = Time.unscaledTime;
+            if (Local != null && Local.IsSpawned)
+                Local.ReactRpc((byte)type);
+            else
+                PlayOwnReaction(type);
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Owner)]
+        void ReactRpc(byte type)
+        {
+            var reaction = (ReactionType)type;
+            if (IsOwner)
+                PlayOwnReaction(reaction);
+            else if (m_Avatar != null)
+                m_Avatar.PlayReaction(reaction);
+        }
+
+        static void PlayOwnReaction(ReactionType type)
+        {
+            var rig = XRRig.Instance;
+            if (rig == null) return;
+            rig.GetTrackedPoses(out var head, out _, out var right);
+            Reactions.Play(type, head, right, rig.XRActive && rig.RightTracked, self: true);
         }
 
         public void SetName(string name)

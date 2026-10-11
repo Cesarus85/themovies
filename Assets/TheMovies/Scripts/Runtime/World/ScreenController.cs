@@ -41,6 +41,10 @@ namespace TheMovies.World
         float m_RoomLight = 1f;
         float m_RoomLightTarget = 1f;
 
+        Vector3 m_CinemaPosition;
+        Quaternion m_CinemaRotation;
+        float m_SizeScale = 1f;
+
         public int SizeIndex => m_SizeIndex;
         public Vector3 Center => transform.TransformPoint(new Vector3(0, Size.y * 0.5f, 0));
         public Vector2 Size { get; private set; }
@@ -54,6 +58,8 @@ namespace TheMovies.World
             go.transform.localRotation = localRotation;
             var screen = go.AddComponent<ScreenController>();
             screen.m_MaxHeight = maxHeight;
+            screen.m_CinemaPosition = localPosition;
+            screen.m_CinemaRotation = localRotation;
             screen.Build();
             return screen;
         }
@@ -132,6 +138,15 @@ namespace TheMovies.World
             Layout();
         }
 
+        /// <summary>Mixed reality: a TV-sized screen a few meters in front of the seats instead of the cinema screen.</summary>
+        public void SetMixedRealityLayout(bool mixedReality)
+        {
+            transform.localPosition = mixedReality ? new Vector3(0f, 0.35f, 4.2f) : m_CinemaPosition;
+            transform.localRotation = mixedReality ? Quaternion.identity : m_CinemaRotation;
+            m_SizeScale = mixedReality ? 0.35f : 1f;
+            Layout();
+        }
+
         public void SetBrightness(float brightness) => m_Material.SetFloat(k_Brightness, brightness);
 
         /// <summary>1 = house lights on, 0 = dark cinema. Fades smoothly.</summary>
@@ -156,7 +171,7 @@ namespace TheMovies.World
         void Layout()
         {
             float aspect = (float)m_Format.DisplayAspect(m_VideoWidth, m_VideoHeight);
-            float width = Widths[m_SizeIndex];
+            float width = Widths[m_SizeIndex] * m_SizeScale;
             float height = width / aspect;
             if (height > m_MaxHeight)
             {

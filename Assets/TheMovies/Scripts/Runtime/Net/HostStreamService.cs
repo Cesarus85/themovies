@@ -17,6 +17,9 @@ namespace TheMovies.Net
     {
         const string k_RequestMessage = "TheMovies.StreamRequest";
         const string k_DataMessage = "TheMovies.StreamData";
+        const string k_SubtitleRequestMessage = "TheMovies.SubtitleRequest";
+        const string k_SubtitleDataMessage = "TheMovies.SubtitleData";
+        const int k_MaxSubtitleBytes = 2 * 1024 * 1024;
         const int k_MaxInFlight = 6;
         const double k_RetryAfter = 10.0;
 
@@ -25,6 +28,11 @@ namespace TheMovies.Net
         /// <summary>Host side: returns the local file path for a media version, or null if it must not be served.</summary>
         public static Func<int, string> HostFileProvider;
 
+        /// <summary>Host side: returns the subtitle file for a media version, or null.</summary>
+        public static Func<int, string> HostSubtitleProvider;
+
+        /// <summary>Client side: called with the host's subtitle file (null if it has none).</summary>
+        Action<int, byte[]> m_SubtitleCallback;
         NetworkManager m_Network;
         bool m_Registered;
 
@@ -71,6 +79,8 @@ namespace TheMovies.Net
             {
                 m_Network.CustomMessagingManager.RegisterNamedMessageHandler(k_RequestMessage, OnRequest);
                 m_Network.CustomMessagingManager.RegisterNamedMessageHandler(k_DataMessage, OnData);
+                m_Network.CustomMessagingManager.RegisterNamedMessageHandler(k_SubtitleRequestMessage, OnSubtitleRequest);
+                m_Network.CustomMessagingManager.RegisterNamedMessageHandler(k_SubtitleDataMessage, OnSubtitleData);
                 m_Registered = true;
             }
             else if (!listening && m_Registered)
@@ -172,6 +182,58 @@ namespace TheMovies.Net
             float rate = Mathf.Max(0, bytes - m_LastBytes);
             m_LastBytes = bytes;
             ReceiveRate = Mathf.Lerp(ReceiveRate, rate, 0.5f);
+        }
+
+        /// <summary>Asks the host for the subtitles of a media version; <paramref name="callback"/> gets the bytes or null.</summary>
+        public void RequestSubtitles(int mediaVersion, Action<int, byte[]> callback)
+        {
+            if (!m_Registered || m_Network == null || m_Network.IsServer || !m_Network.IsConnectedClient) return;
+            m_SubtitleCallback = callback;
+            using (var writer = new FastBufferWriter(4, Allocator.Temp))
+            {
+                writer.WriteValueSafe(mediaVersion);
+                m_Network.CustomMessagingManager.SendNamedMessage(k_SubtitleRequestMessage, NetworkManager.ServerClientId, writer, NetworkDelivery.ReliableSequenced);
+            }
+        }
+
+        void OnSubtitleData(ulong sender, FastBufferReader reader)
+        {
+            reader.ReadValueSafe(out int version);
+            reader.ReadValueSafe(out int length);
+            byte[] data = null;
+            if (length > 0 && length <= k_MaxSubtitleBytes)
+            {
+                data = new byte[length];
+                reader.ReadBytesSafe(ref data, length);
+            }
+            m_SubtitleCallback?.Invoke(version, data);
+        }
+
+        void OnSubtitleRequest(ulong sender, FastBufferReader reader)
+        {
+            if (!m_Network.IsServer) return;
+            reader.ReadValueSafe(out int version);
+            byte[] data = null;
+            try
+            {
+                string path = HostSubtitleProvider?.Invoke(version);
+                if (!string.IsNullOrEmpty(path) && new FileInfo(path).Length <= k_MaxSubtitleBytes)
+                    data = File.ReadAllBytes(path);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[TheMovies] Could not read subtitles for streaming: {e.Message}");
+            }
+
+            int length = data?.Length ?? 0;
+            using (var writer = new FastBufferWriter(8 + length, Allocator.Temp))
+            {
+                writer.WriteValueSafe(version);
+                writer.WriteValueSafe(length);
+                if (length > 0)
+                    writer.WriteBytesSafe(data, length);
+                m_Network.CustomMessagingManager.SendNamedMessage(k_SubtitleDataMessage, sender, writer, NetworkDelivery.ReliableFragmentedSequenced);
+            }
         }
 
         // ---------------- Host ----------------

@@ -45,6 +45,16 @@ namespace TheMovies.World
 
         public ScreenController Screen { get; private set; }
 
+        /// <summary>Hides the hall (for mixed reality) but keeps the screen.</summary>
+        public void SetHallVisible(bool visible)
+        {
+            foreach (Transform child in transform)
+            {
+                if (Screen != null && child == Screen.transform) continue;
+                child.gameObject.SetActive(visible);
+            }
+        }
+
         /// <summary>Floor position and facing of a participant seat.</summary>
         public static Pose SeatPose(int index) => s_Seats[Mathf.Clamp(index, 0, MaxParticipants - 1)];
 
@@ -326,9 +336,10 @@ namespace TheMovies.World
             wood.AddBox(new Vector3(0, k_Ceiling - 1.55f, curtainZ - 0.35f), new Vector3(k_HalfWidth * 2, 0.08f, 0.06f), new Color(1f, 0.85f, 0.55f));
         }
 
-        static void BuildExitSign(Vector3 position, Vector3 wallDirection)
+        void BuildExitSign(Vector3 position, Vector3 wallDirection)
         {
             var sign = new GameObject("Exit Sign").transform;
+            sign.SetParent(transform, false);
             sign.position = position;
             // TextMesh is readable when looking along its +Z, so +Z points into the wall.
             sign.rotation = Quaternion.LookRotation(wallDirection, Vector3.up);

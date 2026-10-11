@@ -10,7 +10,8 @@
         "Unity.Services.Core",
         "Unity.Services.Authentication",
         "Unity.Services.Multiplayer",
-        "Unity.Services.Vivox"
+        "Unity.Services.Vivox",
+        "Unity.XR.ARFoundation"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -34,6 +35,11 @@
             "name": "com.unity.services.vivox",
             "expression": "16.0.0",
             "define": "THEMOVIES_VIVOX"
+        },
+        {
+            "name": "com.unity.xr.arfoundation",
+            "expression": "5.0.0",
+            "define": "THEMOVIES_ARF"
         }
     ],
     "noEngineReferences": false

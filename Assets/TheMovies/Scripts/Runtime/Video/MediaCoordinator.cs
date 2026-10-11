@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using TheMovies.Core;
 using TheMovies.Net;
 using TheMovies.World;
@@ -37,6 +38,16 @@ namespace TheMovies.Video
         float m_ReportedProblemUntil;
         readonly Dictionary<string, MediaEntry> m_Assignments = new Dictionary<string, MediaEntry>();
 
+        ResumeStore m_Resume = new ResumeStore();
+        string m_ResumePath;
+        float m_NextResumeRecord;
+        float m_NextResumeSave;
+        int m_ResumeOfferVersion = -1;
+        float m_ResumeOfferUntil;
+
+        /// <summary>Saved position of the movie the local user just picked, offered in the menu ("Weiterschauen").</summary>
+        public double? ResumeOffer { get; private set; }
+
         public ParticipantMediaState LocalState { get; private set; } = ParticipantMediaState.NoMovie;
         public SyncCommand LastCommand { get; private set; }
         public MediaEntry CurrentEntry { get; private set; }
@@ -58,6 +69,68 @@ namespace TheMovies.Video
             m_Player.Prepared += OnPrepared;
             m_Player.Failed += OnFailed;
             m_Library.Changed += () => m_RetryMissing = true;
+
+            m_ResumePath = Path.Combine(Application.persistentDataPath, "resume.txt");
+            try
+            {
+                if (File.Exists(m_ResumePath))
+                    m_Resume = ResumeStore.Deserialize(File.ReadAllText(m_ResumePath));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[TheMovies] Could not read {m_ResumePath}: {e.Message}");
+            }
+        }
+
+        /// <summary>Jumps everyone to the saved position.</summary>
+        public void AcceptResume()
+        {
+            if (ResumeOffer.HasValue)
+                Playback.Current.RequestSeek(ResumeOffer.Value);
+            ResumeOffer = null;
+        }
+
+        /// <summary>Starts from the beginning and forgets the saved position.</summary>
+        public void DeclineResume()
+        {
+            if (m_LoadedKey != null) m_Resume.Remove(m_LoadedKey);
+            ResumeOffer = null;
+        }
+
+        void RecordResume(bool force)
+        {
+            if (m_LoadedKey == null || m_Player == null || m_Player.State != MovieState.Ready || m_Player.Duration <= 0) return;
+            if (!force && Time.unscaledTime < m_NextResumeRecord) return;
+            m_NextResumeRecord = Time.unscaledTime + 5f;
+            m_Resume.Record(m_LoadedKey, m_Player.Time, m_Player.Duration, DateTime.UtcNow);
+        }
+
+        void SaveResume(bool force)
+        {
+            if (!m_Resume.IsDirty || m_ResumePath == null) return;
+            if (!force && Time.unscaledTime < m_NextResumeSave) return;
+            m_NextResumeSave = Time.unscaledTime + 20f;
+            try
+            {
+                File.WriteAllText(m_ResumePath, m_Resume.Serialize());
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[TheMovies] Could not save {m_ResumePath}: {e.Message}");
+            }
+        }
+
+        void OnApplicationPause(bool paused)
+        {
+            if (!paused) return;
+            RecordResume(true);
+            SaveResume(true);
+        }
+
+        void OnDestroy()
+        {
+            RecordResume(true);
+            SaveResume(true);
         }
 
         // ---------------- Commands from the UI ----------------
@@ -243,6 +316,13 @@ namespace TheMovies.Video
             else m_Player.Pause();
             m_Player.SetSpeed(cmd.Speed);
 
+            if (timeline.Playing && !cmd.Seek)
+                RecordResume(false);
+            SaveResume(false);
+            if (ResumeOffer.HasValue && (media.Version != m_ResumeOfferVersion || Time.unscaledTime > m_ResumeOfferUntil ||
+                                         timeline.MediaTimeAt(auth.HostNow) > 30))
+                ResumeOffer = null;
+
             bool buffering = m_Player.IsStalled;
             if (IsStreaming && !cmd.ReachedEnd && HostStreamService.Instance != null)
             {
@@ -310,10 +390,38 @@ namespace TheMovies.Video
             LocalState = ParticipantMediaState.Loading;
             m_Screen.SetTexture(null);
             m_Player.Load(entry.Location);
+            LoadSubtitles(entry, media, stream);
+        }
+
+        void LoadSubtitles(MediaEntry entry, MediaDescriptor media, bool stream)
+        {
+            var subtitles = SubtitleService.Instance;
+            if (subtitles == null) return;
+            if (stream)
+            {
+                subtitles.Clear();
+                int version = media.Version;
+                HostStreamService.Instance?.RequestSubtitles(version, (v, data) =>
+                {
+                    if (v == m_LoadedVersion && data != null)
+                        subtitles.SetTrack(data, "vom Gastgeber");
+                });
+            }
+            else if (entry.IsUrl)
+            {
+                subtitles.LoadForUrl(entry.Location);
+            }
+            else
+            {
+                subtitles.LoadForFile(entry.Location);
+            }
         }
 
         void UnloadMovie()
         {
+            RecordResume(true);
+            SubtitleService.Instance?.Clear();
+            ResumeOffer = null;
             if (IsStreaming)
             {
                 HostStreamService.Instance?.StopStream();
@@ -332,7 +440,19 @@ namespace TheMovies.Video
             // The participant who picked the movie refines the guessed 3D format now that the frame size is known.
             var auth = Playback.Current;
             var media = auth.Media;
-            if (!m_FormatRefined && m_PendingSelectionKey != null && media.Key.ToString() == m_PendingSelectionKey)
+            bool pickedByMe = m_PendingSelectionKey != null && media.Key.ToString() == m_PendingSelectionKey;
+            if (pickedByMe && m_ResumeOfferVersion != media.Version)
+            {
+                m_ResumeOfferVersion = media.Version;
+                var saved = m_Resume.Get(m_PendingSelectionKey);
+                if (saved.HasValue && !auth.Timeline.Playing && auth.Timeline.MediaTimeAt(auth.HostNow) < 5)
+                {
+                    ResumeOffer = saved;
+                    m_ResumeOfferUntil = Time.unscaledTime + 60f;
+                }
+            }
+
+            if (!m_FormatRefined && pickedByMe)
             {
                 m_FormatRefined = true;
                 string name = CurrentEntry != null ? CurrentEntry.FileName : m_PendingSelectionKey;

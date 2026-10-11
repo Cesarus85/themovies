@@ -23,7 +23,10 @@ namespace TheMovies.App
         public MenuUI Menu { get; private set; }
 
         XRRig m_Rig;
+        CinemaEnvironment m_Cinema;
         string m_VoiceChannel;
+
+        public SubtitleService Subtitles { get; private set; }
 
         void Awake()
         {
@@ -37,6 +40,7 @@ namespace TheMovies.App
                 Debug.LogError("[TheMovies] SessionManager missing. Run 'The Movies > Projekt einrichten' in the editor.");
 
             var cinema = CinemaEnvironment.Build();
+            m_Cinema = cinema;
             Screen = cinema.Screen;
             Screen.SetSize(Settings.ScreenSize);
             Screen.SetRoomLight(0.7f, immediate: true);
@@ -55,6 +59,9 @@ namespace TheMovies.App
             Media = playerGo.AddComponent<MediaCoordinator>();
             Media.Init(moviePlayer, Screen, library);
 
+            Subtitles = SubtitleService.Create(Screen, () => Media.Player.State == MovieState.Ready ? Media.Player.Time : Media.DisplayTime);
+            Subtitles.Enabled = Settings.Subtitles;
+
             Menu = MenuUI.Create(this);
 
             HostStreamService.Create();
@@ -63,6 +70,11 @@ namespace TheMovies.App
                 var media = Playback.Current.Media;
                 var entry = Media.CurrentEntry;
                 return media.Version == version && media.HostStream && entry != null && !entry.IsUrl ? entry.Location : null;
+            };
+            HostStreamService.HostSubtitleProvider = version =>
+            {
+                string file = HostStreamService.HostFileProvider(version);
+                return file != null ? SubtitleService.FindSidecar(file) : null;
             };
 
             NetworkPlayer.LocalNameProvider = () => Settings.Name;
@@ -79,6 +91,9 @@ namespace TheMovies.App
             m_Rig.SeekStepRequested += delta => Playback.Current.RequestSeekRelative(delta);
             if (m_Sessions != null)
                 m_Sessions.Changed += OnSessionChanged;
+
+            if (Settings.MixedReality)
+                MixedReality.SetEnabled(true, m_Cinema, m_Rig.Camera);
 
             AndroidPermissions.RequestStorage(() => Media.Library.Refresh());
             Media.Library.Refresh();
@@ -135,6 +150,20 @@ namespace TheMovies.App
         {
             Settings.Volume = Mathf.Clamp01(Mathf.Round((Settings.Volume + delta) * 10f) / 10f);
             Media.Player.Volume = Settings.Volume;
+            Settings.Save();
+        }
+
+        public void SetSubtitles(bool enabled)
+        {
+            Subtitles.Enabled = enabled;
+            Settings.Subtitles = enabled;
+            Settings.Save();
+        }
+
+        public void SetMixedReality(bool enabled)
+        {
+            MixedReality.SetEnabled(enabled, m_Cinema, m_Rig.Camera);
+            Settings.MixedReality = MixedReality.Enabled;
             Settings.Save();
         }
 

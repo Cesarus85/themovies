@@ -13,6 +13,8 @@ namespace TheMovies.App
         const string k_LastHost = "tm.lastHost";
         const string k_LightsOnWhenPaused = "tm.lightsPaused";
         const string k_Height = "tm.height";
+        const string k_Subtitles = "tm.subtitles";
+        const string k_MixedReality = "tm.mixedReality";
 
         public string Name;
         public int ScreenSize;
@@ -22,6 +24,8 @@ namespace TheMovies.App
         public string LastLanHost;
         public bool LightsOnWhenPaused;
         public float HeightOffset;
+        public bool Subtitles;
+        public bool MixedReality;
 
         public static AppSettings Load()
         {
@@ -35,6 +39,8 @@ namespace TheMovies.App
                 LastLanHost = PlayerPrefs.GetString(k_LastHost, "192.168."),
                 LightsOnWhenPaused = PlayerPrefs.GetInt(k_LightsOnWhenPaused, 1) == 1,
                 HeightOffset = PlayerPrefs.GetFloat(k_Height, 0f),
+                Subtitles = PlayerPrefs.GetInt(k_Subtitles, 1) == 1,
+                MixedReality = PlayerPrefs.GetInt(k_MixedReality, 0) == 1,
             };
         }
 
@@ -48,6 +54,8 @@ namespace TheMovies.App
             PlayerPrefs.SetString(k_LastHost, LastLanHost ?? string.Empty);
             PlayerPrefs.SetInt(k_LightsOnWhenPaused, LightsOnWhenPaused ? 1 : 0);
             PlayerPrefs.SetFloat(k_Height, HeightOffset);
+            PlayerPrefs.SetInt(k_Subtitles, Subtitles ? 1 : 0);
+            PlayerPrefs.SetInt(k_MixedReality, MixedReality ? 1 : 0);
             PlayerPrefs.Save();
         }
     }

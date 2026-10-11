@@ -30,6 +30,10 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
   wem die Datei fehlt
 - **Avatare** (Kopf, Hände, Name, Mundbewegung beim Sprechen) auf festen Plätzen nebeneinander
 - **Sprachchat** über Unity Vivox (optional)
+- **Untertitel** aus `.srt`-Dateien (neben dem Film, bei Streams auch vom Gastgeber), pro Person ein-/ausschaltbar
+- **Weiterschauen**: Die App merkt sich, wo ihr aufgehört habt, und bietet beim nächsten Mal „Fortsetzen“ an
+- **Reaktionen**: 😂 😮 ❤️ ⭐ über dem eigenen Avatar und **Popcorn werfen** 🍿
+- **Mixed Reality**: Leinwand im eigenen Wohnzimmer per Passthrough, die anderen sitzen als Avatare daneben
 - **Allein schauen** geht auch – und wer danach ein Kino eröffnet, schaut einfach mit den anderen weiter
 - Am PC ohne Brille testbar (Maus/Tastatur), auch mit Quest Link
 
@@ -99,6 +103,13 @@ automatisch (über Name und Größe); falls nicht, gibt es im Menü den Knopf **
   ```
 - **3D-Erkennung** über den Dateinamen: `HSBS`/`Half-SBS` → SBS Half, `SBS` + doppelt breites Bild →
   SBS Full, `HOU`/`TAB`/`OU` → Over-Under. Sonst einfach im Menü auf **Format** tippen.
+
+### Untertitel
+
+Lege die Untertitel als `.srt` mit **gleichem Namen** neben den Film, z. B. `Avatar.mkv` + `Avatar.srt`
+oder `Avatar.de.srt` (deutsche Dateien werden bevorzugt). Bei Stream-Adressen sucht die App
+`…/film.srt` neben der Video-URL. Wer den Film vom Gastgeber gestreamt bekommt, erhält dessen Untertitel
+automatisch mit. Ein-/Ausschalten: *Einstellungen → Untertitel*.
 
 ### Vom Gastgeber streamen
 
@@ -198,6 +209,15 @@ tools/                 dotnet-Projekte für Tests und Compile-Check
 Szene und Prefabs werden vom Setup-Menü erzeugt (nicht im Repository). Die `.meta`-Dateien, die Unity
 beim ersten Öffnen anlegt, solltest du mit einchecken.
 
+## Mixed Reality (Passthrough)
+
+In *Einstellungen → Umgebung* lässt sich zwischen **Kino** und **Mixed Reality** wählen (pro Person).
+Im Mixed-Reality-Modus siehst du dein echtes Zimmer, die Leinwand schwebt in TV-Größe etwa 4 m vor dir.
+
+Einmalig im Unity-Projekt: **The Movies → Mixed Reality (Passthrough) einrichten**. Das installiert das
+Paket *Unity OpenXR: Meta* und aktiviert die OpenXR-Features „Meta Quest: Session“ und
+„Meta Quest: Camera (Passthrough)“. Danach neu bauen. Ohne das Paket ist der Knopf ausgegraut.
+
 ## Eigenes Kino-Modell (Asset Store o. Ä.)
 
 Statt des eingebauten Saals kannst du ein beliebiges 3D-Kino verwenden (z. B. ein Kino-Paket aus dem
@@ -219,4 +239,4 @@ gebackenem Licht (Lightmaps im Prefab bzw. „Unlit“-Materialien) laufen am fl
 - Verlässt der **Gastgeber** das Kino, endet die Sitzung für alle.
 - Videodecoding über Unitys VideoPlayer (Android MediaCodec): AC3/DTS-Ton und exotische Container
   werden ggf. nicht unterstützt (siehe Tipp oben).
-- Ideen für später: 180°/360°-Videos, Untertitel (SRT), Emojis/Reaktionen, Popcorn 🍿
+- Was als Nächstes kommt, steht in der [ROADMAP.md](ROADMAP.md).

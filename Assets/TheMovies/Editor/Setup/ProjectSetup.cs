@@ -138,6 +138,28 @@ namespace TheMovies.EditorTools
             }
         }
 
+        [MenuItem("The Movies/Mixed Reality (Passthrough) einrichten", priority = 31)]
+        public static void SetupMixedReality()
+        {
+            if (!XRConfigurator.IsMetaOpenXrInstalled)
+            {
+                if (EditorUtility.DisplayDialog("The Movies",
+                        "Für Mixed Reality wird das Paket 'Unity OpenXR: Meta' (" + XRConfigurator.MetaOpenXrPackage + ") benötigt. " +
+                        "Jetzt installieren?\n\nDanach diesen Menüpunkt noch einmal aufrufen.", "Installieren", "Abbrechen"))
+                {
+                    UnityEditor.PackageManager.Client.Add(XRConfigurator.MetaOpenXrPackage);
+                    Debug.Log("[TheMovies] Installing " + XRConfigurator.MetaOpenXrPackage + " – run 'Mixed Reality einrichten' again afterwards.");
+                }
+                return;
+            }
+
+            int enabled = XRConfigurator.EnablePassthroughFeatures();
+            EditorUtility.DisplayDialog("The Movies", enabled > 0
+                ? $"Passthrough eingerichtet ({enabled} OpenXR-Features aktiviert). Neu bauen – dann gibt es in den Einstellungen die Umgebung 'Mixed Reality'."
+                : "Die Passthrough-Features wurden nicht gefunden. Bitte unter Project Settings > XR Plug-in Management > OpenXR (Android) " +
+                  "'Meta Quest: Session' und 'Meta Quest: Camera (Passthrough)' anhaken.", "OK");
+        }
+
         [MenuItem("The Movies/Szene öffnen", priority = 40)]
         public static void OpenScene()
         {

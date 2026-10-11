@@ -214,6 +214,40 @@ namespace TheMovies.EditorTools
             return !(result is bool ok) || ok;
         }
 
+        public const string MetaOpenXrPackage = "com.unity.xr.meta-openxr";
+
+        public static bool IsMetaOpenXrInstalled => IsPackageInstalled(MetaOpenXrPackage);
+
+        /// <summary>Enables the Meta OpenXR session and passthrough camera features for Android (mixed reality).</summary>
+        public static int EnablePassthroughFeatures()
+        {
+            var openXrSettingsType = FindType("UnityEngine.XR.OpenXR.OpenXRSettings");
+            if (openXrSettingsType == null) return 0;
+            var get = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static);
+            var settings = get?.Invoke(null, new object[] { BuildTargetGroup.Android });
+            var features = settings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
+            if (features == null) return 0;
+            int enabled = 0;
+            foreach (var feature in features)
+            {
+                if (feature == null) continue;
+                var type = feature.GetType();
+                string ns = type.Namespace ?? string.Empty;
+                bool meta = ns.IndexOf("Meta", StringComparison.Ordinal) >= 0;
+                bool wanted = type.Name == "ARSessionFeature" || type.Name == "ARCameraFeature" ||
+                              (meta && (type.Name.Contains("Session") || type.Name.Contains("Camera") || type.Name.Contains("Passthrough")));
+                if (!wanted) continue;
+                var prop = type.GetProperty("enabled");
+                if (prop == null) continue;
+                prop.SetValue(feature, true);
+                if (feature is Object o) EditorUtility.SetDirty(o);
+                enabled++;
+            }
+            if (settings is Object s) EditorUtility.SetDirty(s);
+            AssetDatabase.SaveAssets();
+            return enabled;
+        }
+
         static int EnableFeatures(Type openXrSettingsType, BuildTargetGroup group, string[] featureTypeNames)
         {
             var get = openXrSettingsType.GetMethod("GetSettingsForBuildTargetGroup", BindingFlags.Public | BindingFlags.Static);

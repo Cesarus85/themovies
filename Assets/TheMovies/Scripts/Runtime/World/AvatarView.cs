@@ -69,6 +69,15 @@ namespace TheMovies.World
             return hand;
         }
 
+        /// <summary>Shows a reaction coming from this avatar.</summary>
+        public void PlayReaction(ReactionType type)
+        {
+            if (!m_HasPose) return;
+            var head = new Pose(m_Head.position, m_Head.rotation);
+            var hand = new Pose(m_Right.position, m_Right.rotation);
+            Reactions.Play(type, head, hand, m_Right.gameObject.activeSelf, self: false);
+        }
+
         public void SetIdentity(string displayName, Color color)
         {
             m_Color = color;

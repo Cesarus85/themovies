@@ -19,7 +19,7 @@ namespace TheMovies.UI
     public sealed class MenuUI : MonoBehaviour
     {
         const float k_Width = 0.92f;
-        const float k_Height = 0.62f;
+        const float k_Height = 0.72f;
         const float k_Left = -k_Width * 0.5f + 0.03f;
         const float k_Right = k_Width * 0.5f - 0.03f;
         const int k_BrowserRows = 7;
@@ -79,6 +79,9 @@ namespace TheMovies.UI
         UILabel m_SetVolume;
         UIButton m_SetMic;
         UILabel m_SetHeight;
+        UIButton m_SetSubtitles;
+        UIButton m_SetCinema, m_SetMixed;
+        UIButton m_ResumeButton, m_RestartButton;
         UILabel m_SessionStatus;
         readonly UILabel[] m_Participants = new UILabel[CinemaEnvironment.MaxParticipants];
         readonly List<UIButton> m_TransportButtons = new List<UIButton>();
@@ -244,9 +247,9 @@ namespace TheMovies.UI
 
         // ---------------- Pages ----------------
 
-        GameObject Page(string name)
+        GameObject Page(string name, float offsetY = 0f)
         {
-            var go = UIFactory.CreateEmpty(m_Root, name, Vector3.zero);
+            var go = UIFactory.CreateEmpty(m_Root, name, new Vector3(0, offsetY, 0));
             return go;
         }
 
@@ -349,7 +352,7 @@ namespace TheMovies.UI
 
         GameObject BuildSessionPage()
         {
-            var p = Page("Session Page");
+            var p = Page("Session Page", 0.045f);
             m_RoomLabel = Label(p, string.Empty, k_Left, 0.268f, 0.024f, 30, TextAnchor.MiddleLeft, UIStyle.Accent);
             m_VoiceLabel = Label(p, string.Empty, k_Right, 0.268f, 0.015f, 40, TextAnchor.MiddleRight, UIStyle.TextDim);
             Divider(p, 0.24f);
@@ -361,6 +364,8 @@ namespace TheMovies.UI
 
             m_ProblemLabel = Label(p, string.Empty, k_Left, 0.09f, 0.016f, 60, TextAnchor.MiddleLeft, UIStyle.Warning);
             m_AssignButton = Button(p, "Datei zuordnen", 0.34f, 0.09f, 0.18f, 0.04f, () => OpenBrowser(true), 0.016f);
+            m_ResumeButton = Button(p, "Fortsetzen", 0.2f, 0.09f, 0.17f, 0.042f, () => m_App.Media.AcceptResume(), 0.017f, UIIcon.Play, ButtonStyle.Primary);
+            m_RestartButton = Button(p, "Von vorne", 0.36f, 0.09f, 0.13f, 0.042f, () => m_App.Media.DeclineResume(), 0.016f, style: ButtonStyle.Subtle);
 
             m_Seek = UISlider.Create(p.transform, new Vector3(-0.115f, 0.035f, -UIStyle.Layer), 0.62f, 0.014f);
             m_Seek.Committed += v => Playback.Current.RequestSeek(v * m_App.Media.DisplayDuration);
@@ -381,66 +386,89 @@ namespace TheMovies.UI
             Button(p, "Ausblenden", 0.16f, rowY, 0.18f, 0.06f, Hide, 0.02f, style: ButtonStyle.Subtle);
             m_LeaveButton = Button(p, "Verlassen", 0.345f, rowY, 0.16f, 0.06f, Leave, 0.02f, style: ButtonStyle.Danger);
 
-            m_SessionStatus = Label(p, string.Empty, 0, -0.272f, 0.014f, 100, TextAnchor.MiddleCenter, UIStyle.TextDim);
+            // Reactions: emojis above your avatar for everyone, popcorn flies towards the screen.
+            Divider(p, -0.245f);
+            Label(p, "Reaktion", k_Left, -0.292f, 0.016f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            float rx = -0.2f;
+            foreach (var reaction in Reactions.All)
+            {
+                var type = reaction;
+                var button = Button(p, null, rx, -0.292f, 0.062f, 0.062f, () => NetworkPlayer.SendLocalReaction(type), 0.02f,
+                    style: ButtonStyle.Subtle, round: true);
+                var emoji = UIFactory.CreateEmpty(button.transform, "Emoji", new Vector3(0, 0, -UIStyle.Layer));
+                Reactions.BuildEmoji(emoji.transform, type, 0.042f, 0.0005f);
+                rx += 0.08f;
+            }
+
+            m_SessionStatus = Label(p, string.Empty, 0, -0.345f, 0.014f, 100, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
         }
 
         GameObject BuildSettingsPage()
         {
             var p = Page("Settings Page");
-            Label(p, "Einstellungen", k_Left, 0.268f, 0.026f, 0, TextAnchor.MiddleLeft, UIStyle.Accent);
-            Button(p, "Zurück", 0.35f, 0.268f, 0.16f, 0.045f, () => ShowPage(m_SessionPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
-            Divider(p, 0.24f);
+            Label(p, "Einstellungen", k_Left, 0.305f, 0.026f, 0, TextAnchor.MiddleLeft, UIStyle.Accent);
+            Button(p, "Zurück", 0.35f, 0.305f, 0.16f, 0.045f, () => ShowPage(m_SessionPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
+            Divider(p, 0.272f);
 
-            const float minusX = 0.0f, valueX = 0.18f, plusX = 0.36f, small = 0.055f;
-            float y = 0.195f;
+            const float minusX = 0.0f, valueX = 0.18f, plusX = 0.36f, small = 0.05f, step = 0.062f;
+            float y = 0.2f;
 
             SettingRow(p, "3D-Format", y);
             m_SetFormatPrev = Button(p, null, minusX, y, small, small, () => m_App.Media.CycleFormat(-1), 0.02f, UIIcon.ChevronLeft);
             m_SetFormat = Label(p, string.Empty, valueX, y, 0.02f, 16, TextAnchor.MiddleCenter);
             m_SetFormatNext = Button(p, null, plusX, y, small, small, () => m_App.Media.CycleFormat(1), 0.02f, UIIcon.ChevronRight);
 
-            y -= 0.07f;
+            y -= step;
             SettingRow(p, "Augen tauschen", y);
             m_SetSwap = Button(p, "Aus", valueX, y, 0.2f, small, () => m_App.Media.ToggleSwapEyes(), 0.019f);
 
-            y -= 0.07f;
+            y -= step;
+            SettingRow(p, "Untertitel (.srt)", y);
+            m_SetSubtitles = Button(p, "An", valueX, y, 0.2f, small, () => m_App.SetSubtitles(!m_App.Subtitles.Enabled), 0.019f);
+
+            y -= step;
             SettingRow(p, "Leinwand", y);
             Button(p, null, minusX, y, small, small, () => ChangeScreenSize(-1), 0.02f, UIIcon.Minus);
             m_SetSize = Label(p, string.Empty, valueX, y, 0.02f, 16, TextAnchor.MiddleCenter);
             Button(p, null, plusX, y, small, small, () => ChangeScreenSize(1), 0.02f, UIIcon.Plus);
 
-            y -= 0.07f;
+            y -= step;
+            SettingRow(p, "Umgebung", y);
+            m_SetCinema = Button(p, "Kino", 0.08f, y, 0.16f, small, () => m_App.SetMixedReality(false), 0.018f);
+            m_SetMixed = Button(p, "Mixed Reality", 0.27f, y, 0.2f, small, () => m_App.SetMixedReality(true), 0.018f);
+
+            y -= step;
             SettingRow(p, "Saallicht", y);
             m_SetLightAuto = Button(p, "Auto", 0.05f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.Auto, 0.018f);
             m_SetLightOn = Button(p, "An", 0.18f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.On, 0.018f);
             m_SetLightOff = Button(p, "Aus", 0.31f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.Off, 0.018f);
 
-            y -= 0.07f;
+            y -= step;
             SettingRow(p, "Lautstärke Film", y);
             Button(p, null, minusX, y, small, small, () => m_App.ChangeVolume(-0.1f), 0.02f, UIIcon.Minus);
             m_SetVolume = Label(p, string.Empty, valueX, y, 0.02f, 8, TextAnchor.MiddleCenter);
             Button(p, null, plusX, y, small, small, () => m_App.ChangeVolume(0.1f), 0.02f, UIIcon.Plus);
 
-            y -= 0.07f;
+            y -= step;
             SettingRow(p, "Mikrofon", y);
             m_SetMic = Button(p, "An", valueX, y, 0.2f, small, ToggleMic, 0.019f);
 
-            y -= 0.07f;
-            SettingRow(p, "Sitzhöhe", y);
+            y -= step;
+            SettingRow(p, "Sitzhöhe", y, divider: false);
             Button(p, null, minusX, y, small, small, () => m_App.ChangeHeight(-0.05f), 0.02f, UIIcon.Minus);
             m_SetHeight = Label(p, string.Empty, valueX, y, 0.02f, 10, TextAnchor.MiddleCenter);
             Button(p, null, plusX, y, small, small, () => m_App.ChangeHeight(0.05f), 0.02f, UIIcon.Plus);
 
-            Button(p, "Platz neu ausrichten", -0.2f, -0.282f, 0.3f, 0.045f, () => XRRig.Instance?.RequestAlign(), 0.017f, style: ButtonStyle.Subtle);
-            Button(p, "Menü hierher holen", 0.2f, -0.282f, 0.3f, 0.045f, PlaceInFrontOfUser, 0.017f, style: ButtonStyle.Subtle);
+            Button(p, "Platz neu ausrichten", -0.2f, -0.322f, 0.3f, 0.042f, () => XRRig.Instance?.RequestAlign(), 0.017f, style: ButtonStyle.Subtle);
+            Button(p, "Menü hierher holen", 0.2f, -0.322f, 0.3f, 0.042f, PlaceInFrontOfUser, 0.017f, style: ButtonStyle.Subtle);
             return p;
         }
 
-        void SettingRow(GameObject page, string title, float y)
+        void SettingRow(GameObject page, string title, float y, bool divider = true)
         {
             Label(page, title, k_Left, y, 0.02f, 24, TextAnchor.MiddleLeft, UIStyle.TextDim);
-            Divider(page, y - 0.035f);
+            if (divider) Divider(page, y - 0.031f);
         }
 
         void ChangeScreenSize(int delta)
@@ -802,6 +830,15 @@ namespace TheMovies.UI
             m_SetMic.Label = !VoiceChat.Compiled ? "nicht installiert" : VoiceChat.Muted ? "Aus" : "An";
             float height = XRRig.Instance != null ? XRRig.Instance.HeightOffset : 0f;
             m_SetHeight.Text = $"{height * 100:+0;-0;0} cm";
+
+            var subtitles = m_App.Subtitles;
+            m_SetSubtitles.Highlighted = subtitles.Enabled && subtitles.HasTrack;
+            m_SetSubtitles.Label = !subtitles.Enabled ? "Aus" : subtitles.HasTrack ? "An" : "An (keine Datei)";
+
+            m_SetCinema.Highlighted = !MixedReality.Enabled;
+            m_SetMixed.Highlighted = MixedReality.Enabled;
+            m_SetMixed.Interactable = MixedReality.Available;
+            m_SetMixed.Label = MixedReality.Available ? "Mixed Reality" : "MR: Paket fehlt";
         }
 
         void RefreshMain()
@@ -866,7 +903,13 @@ namespace TheMovies.UI
 
             bool missing = !media.IsEmpty && (coordinator.LocalState == ParticipantMediaState.Missing || coordinator.LocalState == ParticipantMediaState.Error);
             bool waiting = CinemaSync.Instance != null && CinemaSync.Instance.IsSpawned && CinemaSync.Instance.WaitingForOthers;
-            m_ProblemLabel.Text = waiting ? "Pausiert – warte, bis alle bereit sind …" : coordinator.Problem;
+            var resume = coordinator.ResumeOffer;
+            m_ResumeButton.gameObject.SetActive(resume.HasValue && !missing);
+            m_RestartButton.gameObject.SetActive(resume.HasValue && !missing);
+            m_ProblemLabel.Color = resume.HasValue && !waiting ? UIStyle.Text : UIStyle.Warning;
+            m_ProblemLabel.Text = waiting ? "Pausiert – warte, bis alle bereit sind …"
+                : resume.HasValue && !missing ? $"Zuletzt bei {TextUtil.FormatTime(resume.Value)} aufgehört."
+                : coordinator.Problem;
             m_AssignButton.gameObject.SetActive(missing);
 
             // Seek bar and time

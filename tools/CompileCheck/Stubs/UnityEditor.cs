@@ -170,3 +170,11 @@ namespace UnityEditor.PackageManager
         public static PackageInfo FindForAssetPath(string assetPath) => null;
     }
 }
+
+namespace UnityEditor.PackageManager
+{
+    public static class Client
+    {
+        public static object Add(string identifier) => null;
+    }
+}

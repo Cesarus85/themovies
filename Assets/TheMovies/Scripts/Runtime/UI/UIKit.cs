@@ -74,6 +74,18 @@ namespace TheMovies.UI
         Close,
         Settings,
         Film,
+
+        // Building blocks for reactions
+        Disc,
+        Heart,
+        Star,
+        Smile,
+        MouthO,
+        Eyes,
+        HappyEyes,
+        Cup,
+        Kernels,
+        Subtitles,
     }
 
     /// <summary>Creates the meshes, materials and text objects the 3D menu is built from.</summary>
@@ -395,6 +407,56 @@ namespace TheMovies.UI
                     b.Rect(0.3f, -0.22f, 0.42f, 0.22f);
                     b.Tri(new Vector2(-0.1f, -0.14f), new Vector2(-0.1f, 0.14f), new Vector2(0.14f, 0f));
                     break;
+                case UIIcon.Disc:
+                    b.Disc(Vector2.zero, 0.5f, 32);
+                    break;
+                case UIIcon.Heart:
+                    b.Disc(new Vector2(-0.2f, 0.12f), 0.24f, 20);
+                    b.Disc(new Vector2(0.2f, 0.12f), 0.24f, 20);
+                    b.Quad(new Vector2(-0.43f, 0.05f), new Vector2(0.43f, 0.05f), new Vector2(0.0f, -0.45f), new Vector2(0.0f, -0.45f));
+                    b.Tri(new Vector2(-0.2f, 0.25f), new Vector2(0.2f, 0.25f), new Vector2(0f, -0.1f));
+                    break;
+                case UIIcon.Star:
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float a0 = Mathf.Deg2Rad * (90f + i * 72f);
+                        float a1 = a0 + Mathf.Deg2Rad * 36f;
+                        float a2 = a0 - Mathf.Deg2Rad * 36f;
+                        var tip = new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * 0.5f;
+                        var left = new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * 0.2f;
+                        var right = new Vector2(Mathf.Cos(a2), Mathf.Sin(a2)) * 0.2f;
+                        b.Tri(tip, left, Vector2.zero);
+                        b.Tri(tip, Vector2.zero, right);
+                    }
+                    break;
+                case UIIcon.Smile:
+                    // Open laughing mouth: lower half disc
+                    b.Arc(new Vector2(0, -0.02f), 0f, 0.3f, 180f, 360f, 16);
+                    break;
+                case UIIcon.MouthO:
+                    b.Disc(new Vector2(0, -0.17f), 0.13f, 16);
+                    break;
+                case UIIcon.Eyes:
+                    b.Disc(new Vector2(-0.16f, 0.13f), 0.07f, 12);
+                    b.Disc(new Vector2(0.16f, 0.13f), 0.07f, 12);
+                    break;
+                case UIIcon.HappyEyes:
+                    b.Arc(new Vector2(-0.16f, 0.1f), 0.05f, 0.11f, 0f, 180f, 10);
+                    b.Arc(new Vector2(0.16f, 0.1f), 0.05f, 0.11f, 0f, 180f, 10);
+                    break;
+                case UIIcon.Cup:
+                    b.Quad(new Vector2(-0.3f, 0.12f), new Vector2(0.3f, 0.12f), new Vector2(0.22f, -0.48f), new Vector2(-0.22f, -0.48f));
+                    break;
+                case UIIcon.Kernels:
+                    b.Disc(new Vector2(-0.18f, 0.2f), 0.14f, 12);
+                    b.Disc(new Vector2(0.02f, 0.27f), 0.16f, 12);
+                    b.Disc(new Vector2(0.2f, 0.19f), 0.13f, 12);
+                    b.Disc(new Vector2(-0.06f, 0.4f), 0.11f, 12);
+                    break;
+                case UIIcon.Subtitles:
+                    b.Rect(-0.42f, -0.3f, 0.42f, -0.2f);
+                    b.Rect(-0.3f, -0.08f, 0.3f, 0.02f);
+                    break;
             }
             mesh = b.ToMesh(icon.ToString());
             s_Cache[icon] = mesh;
@@ -426,6 +488,32 @@ namespace TheMovies.UI
 
             public void Rect(float x0, float y0, float x1, float y1) =>
                 Quad(new Vector2(x0, y0), new Vector2(x0, y1), new Vector2(x1, y1), new Vector2(x1, y0));
+
+            public void Disc(Vector2 center, float radius, int segments)
+            {
+                for (int i = 0; i < segments; i++)
+                {
+                    float a0 = Mathf.PI * 2f * i / segments, a1 = Mathf.PI * 2f * (i + 1) / segments;
+                    Tri(center, center + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * radius,
+                        center + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * radius);
+                }
+            }
+
+            /// <summary>Ring segment between two radii (inner 0 = pie slice), angles in degrees.</summary>
+            public void Arc(Vector2 center, float innerRadius, float outerRadius, float fromDegrees, float toDegrees, int segments)
+            {
+                for (int i = 0; i < segments; i++)
+                {
+                    float a0 = Mathf.Deg2Rad * Mathf.Lerp(fromDegrees, toDegrees, (float)i / segments);
+                    float a1 = Mathf.Deg2Rad * Mathf.Lerp(fromDegrees, toDegrees, (float)(i + 1) / segments);
+                    var d0 = new Vector2(Mathf.Cos(a0), Mathf.Sin(a0));
+                    var d1 = new Vector2(Mathf.Cos(a1), Mathf.Sin(a1));
+                    if (innerRadius <= 0f)
+                        Tri(center, center + d0 * outerRadius, center + d1 * outerRadius);
+                    else
+                        Quad(center + d0 * innerRadius, center + d0 * outerRadius, center + d1 * outerRadius, center + d1 * innerRadius);
+                }
+            }
 
             public void RotatedRect(float length, float thickness, float degrees)
             {
