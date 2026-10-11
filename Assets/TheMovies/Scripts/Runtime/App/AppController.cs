@@ -168,6 +168,12 @@ namespace TheMovies.App
 
         public void SetMixedReality(bool enabled)
         {
+            if (enabled && MixedReality.Enabled)
+            {
+                // Pressing "Mixed Reality" again restarts the passthrough camera.
+                MixedReality.Restart();
+                return;
+            }
             MixedReality.SetEnabled(enabled, m_Cinema, m_Rig.Camera);
             Settings.MixedReality = MixedReality.Enabled;
             Settings.Save();

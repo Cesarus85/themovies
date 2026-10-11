@@ -266,6 +266,11 @@ und „Meta Quest: Camera (Passthrough)“. Danach neu bauen. Ohne das Paket ist
 Manuell geht es auch: *Window → Package Manager → + → Add package by name* →
 `com.unity.xr.meta-openxr`, Version `2.3.0` (für Unity 6.3).
 
+Bleibt es schwarz: In den Einstellungen steht bei aktivem Mixed Reality eine Statuszeile (Session, Kamera,
+`XR_FB_passthrough`, Manifest-Eintrag `com.oculus.feature.PASSTHROUGH`). **„Mixed Reality“ erneut
+antippen** startet die Passthrough-Kamera neu; das passiert auch automatisch, sobald das Tracking steht und
+nachdem die App den Fokus zurückbekommt. Fehlt der Manifest-Eintrag, ergänzt ihn der Build automatisch.
+
 ## Eigenes Kino-Modell (Asset Store o. Ä.)
 
 Statt des eingebauten Saals kannst du ein beliebiges 3D-Kino verwenden (z. B. ein Kino-Paket aus dem

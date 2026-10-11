@@ -216,3 +216,12 @@ namespace UnityEditor.PackageManager.Requests
         public UnityEditor.PackageManager.PackageInfo Result => null;
     }
 }
+
+namespace UnityEditor.Android
+{
+    public interface IPostGenerateGradleAndroidProject
+    {
+        int callbackOrder { get; }
+        void OnPostGenerateGradleAndroidProject(string path);
+    }
+}
