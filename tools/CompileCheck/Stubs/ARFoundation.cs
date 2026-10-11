@@ -1,6 +1,20 @@
 // API stubs for AR Foundation (only what the mixed reality mode uses).
 namespace UnityEngine.XR.ARFoundation
 {
-    public class ARSession : MonoBehaviour { }
-    public class ARCameraManager : MonoBehaviour { }
+    public enum ARSessionState { None, Unsupported, CheckingAvailability, NeedsInstall, Installing, Ready, SessionInitializing, SessionTracking }
+
+    public class ARSession : MonoBehaviour
+    {
+        public static ARSessionState state => default;
+    }
+
+    public class CameraSubsystemStub
+    {
+        public bool running => false;
+    }
+
+    public class ARCameraManager : MonoBehaviour
+    {
+        public CameraSubsystemStub subsystem => null;
+    }
 }

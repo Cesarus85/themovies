@@ -93,6 +93,9 @@ namespace TheMovies.XR
             Camera.farClipPlane = 250f;
             Camera.clearFlags = CameraClearFlags.SolidColor;
             Camera.backgroundColor = Color.black;
+            // No HDR: cheaper on the Quest, and an HDR buffer has no alpha channel, which passthrough needs.
+            Camera.allowHDR = false;
+            Camera.allowMSAA = true;
             camGo.AddComponent<AudioListener>();
             Head = camGo.transform;
 

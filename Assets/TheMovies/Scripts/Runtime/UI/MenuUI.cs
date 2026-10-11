@@ -907,9 +907,11 @@ namespace TheMovies.UI
             m_ResumeButton.gameObject.SetActive(resume.HasValue && !missing);
             m_RestartButton.gameObject.SetActive(resume.HasValue && !missing);
             m_ProblemLabel.Color = resume.HasValue && !waiting ? UIStyle.Text : UIStyle.Warning;
+            string mrProblem = MixedReality.Problem;
             m_ProblemLabel.Text = waiting ? "Pausiert – warte, bis alle bereit sind …"
                 : resume.HasValue && !missing ? $"Zuletzt bei {TextUtil.FormatTime(resume.Value)} aufgehört."
-                : coordinator.Problem;
+                : !string.IsNullOrEmpty(coordinator.Problem) ? coordinator.Problem
+                : mrProblem;
             m_AssignButton.gameObject.SetActive(missing);
 
             // Seek bar and time

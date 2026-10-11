@@ -29,6 +29,26 @@ namespace TheMovies.App
             }
         }
 
+        /// <summary>Explains why passthrough does not show (empty when everything looks fine).</summary>
+        public static string Problem
+        {
+            get
+            {
+                if (!Enabled) return string.Empty;
+#if THEMOVIES_ARF
+                if (s_CameraManager == null || s_CameraManager.subsystem == null)
+                    return "Passthrough aus: In Unity unter OpenXR (Android) 'Meta Quest: Camera (Passthrough)' aktivieren.";
+                if (ARSession.state == ARSessionState.Unsupported)
+                    return "Passthrough wird nicht unterstützt (OpenXR-Feature 'Meta Quest: Session' aktiv?).";
+                if (!s_CameraManager.subsystem.running)
+                    return "Passthrough startet …";
+                return string.Empty;
+#else
+                return "Mixed Reality: Paket 'Unity OpenXR: Meta' fehlt.";
+#endif
+            }
+        }
+
 #if THEMOVIES_ARF
         static ARSession s_Session;
         static ARCameraManager s_CameraManager;
@@ -47,6 +67,7 @@ namespace TheMovies.App
                 camera.clearFlags = CameraClearFlags.SolidColor;
                 // Passthrough shows wherever the rendered image is transparent.
                 camera.backgroundColor = enabled ? new Color(0, 0, 0, 0) : Color.black;
+                camera.allowHDR = false;
             }
 
 #if THEMOVIES_ARF
@@ -59,6 +80,9 @@ namespace TheMovies.App
                 s_CameraManager = camera.gameObject.AddComponent<ARCameraManager>();
             if (s_Session != null) s_Session.enabled = enabled;
             if (s_CameraManager != null) s_CameraManager.enabled = enabled;
+            if (enabled)
+                Debug.Log("[TheMovies] Mixed reality on. Camera subsystem: " +
+                          (s_CameraManager != null && s_CameraManager.subsystem != null ? s_CameraManager.subsystem.GetType().Name : "none"));
 #endif
         }
     }
