@@ -7,23 +7,39 @@ namespace TheMovies.Core.Build
     /// <summary>Text edits on the generated Gradle project (dependencies, properties, ProGuard rules).</summary>
     public static class GradleEdits
     {
-        /// <summary>Adds "implementation '…'" lines to the first top-level dependencies block (only missing ones).</summary>
+        /// <summary>
+        /// Makes sure each "group:name:version" is a dependency: missing ones are added to the first top-level
+        /// dependencies block, existing ones with another version are switched to the given version (the generated
+        /// Gradle project can survive from an earlier build).
+        /// </summary>
         public static string AddDependencies(string buildGradle, params string[] coordinates)
         {
-            var block = new Regex(@"(^|\n)dependencies\s*\{");
-            var match = block.Match(buildGradle);
             var sb = new StringBuilder();
             foreach (string c in coordinates)
             {
-                string artifact = c.Substring(0, c.LastIndexOf(':')); // group:name without version
-                if (buildGradle.Contains("'" + artifact + ":") || buildGradle.Contains("\"" + artifact + ":")) continue;
+                int lastColon = c.LastIndexOf(':');
+                string artifact = c.Substring(0, lastColon);
+                string version = c.Substring(lastColon + 1);
+                var existing = new Regex(@"(['""])" + Regex.Escape(artifact) + @":([^'""]+)(['""])");
+                if (existing.IsMatch(buildGradle))
+                {
+                    buildGradle = existing.Replace(buildGradle, m => m.Groups[1].Value + artifact + ":" + version + m.Groups[3].Value);
+                    continue;
+                }
                 sb.Append("\n    implementation '").Append(c).Append('\'');
             }
             if (sb.Length == 0) return buildGradle;
+            var block = new Regex(@"(^|\n)dependencies\s*\{");
+            var match = block.Match(buildGradle);
             if (!match.Success)
                 return buildGradle.TrimEnd() + "\n\ndependencies {" + sb + "\n}\n";
-            int insertAt = match.Index + match.Length;
-            return buildGradle.Insert(insertAt, sb.ToString());
+            return buildGradle.Insert(match.Index + match.Length, sb.ToString());
+        }
+
+        /// <summary>Removes "implementation 'group:name:…'" lines of an artifact (e.g. after switching an option off).</summary>
+        public static string RemoveDependency(string buildGradle, string artifact)
+        {
+            return Regex.Replace(buildGradle, @"[ \t]*implementation\s*\(?\s*['""]" + Regex.Escape(artifact) + @":[^'""]*['""]\s*\)?[ \t]*\r?\n?", string.Empty);
         }
 
         /// <summary>The compileSdk of a build.gradle ("compileSdk 34", "compileSdkVersion = 34"), or -1.</summary>

@@ -121,6 +121,8 @@ namespace TheMovies.EditorTools
             if (PlayerBuildOptions.FfmpegAudio) deps.Add(FfmpegDecoder);
             string text = File.ReadAllText(gradle);
             string changed = GradleEdits.AddDependencies(text, deps.ToArray());
+            if (!PlayerBuildOptions.FfmpegAudio)
+                changed = GradleEdits.RemoveDependency(changed, FfmpegDecoder.Substring(0, FfmpegDecoder.LastIndexOf(':')));
             if (changed != text) File.WriteAllText(gradle, changed);
 
             // Media3 must be compiled against API 35+; the target API (storage access) stays unchanged.

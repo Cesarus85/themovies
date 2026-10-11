@@ -76,8 +76,14 @@ namespace TheMovies.Tests
             StringAssert.Contains("implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1'", once);
             Assert.Less(once.IndexOf("media3-exoplayer"), once.IndexOf("android {"));
             Assert.AreEqual(once, GradleEdits.AddDependencies(once, "androidx.media3:media3-exoplayer:1.5.0"));
-            // An existing different version is left alone.
-            Assert.AreEqual(once, GradleEdits.AddDependencies(once, "androidx.media3:media3-exoplayer:1.6.1"));
+            // An older version left over from an earlier build is switched to the wanted one.
+            string stale = once.Replace("media3-ffmpeg-decoder:1.5.0+1", "media3-ffmpeg-decoder:1.4.1+1");
+            Assert.AreEqual(once, GradleEdits.AddDependencies(stale, "org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1"));
+            // Switched off: the line goes away.
+            string removed = GradleEdits.RemoveDependency(stale, "org.jellyfin.media3:media3-ffmpeg-decoder");
+            StringAssert.DoesNotContain("ffmpeg", removed);
+            StringAssert.Contains("implementation 'androidx.media3:media3-exoplayer:1.5.0'", removed);
+            StringAssert.Contains("implementation fileTree", removed);
             StringAssert.Contains("dependencies {", GradleEdits.AddDependencies("apply plugin: 'x'", "a:b:1"));
         }
 
