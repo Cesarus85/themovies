@@ -482,3 +482,49 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    using System;
+    using System.Diagnostics;
+    using System.IO;
+    using System.Threading;
+    using NUnit.Framework;
+    using TheMovies.Core.Network;
+    using TheMovies.Core.Streaming;
+
+    public class StreamerShutdownTests
+    {
+        /// <summary>Like a NAS connection whose read hangs until the socket is closed.</summary>
+        sealed class HangingSource : IRandomAccessSource, IAbortable
+        {
+            readonly ManualResetEventSlim m_Aborted = new ManualResetEventSlim();
+            public static int Disposed;
+            public long Length => 10_000_000;
+            public void Open() { }
+            public int Read(long offset, byte[] buffer, int index, int count)
+            {
+                m_Aborted.Wait(30000);
+                throw new IOException("Verbindung getrennt");
+            }
+            public void Abort() => m_Aborted.Set();
+            public void Dispose()
+            {
+                // A graceful close would talk to the server: must never run on the caller of streamer.Dispose.
+                Thread.Sleep(2000);
+                Interlocked.Increment(ref Disposed);
+            }
+        }
+
+        [Test]
+        public void DisposeReturnsAtOnceEvenWithHangingReads()
+        {
+            var streamer = new SourceStreamer(() => new HangingSource(), 10_000_000);
+            Thread.Sleep(200); // workers are now blocked in Read
+            var clock = Stopwatch.StartNew();
+            streamer.Dispose();
+            Assert.Less(clock.ElapsedMilliseconds, 300, "Dispose must not block the main thread");
+            Assert.IsNull(streamer.WaitForBlock(0, 100));
+        }
+    }
+}

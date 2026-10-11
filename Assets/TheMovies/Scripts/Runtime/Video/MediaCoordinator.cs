@@ -509,15 +509,8 @@ namespace TheMovies.Video
             NetworkLibrary.Instance?.StopPlayback();
             m_Player.Unload();
             m_Screen.SetTexture(null);
-            bool hadMovie = CurrentEntry != null;
             CurrentEntry = null;
             SaveResume(true);
-            // Give the decoder buffers and stream caches back right away.
-            if (hadMovie)
-            {
-                Resources.UnloadUnusedAssets();
-                GC.Collect();
-            }
         }
 
         void OnPrepared()

@@ -66,10 +66,12 @@ namespace TheMovies.Core.Streaming
         {
             m_Stopped = true;
             m_Cache.Close();
-            // Closing the connections also wakes workers blocked in a read.
+            // Only cut the connections here (never block the caller, it is the main thread): a worker blocked in a
+            // read fails at once and disposes its source itself. Disposing here would talk to the server on a
+            // connection a worker is still using.
             for (int i = 0; i < m_Sources.Length; i++)
             {
-                try { m_Sources[i]?.Dispose(); }
+                try { (m_Sources[i] as IAbortable)?.Abort(); }
                 catch (Exception) { }
             }
         }

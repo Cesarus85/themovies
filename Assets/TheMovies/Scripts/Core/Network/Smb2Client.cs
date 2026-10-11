@@ -117,11 +117,26 @@ namespace TheMovies.Core.Network
             m_TimeoutMs = timeoutMs;
         }
 
+        /// <summary>
+        /// Drops the connection immediately, without logging off: a read blocked on another thread fails at once.
+        /// Safe to call from any thread.
+        /// </summary>
+        public void Abort()
+        {
+            m_Aborted = true;
+            try { m_Tcp?.Client?.Close(0); }
+            catch (Exception) { }
+            try { m_Tcp?.Close(); }
+            catch (Exception) { }
+        }
+
+        volatile bool m_Aborted;
+
         public void Dispose()
         {
             try
             {
-                if (m_SessionId != 0 && IsConnected)
+                if (m_SessionId != 0 && IsConnected && !m_Aborted)
                     Send(CmdLogoff, new byte[] { 4, 0, 0, 0 }, 0);
             }
             catch (Exception)

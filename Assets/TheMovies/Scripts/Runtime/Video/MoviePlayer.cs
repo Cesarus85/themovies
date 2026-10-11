@@ -355,6 +355,7 @@ namespace TheMovies.Video
 
         void Update()
         {
+            NativeVideoPlayer.Housekeeping();
             if (m_Native != null)
             {
                 UpdateNative();

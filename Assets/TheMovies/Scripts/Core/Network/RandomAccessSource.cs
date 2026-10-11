@@ -19,6 +19,12 @@ namespace TheMovies.Core.Network
         int Read(long offset, byte[] buffer, int index, int count);
     }
 
+    /// <summary>A source whose connection can be cut from another thread (unblocks a running read).</summary>
+    public interface IAbortable
+    {
+        void Abort();
+    }
+
     public static class SourceReader
     {
         /// <summary>Reads exactly <paramref name="count"/> bytes (less only at the end of the file).</summary>
@@ -78,7 +84,7 @@ namespace TheMovies.Core.Network
         }
     }
 
-    public sealed class SmbFileSource : IRandomAccessSource
+    public sealed class SmbFileSource : IRandomAccessSource, IAbortable
     {
         readonly SmbAddress m_Address;
         readonly string m_User;
@@ -127,6 +133,11 @@ namespace TheMovies.Core.Network
             return m_Client.Read(m_Tree, m_FileId, offset, buffer, index, count);
         }
 
+        public void Abort()
+        {
+            m_Client?.Abort();
+        }
+
         public void Dispose()
         {
             var client = m_Client;
@@ -145,7 +156,7 @@ namespace TheMovies.Core.Network
     }
 
     /// <summary>Reads a file from an HTTP(S) server with Range requests (WebDAV, DLNA).</summary>
-    public sealed class HttpRangeSource : IRandomAccessSource
+    public sealed class HttpRangeSource : IRandomAccessSource, IAbortable
     {
         readonly Uri m_Uri;
         readonly string m_User;
@@ -213,6 +224,12 @@ namespace TheMovies.Core.Network
         {
             m_Client?.Dispose();
             m_Client = null;
+        }
+
+        public void Abort()
+        {
+            try { m_Client?.CancelPendingRequests(); }
+            catch (Exception) { }
         }
     }
 

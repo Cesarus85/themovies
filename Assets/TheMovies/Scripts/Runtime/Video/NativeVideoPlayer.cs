@@ -188,9 +188,24 @@ namespace TheMovies.Video
             m_Disposed = true;
             DestroyTexture();
             m_Java.CallStatic("release", m_Id);
-            // One more render-thread call frees the GL objects.
-            GL.IssuePluginEvent(s_RenderFunc, 0);
             m_Java.Dispose();
+            // The GL objects are freed on the render thread once ExoPlayer has let go of the surface.
+            s_HousekeepingFrames = 600;
+        }
+
+        static int s_HousekeepingFrames;
+
+        /// <summary>Call every frame: keeps render-thread calls coming while released players wait for cleanup.</summary>
+        public static void Housekeeping()
+        {
+            if (s_HousekeepingFrames <= 0 || s_RenderFunc == IntPtr.Zero) return;
+            s_HousekeepingFrames--;
+            GL.IssuePluginEvent(s_RenderFunc, 0);
+            if (s_HousekeepingFrames % 30 == 0)
+            {
+                using (var cls = new AndroidJavaClass(k_JavaClass))
+                    if (cls.CallStatic<int>("pendingReleases") == 0) s_HousekeepingFrames = 0;
+            }
         }
 
         void DestroyTexture()

@@ -119,12 +119,24 @@ public final class TheMoviesPlayer {
         if (p == null) return;
         p.mReleased = true;
         p.post(() -> {
-            if (p.mPlayer != null) {
-                p.mPlayer.release();
-                p.mPlayer = null;
+            try {
+                if (p.mPlayer != null) {
+                    p.mPlayer.setVideoSurface(null);
+                    p.mPlayer.release();
+                    p.mPlayer = null;
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "release failed", t);
             }
+            // Only now may the render thread free the surface the decoder was drawing into.
+            p.mPlayerReleased = true;
             p.mThread.quitSafely();
         });
+    }
+
+    /** Players whose GL objects still wait to be freed on the render thread (C# keeps calling renderFrame). */
+    public static synchronized int pendingReleases() {
+        return sReleasing.size();
     }
 
     /**
@@ -180,10 +192,15 @@ public final class TheMoviesPlayer {
     /** Called on Unity's render thread (GL.IssuePluginEvent): pulls the newest video frame into the texture. */
     public static void renderFrame(int id) {
         try {
-            List<TheMoviesPlayer> releasing;
+            List<TheMoviesPlayer> releasing = new ArrayList<>();
             synchronized (TheMoviesPlayer.class) {
-                releasing = new ArrayList<>(sReleasing);
-                sReleasing.clear();
+                for (int i = sReleasing.size() - 1; i >= 0; i--) {
+                    TheMoviesPlayer r = sReleasing.get(i);
+                    if (r.mPlayerReleased) {
+                        releasing.add(r);
+                        sReleasing.remove(i);
+                    }
+                }
             }
             for (TheMoviesPlayer r : releasing) r.releaseGl();
             TheMoviesPlayer p = get(id);
@@ -202,6 +219,7 @@ public final class TheMoviesPlayer {
     private ExoPlayer mPlayer;
 
     private volatile boolean mReleased;
+    private volatile boolean mPlayerReleased;
     private volatile int mState;
     private volatile boolean mIsPlaying;
     private volatile boolean mPlayWhenReady;
