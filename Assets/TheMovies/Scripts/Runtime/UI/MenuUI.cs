@@ -835,7 +835,9 @@ namespace TheMovies.UI
             m_SetMixed.Highlighted = MixedReality.Enabled;
             m_SetMixed.Interactable = MixedReality.Available;
             m_SetMixed.Label = MixedReality.Available ? "Mixed Reality" : "MR: Paket fehlt";
-            m_SetMixedStatus.Text = MixedReality.Enabled ? TwoLines(MixedReality.Status) : string.Empty;
+            // Mixed reality status, otherwise what the hands are (controller / hand tracking) – for diagnosis.
+            m_SetMixedStatus.Text = MixedReality.Enabled ? TwoLines(MixedReality.Status)
+                : XRRig.Instance != null ? TwoLines(XRRig.Instance.InputStatus) : string.Empty;
             m_SetMixedTest.gameObject.SetActive(MixedReality.Enabled);
             m_SetMixedTest.Label = $"Test {MixedReality.TestMode + 1}/{MixedReality.TestModes}";
             m_SetMixedStatus.Color = MixedReality.Problem.Length > 0 ? UIStyle.Warning : UIStyle.TextDim;

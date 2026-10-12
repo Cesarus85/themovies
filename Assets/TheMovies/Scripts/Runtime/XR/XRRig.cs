@@ -284,12 +284,16 @@ namespace TheMovies.XR
                 if (m_HeadTrackedSince < 0) m_HeadTrackedSince = Time.unscaledTime;
             }
 
+            m_Inputs.UpdateSources(Head.localPosition);
             LeftTracked = ReadHand(true, LeftGrip, m_LeftAim);
             RightTracked = ReadHand(false, RightGrip, m_RightAim);
         }
 
         /// <summary>The hand is tracked as a hand (hand tracking) rather than holding a controller.</summary>
         public bool IsHandTracked(bool left) => XRActive && m_Inputs.IsHand(left);
+
+        /// <summary>What the hands are (controller / hand) and which hand tracking runs, for the settings page.</summary>
+        public string InputStatus => XRActive ? m_Inputs.SourceStatus : "Ohne Brille (Maus/Tastatur)";
 
         bool ReadHand(bool left, Transform grip, Transform aim)
         {

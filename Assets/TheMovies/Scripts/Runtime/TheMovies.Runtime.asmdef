@@ -15,7 +15,8 @@
         "Unity.XR.ARSubsystems",
         "Unity.XR.CoreUtils",
         "Unity.XR.OpenXR",
-        "Unity.InferenceEngine"
+        "Unity.InferenceEngine",
+        "Unity.XR.Hands"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -54,6 +55,11 @@
             "name": "com.unity.ai.inference",
             "expression": "2.2.0",
             "define": "THEMOVIES_INFERENCE"
+        },
+        {
+            "name": "com.unity.xr.hands",
+            "expression": "1.1.0",
+            "define": "THEMOVIES_XRHANDS"
         }
     ],
     "noEngineReferences": false

@@ -36,17 +36,6 @@ namespace TheMovies.XR
                 Rotation.Enable();
             }
 
-            /// <summary>The pose comes from a tracked hand (Hand Interaction Profile), not from a controller.</summary>
-            public bool FromHand
-            {
-                get
-                {
-                    var control = Position.activeControl;
-                    if (control == null && Position.controls.Count > 0) control = Position.controls[0];
-                    return control != null && control.device.layout.IndexOf("Hand", System.StringComparison.Ordinal) >= 0;
-                }
-            }
-
             public bool TryRead(out Vector3 position, out Quaternion rotation)
             {
                 position = default;
@@ -69,33 +58,116 @@ namespace TheMovies.XR
         static readonly InputFeatureUsage<Quaternion> k_PointerRotation = new InputFeatureUsage<Quaternion>("PointerRotation");
 
         readonly PoseActions m_Head = new PoseActions("<XRHMD>", "centerEyePosition", "centerEyeRotation");
-        // Hand tracking comes in two flavours: Meta's aim pose from the XR Hands package ("Meta Hand Tracking Aim",
-        // device MetaAimHand: devicePosition/Rotation = aim, pinchStrengthIndex) and the standard OpenXR Hand
-        // Interaction Profile (HandInteraction: pointer pose, pinchValue). Both are bound; whichever the runtime offers works.
+        // Controllers
+        readonly PoseActions m_LeftAim = new PoseActions("<XRController>{LeftHand}", "pointerPosition", "pointerRotation");
+        readonly PoseActions m_RightAim = new PoseActions("<XRController>{RightHand}", "pointerPosition", "pointerRotation");
+        readonly PoseActions m_LeftGrip = new PoseActions("<XRController>{LeftHand}", "devicePosition", "deviceRotation");
+        readonly PoseActions m_RightGrip = new PoseActions("<XRController>{RightHand}", "devicePosition", "deviceRotation");
+
+        // Trigger as an analog value: more reliable than a single "pressed" flag, and a light pull is enough.
+        readonly InputAction m_LeftTrigger = Axis("<XRController>{LeftHand}/trigger");
+        readonly InputAction m_RightTrigger = Axis("<XRController>{RightHand}/trigger");
+        readonly InputAction m_LeftControllerTracked = Axis("<XRController>{LeftHand}/isTracked");
+        readonly InputAction m_RightControllerTracked = Axis("<XRController>{RightHand}/isTracked");
+
+        // Hands, three ways (whichever the runtime offers): the joints of the XR Hands package (HandJointSource),
+        // Meta's aim pose (XR Hands feature "Meta Hand Tracking Aim", device MetaAimHand) and the OpenXR Hand
+        // Interaction Profile (device HandInteraction).
         const string k_LeftHand = "<HandInteraction>{LeftHand}";
         const string k_RightHand = "<HandInteraction>{RightHand}";
         const string k_LeftMeta = "<MetaAimHand>{LeftHand}";
         const string k_RightMeta = "<MetaAimHand>{RightHand}";
-        readonly PoseActions m_LeftAim = new PoseActions("<XRController>{LeftHand}", "pointerPosition", "pointerRotation",
-            k_LeftHand + "/pointerPosition|" + k_LeftHand + "/pointerRotation", k_LeftMeta + "/devicePosition|" + k_LeftMeta + "/deviceRotation");
-        readonly PoseActions m_RightAim = new PoseActions("<XRController>{RightHand}", "pointerPosition", "pointerRotation",
-            k_RightHand + "/pointerPosition|" + k_RightHand + "/pointerRotation", k_RightMeta + "/devicePosition|" + k_RightMeta + "/deviceRotation");
-        readonly PoseActions m_LeftGrip = new PoseActions("<XRController>{LeftHand}", "devicePosition", "deviceRotation",
-            k_LeftHand + "/devicePosition|" + k_LeftHand + "/deviceRotation", k_LeftMeta + "/devicePosition|" + k_LeftMeta + "/deviceRotation");
-        readonly PoseActions m_RightGrip = new PoseActions("<XRController>{RightHand}", "devicePosition", "deviceRotation",
-            k_RightHand + "/devicePosition|" + k_RightHand + "/deviceRotation", k_RightMeta + "/devicePosition|" + k_RightMeta + "/deviceRotation");
-
-        // Trigger as an analog value: more reliable than a single "pressed" flag, and a light pull is enough.
-        // With hand tracking the pinch (thumb + index finger) is the trigger.
-        readonly InputAction m_LeftTrigger = Axis("<XRController>{LeftHand}/trigger", k_LeftHand + "/pinchValue", k_LeftMeta + "/pinchStrengthIndex");
-        readonly InputAction m_RightTrigger = Axis("<XRController>{RightHand}/trigger", k_RightHand + "/pinchValue", k_RightMeta + "/pinchStrengthIndex");
-
-        // A fist (grasp) counts as the grip button with hand tracking (push-to-talk).
+        readonly PoseActions m_LeftHandAim = new PoseActions(k_LeftMeta, "devicePosition", "deviceRotation",
+            k_LeftHand + "/pointerPosition|" + k_LeftHand + "/pointerRotation");
+        readonly PoseActions m_RightHandAim = new PoseActions(k_RightMeta, "devicePosition", "deviceRotation",
+            k_RightHand + "/pointerPosition|" + k_RightHand + "/pointerRotation");
+        readonly InputAction m_LeftPinch = Axis(k_LeftMeta + "/pinchStrengthIndex", k_LeftHand + "/pinchValue");
+        readonly InputAction m_RightPinch = Axis(k_RightMeta + "/pinchStrengthIndex", k_RightHand + "/pinchValue");
         readonly InputAction m_LeftGrasp = Axis(k_LeftHand + "/graspValue");
         readonly InputAction m_RightGrasp = Axis(k_RightHand + "/graspValue");
+        readonly IHandJointSource m_Joints = HandJointSources.Create();
+
+        public enum Source { None, Controller, HandJoints, HandAim }
+
+        readonly Source[] m_Sources = new Source[2];
+        readonly Pose[] m_HandAim = new Pose[2];
+        readonly Pose[] m_HandPalm = new Pose[2];
+        readonly float[] m_HandPinch = new float[2];
 
         /// <summary>The hand is tracked as a hand (no controller in it).</summary>
-        public bool IsHand(bool left) => (left ? m_LeftAim : m_RightAim).FromHand;
+        public bool IsHand(bool left) => m_Sources[left ? 0 : 1] == Source.HandJoints || m_Sources[left ? 0 : 1] == Source.HandAim;
+
+        public Source SourceOf(bool left) => m_Sources[left ? 0 : 1];
+
+        /// <summary>
+        /// Decides per hand where input comes from this frame: a tracked controller first, then hand joints, then the
+        /// hand aim devices. Call once per frame before reading poses; <paramref name="head"/> in tracking space.
+        /// </summary>
+        public void UpdateSources(Vector3 head)
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                bool left = i == 0;
+                if (ControllerTracked(left))
+                {
+                    m_Sources[i] = Source.Controller;
+                    continue;
+                }
+                if (m_Joints != null && m_Joints.TryGetHand(left, head, out m_HandAim[i], out m_HandPalm[i], out m_HandPinch[i]))
+                {
+                    m_Sources[i] = Source.HandJoints;
+                    continue;
+                }
+                var aim = left ? m_LeftHandAim : m_RightHandAim;
+                if (aim.TryRead(out var p, out var r) && p.sqrMagnitude > 1e-6f)
+                {
+                    m_HandAim[i] = m_HandPalm[i] = new Pose(p, r);
+                    var pinch = left ? m_LeftPinch : m_RightPinch;
+                    m_HandPinch[i] = pinch.controls.Count > 0 ? pinch.ReadValue<float>() : 0f;
+                    m_Sources[i] = Source.HandAim;
+                    continue;
+                }
+                m_Sources[i] = (left ? m_LeftAim : m_RightAim).TryRead(out _, out _) || Device(left).isValid ? Source.Controller : Source.None;
+            }
+        }
+
+        bool ControllerTracked(bool left)
+        {
+            var action = left ? m_LeftControllerTracked : m_RightControllerTracked;
+            if (action.controls.Count > 0) return action.ReadValue<float>() > 0.5f;
+            var device = Device(left);
+            if (!device.isValid) return false;
+            // A device at the hand node that is a hand-tracking device doesn't count as a controller.
+            if ((device.characteristics & InputDeviceCharacteristics.HandTracking) != 0) return false;
+            return device.TryGetFeatureValue(XRCommonUsages.isTracked, out bool tracked) && tracked;
+        }
+
+        /// <summary>For the settings page: what each hand is and which hand tracking extensions run.</summary>
+        public string SourceStatus
+        {
+            get
+            {
+                string Name(Source s) => s == Source.Controller ? "Controller" : s == Source.HandJoints ? "Hand (Gelenke)" : s == Source.HandAim ? "Hand (Aim)" : "–";
+                string text = $"Links: {Name(m_Sources[0])} · Rechts: {Name(m_Sources[1])}";
+                text += " · Hände: " + (m_Joints != null ? m_Joints.Status : "XR Hands nicht im Build");
+#if THEMOVIES_OPENXR
+                try
+                {
+                    text += " · Ext: " + Ext("XR_EXT_hand_tracking", "hand_tracking") + ", " + Ext("XR_FB_hand_tracking_aim", "aim") + ", " +
+                            Ext("XR_EXT_hand_interaction", "interaction");
+                }
+                catch (System.Exception)
+                {
+                }
+#endif
+                return text;
+            }
+        }
+
+#if THEMOVIES_OPENXR
+        static string Ext(string name, string label) => label + (UnityEngine.XR.OpenXR.OpenXRRuntime.IsExtensionEnabled(name) ? " an" : " aus");
+#endif
+
         const float k_TriggerPress = 0.35f;
         const float k_TriggerRelease = 0.2f;
 
@@ -131,6 +203,12 @@ namespace TheMovies.XR
             m_RightGrip.Dispose();
             m_LeftTrigger.Dispose();
             m_RightTrigger.Dispose();
+            m_LeftControllerTracked.Dispose();
+            m_RightControllerTracked.Dispose();
+            m_LeftHandAim.Dispose();
+            m_RightHandAim.Dispose();
+            m_LeftPinch.Dispose();
+            m_RightPinch.Dispose();
             m_LeftGrasp.Dispose();
             m_RightGrasp.Dispose();
         }
@@ -149,6 +227,13 @@ namespace TheMovies.XR
         /// <summary>The pose the laser should come out of (OpenXR "aim" pose).</summary>
         public bool TryGetAim(bool left, out Vector3 position, out Quaternion rotation)
         {
+            if (IsHand(left))
+            {
+                var aim = m_HandAim[left ? 0 : 1];
+                position = aim.position;
+                rotation = aim.rotation;
+                return true;
+            }
             if ((left ? m_LeftAim : m_RightAim).TryRead(out position, out rotation))
                 return true;
             var device = Device(left);
@@ -166,6 +251,13 @@ namespace TheMovies.XR
         /// <summary>The pose of the controller body (OpenXR "grip" pose), used for visuals and avatars.</summary>
         public bool TryGetGrip(bool left, out Vector3 position, out Quaternion rotation)
         {
+            if (IsHand(left))
+            {
+                var palm = m_HandPalm[left ? 0 : 1];
+                position = palm.position;
+                rotation = palm.rotation;
+                return true;
+            }
             if ((left ? m_LeftGrip : m_RightGrip).TryRead(out position, out rotation))
                 return true;
             return TryLegacyPose(Device(left), XRCommonUsages.devicePosition, XRCommonUsages.deviceRotation, out position, out rotation);
@@ -213,6 +305,7 @@ namespace TheMovies.XR
         /// <summary>Trigger value of a hand (0..1), from the Input System or the XR input API, whichever reports more.</summary>
         public float TriggerValue(bool left)
         {
+            if (IsHand(left)) return m_HandPinch[left ? 0 : 1];
             float value = 0f;
             var action = left ? m_LeftTrigger : m_RightTrigger;
             if (action.controls.Count > 0)
@@ -230,7 +323,7 @@ namespace TheMovies.XR
             bool hand = IsHand(left);
             bool down = wasDown ? value > (hand ? 0.5f : k_TriggerRelease) : value > (hand ? 0.85f : k_TriggerPress);
             // The XR input API's own "pressed" flag counts as well (some runtimes only report that).
-            if (!down && Device(left).TryGetFeatureValue(XRCommonUsages.triggerButton, out bool pressed) && pressed)
+            if (!down && !hand && Device(left).TryGetFeatureValue(XRCommonUsages.triggerButton, out bool pressed) && pressed)
                 down = true;
             m_CurrentButtons[key] = down;
         }
