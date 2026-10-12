@@ -27,6 +27,7 @@ namespace TheMovies.App
         const string k_SubtitlePlacement = "tm.subtitlePlacement";
         const string k_PushToTalk = "tm.pushToTalk";
         const string k_Ducking = "tm.ducking";
+        const string k_Room = "tm.room";
 
         public string Name;
         public int ScreenSize;
@@ -64,6 +65,9 @@ namespace TheMovies.App
         /// <summary>Movie sound while others talk: 0 = unchanged, 1 = a bit quieter, 2 = much quieter.</summary>
         public int Ducking;
 
+        /// <summary>Room: 0 = cinema, 1 = living room (per viewer).</summary>
+        public int Room;
+
         public static AppSettings Load()
         {
             return new AppSettings
@@ -90,6 +94,7 @@ namespace TheMovies.App
                 SubtitlePlacement = PlayerPrefs.GetInt(k_SubtitlePlacement, 0),
                 PushToTalk = PlayerPrefs.GetInt(k_PushToTalk, 0) == 1,
                 Ducking = PlayerPrefs.GetInt(k_Ducking, 1),
+                Room = PlayerPrefs.GetInt(k_Room, 0),
             };
         }
 
@@ -117,6 +122,7 @@ namespace TheMovies.App
             PlayerPrefs.SetInt(k_SubtitlePlacement, SubtitlePlacement);
             PlayerPrefs.SetInt(k_PushToTalk, PushToTalk ? 1 : 0);
             PlayerPrefs.SetInt(k_Ducking, Ducking);
+            PlayerPrefs.SetInt(k_Room, Room);
             PlayerPrefs.Save();
         }
     }

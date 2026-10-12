@@ -68,6 +68,8 @@ namespace TheMovies.World
         Vector3 m_CinemaPosition;
         Quaternion m_CinemaRotation;
         float m_SizeScale = 1f;
+        float m_RoomScale = 1f;
+        float m_RoomMaxHeight = 8f;
 
         public int SizeIndex => m_SizeIndex;
         public Vector3 Center => transform.TransformPoint(new Vector3(0, Size.y * 0.5f, 0));
@@ -88,6 +90,7 @@ namespace TheMovies.World
             go.transform.localRotation = localRotation;
             var screen = go.AddComponent<ScreenController>();
             screen.m_MaxHeight = maxHeight;
+            screen.m_RoomMaxHeight = maxHeight;
             screen.m_CinemaPosition = localPosition;
             screen.m_CinemaRotation = localRotation;
             screen.Build();
@@ -275,13 +278,29 @@ namespace TheMovies.World
             Layout();
         }
 
+        /// <summary>Where the screen hangs in the current room (bottom center), how big the size steps are and the tallest it may get.</summary>
+        public void SetRoomPlacement(Vector3 localPosition, Quaternion localRotation, float sizeScale, float maxHeight)
+        {
+            m_CinemaPosition = localPosition;
+            m_CinemaRotation = localRotation;
+            m_RoomScale = sizeScale;
+            m_RoomMaxHeight = maxHeight;
+            if (m_MixedReality) return; // applied when mixed reality is switched off
+            transform.localPosition = localPosition;
+            transform.localRotation = localRotation;
+            m_SizeScale = sizeScale;
+            m_MaxHeight = maxHeight;
+            Layout();
+        }
+
         /// <summary>Mixed reality: a TV-sized screen a few meters in front of the seats instead of the cinema screen.</summary>
         public void SetMixedRealityLayout(bool mixedReality)
         {
             m_MixedReality = mixedReality;
             transform.localPosition = mixedReality ? new Vector3(0f, 0.35f, 4.2f) : m_CinemaPosition;
             transform.localRotation = mixedReality ? Quaternion.identity : m_CinemaRotation;
-            m_SizeScale = mixedReality ? 0.35f : 1f;
+            m_SizeScale = mixedReality ? 0.35f : m_RoomScale;
+            m_MaxHeight = mixedReality ? 8f : m_RoomMaxHeight;
             Layout();
         }
 

@@ -46,6 +46,7 @@ namespace TheMovies.App
             Screen = cinema.Screen;
             Screen.SetSize(Settings.ScreenSize);
             Screen.SetRoomLight(0.7f, immediate: true);
+            if (Settings.Room == (int)CinemaEnvironment.Room.Home) cinema.SetRoom(CinemaEnvironment.Room.Home);
             Screen.Convert3D = Settings.Convert3D;
             Screen.GlowLevel = Settings.ScreenGlow;
             Screen.UseAiDepth = Settings.DepthAi;
@@ -185,6 +186,19 @@ namespace TheMovies.App
         {
             Subtitles.Enabled = enabled;
             Settings.Subtitles = enabled;
+            Settings.Save();
+        }
+
+        public CinemaEnvironment.Room Room => m_Cinema.CurrentRoom;
+
+        public bool RoomsAvailable => m_Cinema.RoomsAvailable;
+
+        /// <summary>Cinema or living room (only for this viewer); switches mixed reality off.</summary>
+        public void SetRoom(CinemaEnvironment.Room room)
+        {
+            if (MixedReality.Enabled) SetMixedReality(false);
+            m_Cinema.SetRoom(room);
+            Settings.Room = (int)m_Cinema.CurrentRoom;
             Settings.Save();
         }
 

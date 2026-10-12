@@ -10,7 +10,7 @@ namespace TheMovies.World
     /// A custom hall can replace it: put a prefab at Resources/TheMovies/CustomCinema with child objects
     /// "Seat1".."Seat4" (floor position, facing the screen) and "ScreenAnchor" (bottom center of the screen).
     /// </summary>
-    public sealed class CinemaEnvironment : MonoBehaviour
+    public sealed partial class CinemaEnvironment : MonoBehaviour
     {
         public const int MaxParticipants = 4;
         public const float SeatSpacing = 0.75f;
@@ -60,7 +60,9 @@ namespace TheMovies.World
             foreach (Transform child in transform)
             {
                 if (Screen != null && child == Screen.transform) continue;
-                child.gameObject.SetActive(visible);
+                bool isRoom = child == m_HallRoot || child == m_HomeRoot;
+                bool roomActive = !isRoom || (child == m_HallRoot ? m_Room == Room.Cinema : m_Room == Room.Home);
+                child.gameObject.SetActive(visible && roomActive);
             }
         }
 
@@ -85,9 +87,12 @@ namespace TheMovies.World
                 return env;
 
             s_Seats = DefaultSeats();
+            env.m_HallRoot = new GameObject("Hall").transform;
+            env.m_HallRoot.SetParent(go.transform, false);
             env.BuildHall();
             env.Screen = ScreenController.Create(go.transform, new Vector3(0, k_ScreenBottom, k_ScreenZ), Quaternion.identity, maxHeight: 8.2f);
             env.Screen.ImmersiveChanged += _ => env.ApplyHall();
+            env.m_RoomsAvailable = true;
             return env;
         }
 
@@ -159,7 +164,7 @@ namespace TheMovies.World
             ceilingMesh.AddQuad(new Vector3(0, k_Ceiling, (k_FrontZ + k_BackZ) * 0.5f), Vector3.down, Vector3.forward,
                 k_HalfWidth * 2, k_FrontZ - k_BackZ, Color.white);
 
-            var root = transform;
+            var root = m_HallRoot;
             carpetMesh.Build(root, "Floor", carpet);
             velvetMesh.Build(root, "Velvet", velvet);
             fabricMesh.Build(root, "Walls", fabric);
@@ -319,6 +324,8 @@ namespace TheMovies.World
             dark.AddBox(new Vector3(0, 7.6f, k_BackZ + 0.04f), new Vector3(1.6f, 0.9f, 0.06f), k_Dark);
             glow.AddQuad(new Vector3(0, 7.6f, k_BackZ + 0.08f), Vector3.forward, Vector3.up, 1.3f, 0.65f, new Color(0.08f, 0.1f, 0.16f));
 
+            m_HallLightPos = lightPos;
+            m_HallLightColor = lightCol;
             SetLights(lightPos, lightCol);
         }
 
@@ -350,7 +357,7 @@ namespace TheMovies.World
         void BuildExitSign(Vector3 position, Vector3 wallDirection)
         {
             var sign = new GameObject("Exit Sign").transform;
-            sign.SetParent(transform, false);
+            sign.SetParent(m_HallRoot, false);
             sign.position = position;
             // TextMesh is readable when looking along its +Z, so +Z points into the wall.
             sign.rotation = Quaternion.LookRotation(wallDirection, Vector3.up);

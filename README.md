@@ -14,6 +14,9 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
   gemustertem Teppich, Stoffwänden mit Holzpilastern und Wandleuchten, Sternenhimmel, Vorhängen und Bühne.
   Das Saallicht dimmt beim Abspielen, Wände und Sitze nehmen das Licht der Leinwand auf. Alles wird zur
   Laufzeit erzeugt (keine externen Assets) – oder du bindest ein eigenes Kino-Modell ein (siehe unten).
+- **Heimkino** als zweiter Raum (*Einstellungen → Umgebung*): Wohnzimmer mit Sofa für vier, Kamin, Bücherregal,
+  Stehlampen und Fenster zum Nachthimmel; die Leinwand hängt an der Wand. Jeder wählt seinen Raum selbst,
+  die anderen sitzen trotzdem richtig neben dir.
 - **Sitzhöhe**: Beim Ausrichten sitzt du automatisch auf Kino-Augenhöhe, egal wie du zu Hause sitzt;
   im Menü mit „Sitz höher/tiefer“ feinjustierbar
 - **3D-Filme**: Side-by-Side und Over-Under, jeweils Half oder Full, „Augen tauschen“; das Format wird
@@ -52,6 +55,14 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
   neben dem Film), Suche/Filter, Tab **„Zuletzt“** und **„Weiterschauen“** direkt auf der Startseite
 - **Untertitel** aus `.srt`-Dateien (neben dem Film, bei Streams auch vom Gastgeber), pro Person ein-/ausschaltbar
 - **Weiterschauen**: Die App merkt sich, wo ihr aufgehört habt, und bietet beim nächsten Mal „Fortsetzen“ an
+- **Bild & 3D**: Helligkeit, Kontrast, Farbsättigung und die Tiefe von 3D-Filmen (näher/weiter weg) pro Person
+- **Untertitel**: Größe und Position (unten im Bild, etwas höher, unter dem Bild) einstellbar
+- **Sprachchat-Komfort**: „Sprechtaste“ (Push-to-Talk auf der Grip-Taste bzw. Faust, am PC V) und
+  „Film leiser“, solange jemand anderes spricht
+- **Handtracking**: Controller weglegen – Daumen und Zeigefinger zusammen („Pinch“) ist der Klick, der Strahl kommt
+  aus der Hand
+- **Zugangsdaten verschlüsselt**: NAS-Passwörter und Medienserver-Tokens liegen mit einem Schlüssel aus dem
+  Android-Keystore verschlüsselt auf der Brille
 - **Reaktionen**: 😂 😮 ❤️ ⭐ über dem eigenen Avatar und **Popcorn werfen** 🍿
 - **Mixed Reality**: Leinwand im eigenen Wohnzimmer per Passthrough, die anderen sitzen als Avatare daneben
 - **Allein schauen** geht auch – und wer danach ein Kino eröffnet, schaut einfach mit den anderen weiter
