@@ -11,6 +11,8 @@ namespace TheMovies.XR
     /// Reads head and controller poses and buttons. Uses Input System bindings (OpenXR layouts)
     /// first and falls back to the XR InputDevices API, so it works with OpenXR on Quest and with
     /// Quest Link on PC without any extra configuration.
+    /// Hand tracking: with the OpenXR "Hand Interaction Profile" the hands report an aim pose and a pinch value
+    /// like a controller's pointer and trigger, so pinching clicks and the ray comes out of the hand.
     /// </summary>
     public sealed class XRInputs
     {
@@ -19,12 +21,28 @@ namespace TheMovies.XR
             public InputAction Position;
             public InputAction Rotation;
 
-            public PoseActions(string device, string position, string rotation)
+            public PoseActions(string device, string position, string rotation, string handDevice = null)
             {
                 Position = new InputAction(type: InputActionType.Value, binding: $"{device}/{position}", expectedControlType: "Vector3");
                 Rotation = new InputAction(type: InputActionType.Value, binding: $"{device}/{rotation}", expectedControlType: "Quaternion");
+                if (handDevice != null)
+                {
+                    Position.AddBinding($"{handDevice}/{position}");
+                    Rotation.AddBinding($"{handDevice}/{rotation}");
+                }
                 Position.Enable();
                 Rotation.Enable();
+            }
+
+            /// <summary>The pose comes from a tracked hand (Hand Interaction Profile), not from a controller.</summary>
+            public bool FromHand
+            {
+                get
+                {
+                    var control = Position.activeControl;
+                    if (control == null && Position.controls.Count > 0) control = Position.controls[0];
+                    return control != null && control.device.layout.IndexOf("Hand", System.StringComparison.Ordinal) >= 0;
+                }
             }
 
             public bool TryRead(out Vector3 position, out Quaternion rotation)
@@ -49,20 +67,31 @@ namespace TheMovies.XR
         static readonly InputFeatureUsage<Quaternion> k_PointerRotation = new InputFeatureUsage<Quaternion>("PointerRotation");
 
         readonly PoseActions m_Head = new PoseActions("<XRHMD>", "centerEyePosition", "centerEyeRotation");
-        readonly PoseActions m_LeftAim = new PoseActions("<XRController>{LeftHand}", "pointerPosition", "pointerRotation");
-        readonly PoseActions m_RightAim = new PoseActions("<XRController>{RightHand}", "pointerPosition", "pointerRotation");
-        readonly PoseActions m_LeftGrip = new PoseActions("<XRController>{LeftHand}", "devicePosition", "deviceRotation");
-        readonly PoseActions m_RightGrip = new PoseActions("<XRController>{RightHand}", "devicePosition", "deviceRotation");
+        const string k_LeftHand = "<HandInteraction>{LeftHand}";
+        const string k_RightHand = "<HandInteraction>{RightHand}";
+        readonly PoseActions m_LeftAim = new PoseActions("<XRController>{LeftHand}", "pointerPosition", "pointerRotation", k_LeftHand);
+        readonly PoseActions m_RightAim = new PoseActions("<XRController>{RightHand}", "pointerPosition", "pointerRotation", k_RightHand);
+        readonly PoseActions m_LeftGrip = new PoseActions("<XRController>{LeftHand}", "devicePosition", "deviceRotation", k_LeftHand);
+        readonly PoseActions m_RightGrip = new PoseActions("<XRController>{RightHand}", "devicePosition", "deviceRotation", k_RightHand);
 
         // Trigger as an analog value: more reliable than a single "pressed" flag, and a light pull is enough.
-        readonly InputAction m_LeftTrigger = Axis("<XRController>{LeftHand}/trigger");
-        readonly InputAction m_RightTrigger = Axis("<XRController>{RightHand}/trigger");
+        // With hand tracking the pinch (thumb + index finger) is the trigger.
+        readonly InputAction m_LeftTrigger = Axis("<XRController>{LeftHand}/trigger", k_LeftHand + "/pinchValue");
+        readonly InputAction m_RightTrigger = Axis("<XRController>{RightHand}/trigger", k_RightHand + "/pinchValue");
+
+        // A fist (grasp) counts as the grip button with hand tracking (push-to-talk).
+        readonly InputAction m_LeftGrasp = Axis(k_LeftHand + "/graspValue");
+        readonly InputAction m_RightGrasp = Axis(k_RightHand + "/graspValue");
+
+        /// <summary>The hand is tracked as a hand (no controller in it).</summary>
+        public bool IsHand(bool left) => (left ? m_LeftAim : m_RightAim).FromHand;
         const float k_TriggerPress = 0.35f;
         const float k_TriggerRelease = 0.2f;
 
-        static InputAction Axis(string binding)
+        static InputAction Axis(string binding, string handBinding = null)
         {
             var action = new InputAction(type: InputActionType.Value, binding: binding, expectedControlType: "Axis");
+            if (handBinding != null) action.AddBinding(handBinding);
             action.Enable();
             return action;
         }
@@ -79,6 +108,8 @@ namespace TheMovies.XR
             m_RightGrip.Dispose();
             m_LeftTrigger.Dispose();
             m_RightTrigger.Dispose();
+            m_LeftGrasp.Dispose();
+            m_RightGrasp.Dispose();
         }
 
         public bool TryGetHead(out Vector3 position, out Quaternion rotation)
@@ -135,6 +166,8 @@ namespace TheMovies.XR
             Sample("RMenu", false, XRCommonUsages.menuButton);
             Sample("LGrip", true, XRCommonUsages.gripButton);
             Sample("RGrip", false, XRCommonUsages.gripButton);
+            if (m_LeftGrasp.controls.Count > 0 && m_LeftGrasp.ReadValue<float>() > 0.85f) m_CurrentButtons["LGrip"] = true;
+            if (m_RightGrasp.controls.Count > 0 && m_RightGrasp.ReadValue<float>() > 0.85f) m_CurrentButtons["RGrip"] = true;
         }
 
         public bool IsPressed(string button) => m_CurrentButtons.TryGetValue(button, out bool v) && v;

@@ -14,6 +14,16 @@ namespace TheMovies.Tests
             "  </application>\n</manifest>\n";
 
         [Test]
+        public void AddsHandTrackingPermissionOnce()
+        {
+            const string manifest = "<manifest>\n  <application android:label=\"x\">\n  </application>\n</manifest>";
+            string once = ManifestEdits.AddPermission(manifest, "com.oculus.permission.HAND_TRACKING");
+            StringAssert.Contains("<uses-permission android:name=\"com.oculus.permission.HAND_TRACKING\" />", once);
+            Assert.Less(once.IndexOf("uses-permission"), once.IndexOf("<application"));
+            Assert.AreEqual(once, ManifestEdits.AddPermission(once, "com.oculus.permission.HAND_TRACKING"));
+        }
+
+        [Test]
         public void AddsPassthroughFeatureOnce()
         {
             string once = ManifestEdits.AddUsesFeature(Manifest, "com.oculus.feature.PASSTHROUGH", false);

@@ -26,6 +26,7 @@ namespace TheMovies.EditorTools
             "OculusTouchControllerProfile",
             "MetaQuestTouchPlusControllerProfile",
             "MetaQuestTouchProControllerProfile",
+            "HandInteractionProfile", // hand tracking: aim pose + pinch (XR_EXT_hand_interaction)
         };
 
         static readonly string[] k_DesktopFeatures =

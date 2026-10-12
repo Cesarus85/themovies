@@ -6,6 +6,15 @@ namespace TheMovies.XR
     /// <summary>Minimal stand-in model for a Touch controller (placed at the grip pose).</summary>
     public static class ControllerVisual
     {
+        /// <summary>Simple hand for hand tracking: palm and a dot where thumb and index finger meet (pinch = click).</summary>
+        public static void BuildHand(Transform grip)
+        {
+            var skin = new Color(0.78f, 0.74f, 0.70f);
+            Shapes.Create(PrimitiveType.Sphere, grip, "Palm", new Vector3(0, 0, 0.0f), new Vector3(0.075f, 0.025f, 0.085f), skin);
+            Shapes.Create(PrimitiveType.Sphere, grip, "Pinch", new Vector3(0, 0.01f, 0.075f), Vector3.one * 0.016f,
+                new Color(0.95f, 0.62f, 0.18f));
+        }
+
         public static void Build(Transform grip)
         {
             var dark = new Color(0.12f, 0.12f, 0.14f);

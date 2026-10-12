@@ -12,7 +12,16 @@ namespace UnityEngine.InputSystem
         public static event Action onAfterUpdate;
     }
 
-    public class InputControl { }
+    public class InputControl { public InputDevice device => null; }
+
+    public class InputDevice : InputControl { public string layout => string.Empty; }
+
+    public static class InputActionSetupExtensions
+    {
+        public struct BindingSyntax { }
+        public static BindingSyntax AddBinding(this InputAction action, string path, string interactions = null,
+            string processors = null, string groups = null) => default;
+    }
 
     public struct ReadOnlyArray<T> { public int Count => 0; public T this[int index] => default; }
 
@@ -21,6 +30,7 @@ namespace UnityEngine.InputSystem
         public InputAction(string name = null, InputActionType type = default, string binding = null,
             string interactions = null, string processors = null, string expectedControlType = null) { }
         public ReadOnlyArray<InputControl> controls => default;
+        public InputControl activeControl => null;
         public void Enable() { }
         public void Disable() { }
         public void Dispose() { }

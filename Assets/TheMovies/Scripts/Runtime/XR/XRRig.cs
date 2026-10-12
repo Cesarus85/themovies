@@ -130,7 +130,13 @@ namespace TheMovies.XR
         {
             var hand = new GameObject(name).transform;
             hand.SetParent(m_Offset, false);
-            ControllerVisual.Build(hand);
+            var controller = new GameObject("Controller Model").transform;
+            controller.SetParent(hand, false);
+            ControllerVisual.Build(controller);
+            var handModel = new GameObject("Hand Model").transform;
+            handModel.SetParent(hand, false);
+            ControllerVisual.BuildHand(handModel);
+            handModel.gameObject.SetActive(false);
             aim = new GameObject(name + " Aim").transform;
             aim.SetParent(m_Offset, false);
             return hand;
@@ -282,9 +288,17 @@ namespace TheMovies.XR
             RightTracked = ReadHand(false, RightGrip, m_RightAim);
         }
 
+        /// <summary>The hand is tracked as a hand (hand tracking) rather than holding a controller.</summary>
+        public bool IsHandTracked(bool left) => XRActive && m_Inputs.IsHand(left);
+
         bool ReadHand(bool left, Transform grip, Transform aim)
         {
             bool tracked = m_Inputs.TryGetGrip(left, out var gp, out var gr);
+            bool isHand = m_Inputs.IsHand(left);
+            var controllerModel = grip.Find("Controller Model");
+            var handModel = grip.Find("Hand Model");
+            if (controllerModel != null && controllerModel.gameObject.activeSelf == isHand) controllerModel.gameObject.SetActive(!isHand);
+            if (handModel != null && handModel.gameObject.activeSelf != isHand) handModel.gameObject.SetActive(isHand);
             if (tracked)
             {
                 grip.localPosition = gp;

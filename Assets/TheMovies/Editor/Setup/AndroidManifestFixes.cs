@@ -89,6 +89,19 @@ namespace TheMovies.EditorTools
 
             AddPlayerDependencies(root, path);
 
+            // Hand tracking (pinch to click); optional, controllers keep working without it.
+            if (File.Exists(libraryManifest))
+            {
+                string text = File.ReadAllText(libraryManifest);
+                string changed = ManifestEdits.AddPermission(text, "com.oculus.permission.HAND_TRACKING");
+                changed = ManifestEdits.AddUsesFeature(changed, "oculus.software.handtracking", required: false);
+                if (changed != text)
+                {
+                    File.WriteAllText(libraryManifest, changed);
+                    Debug.Log("[TheMovies] Hand tracking declared in the Android manifest.");
+                }
+            }
+
             // Passthrough feature
             if (File.Exists(libraryManifest)) // own passthrough feature or the Meta OpenXR package
             {

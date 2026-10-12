@@ -22,6 +22,15 @@ namespace TheMovies.Core.Build
                 $"<uses-feature android:name=\"{feature}\" android:required=\"{(required ? "true" : "false")}\" />\n    ");
         }
 
+        /// <summary>Adds a &lt;uses-permission&gt; before &lt;application&gt; unless the manifest already names it.</summary>
+        public static string AddPermission(string manifest, string permission)
+        {
+            if (manifest.Contains("\"" + permission + "\"")) return manifest;
+            var match = k_ApplicationTag.Match(manifest);
+            if (!match.Success) return manifest;
+            return manifest.Insert(match.Index, $"<uses-permission android:name=\"{permission}\" />\n    ");
+        }
+
         /// <summary>The name of the network security config the manifest points to (without "@xml/"), or null.</summary>
         public static string NetworkSecurityConfigName(string manifest)
         {
