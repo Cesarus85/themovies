@@ -110,7 +110,10 @@ namespace TheMovies.Video
                 Jellyfin.DeviceId = "themovies-" + device;
                 PlexServers.ClientId = "themovies-" + device;
             }
-            m_Saved.AddRange(NetworkSourceStore.Deserialize(PlayerPrefs.GetString(k_PrefsKey, string.Empty)));
+            m_Saved.AddRange(NetworkSourceStore.Deserialize(PlayerPrefs.GetString(k_PrefsKey, string.Empty),
+                TheMovies.App.SecretProtector.Unprotect, out bool hadPlain));
+            // Passwords saved by older versions (only Base64) are encrypted now.
+            if (hadPlain) Save();
         }
 
         void OnDestroy()
@@ -228,7 +231,7 @@ namespace TheMovies.Video
 
         void Save()
         {
-            PlayerPrefs.SetString(k_PrefsKey, NetworkSourceStore.Serialize(m_Saved));
+            PlayerPrefs.SetString(k_PrefsKey, NetworkSourceStore.Serialize(m_Saved, TheMovies.App.SecretProtector.Protect));
             PlayerPrefs.Save();
         }
 

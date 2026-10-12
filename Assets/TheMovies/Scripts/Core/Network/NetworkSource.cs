@@ -292,46 +292,68 @@ namespace TheMovies.Core.Network
         }
     }
 
-    /// <summary>Saves the user's network sources. Stored by the app in its private preferences.</summary>
+    /// <summary>
+    /// Saves the user's network sources. Stored by the app in its private preferences. Passwords and tokens are
+    /// written through <c>protect</c> (Android Keystore on the Quest) in format v2; v1 lines (Base64 only) from older
+    /// versions are still read, and the app saves them again in v2.
+    /// </summary>
     public static class NetworkSourceStore
     {
-        const string Version = "v1";
+        const string PlainVersion = "v1";
+        const string ProtectedVersion = "v2";
 
-        public static string Serialize(IEnumerable<NetworkSource> sources)
+        public static string Serialize(IEnumerable<NetworkSource> sources, Func<string, string> protect = null)
         {
             var sb = new StringBuilder();
             foreach (var s in sources)
             {
                 if (s == null || s.Discovered) continue;
-                sb.Append(Version).Append('\t')
+                string password = s.Password ?? string.Empty;
+                string secret = protect != null && password.Length > 0 ? protect(password) : null;
+                bool isProtected = protect != null && (password.Length == 0 || secret != null);
+                sb.Append(isProtected ? ProtectedVersion : PlainVersion).Append('\t')
                     .Append((int)s.Kind).Append('\t')
                     .Append(Uri.EscapeDataString(s.Name ?? string.Empty)).Append('\t')
                     .Append(Uri.EscapeDataString(s.Address ?? string.Empty)).Append('\t')
                     .Append(Uri.EscapeDataString(s.User ?? string.Empty)).Append('\t')
-                    .Append(Convert.ToBase64String(Encoding.UTF8.GetBytes(s.Password ?? string.Empty)))
+                    .Append(isProtected ? Uri.EscapeDataString(secret ?? string.Empty) : Convert.ToBase64String(Encoding.UTF8.GetBytes(password)))
                     .Append('\n');
             }
             return sb.ToString();
         }
 
-        public static List<NetworkSource> Deserialize(string text)
+        /// <param name="unprotect">Reverses <c>protect</c>; returns null if the secret can't be read (then the password is empty and the user logs in again).</param>
+        /// <param name="hadPlain">True if v1 lines were read (the caller should save again to protect them).</param>
+        public static List<NetworkSource> Deserialize(string text, Func<string, string> unprotect, out bool hadPlain)
         {
+            hadPlain = false;
             var result = new List<NetworkSource>();
             if (string.IsNullOrEmpty(text)) return result;
             foreach (string line in text.Split('\n'))
             {
                 string[] f = line.Trim('\r').Split('\t');
-                if (f.Length < 6 || f[0] != Version) continue;
+                if (f.Length < 6 || (f[0] != PlainVersion && f[0] != ProtectedVersion)) continue;
                 try
                 {
                     if (!int.TryParse(f[1], out int kind) || kind < 0 || kind > (int)NetworkSourceKind.Plex) continue;
+                    string password;
+                    if (f[0] == PlainVersion)
+                    {
+                        password = Encoding.UTF8.GetString(Convert.FromBase64String(f[5]));
+                        if (password.Length > 0) hadPlain = true;
+                    }
+                    else
+                    {
+                        string secret = Uri.UnescapeDataString(f[5]);
+                        password = secret.Length == 0 ? string.Empty : unprotect?.Invoke(secret) ?? string.Empty;
+                    }
                     var s = new NetworkSource
                     {
                         Kind = (NetworkSourceKind)kind,
                         Name = Uri.UnescapeDataString(f[2]),
                         Address = Uri.UnescapeDataString(f[3]),
                         User = Uri.UnescapeDataString(f[4]),
-                        Password = Encoding.UTF8.GetString(Convert.FromBase64String(f[5])),
+                        Password = password,
                     };
                     if (s.Address.Length > 0) result.Add(s);
                 }
@@ -342,5 +364,7 @@ namespace TheMovies.Core.Network
             }
             return result;
         }
+
+        public static List<NetworkSource> Deserialize(string text) => Deserialize(text, null, out _);
     }
 }

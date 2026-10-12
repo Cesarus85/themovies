@@ -434,3 +434,56 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    public class SecretStorageTests
+    {
+        [Test]
+        public void LocalSecretRoundTripsAndRejectsOtherKeys()
+        {
+            string p = LocalSecret.Protect("geheim äöü 🔑", "device-1");
+            Assert.AreNotEqual(LocalSecret.Protect("geheim äöü 🔑", "device-1"), p, "random IV");
+            StringAssert.DoesNotContain("geheim", p);
+            Assert.AreEqual("geheim äöü 🔑", LocalSecret.Unprotect(p, "device-1"));
+            Assert.IsNull(LocalSecret.Unprotect(p, "device-2"));
+            var bytes = Convert.FromBase64String(p);
+            bytes[20] ^= 1;
+            Assert.IsNull(LocalSecret.Unprotect(Convert.ToBase64String(bytes), "device-1"), "tampered");
+            Assert.IsNull(LocalSecret.Unprotect("kein base64!", "device-1"));
+        }
+
+        [Test]
+        public void StoresPasswordsProtectedAndMigratesOldEntries()
+        {
+            // Stand-in for the keystore: anything that changes the text reversibly.
+            Func<string, string> protect = s => "X" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("salt:" + s));
+            Func<string, string> unprotect = s => s.StartsWith("X") ? System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(s.Substring(1))).Substring(5) : null;
+            var sources = new List<NetworkSource>
+            {
+                new NetworkSource { Kind = NetworkSourceKind.Smb, Name = "NAS", Address = "smb://nas/filme", User = "anna", Password = "pa\tss" },
+                new NetworkSource { Kind = NetworkSourceKind.Smb, Name = "Gast", Address = "smb://nas/gast" },
+            };
+            string text = NetworkSourceStore.Serialize(sources, protect);
+            StringAssert.StartsWith("v2\t", text);
+            StringAssert.DoesNotContain(Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("pa\tss")), text);
+            var back = NetworkSourceStore.Deserialize(text, unprotect, out bool hadPlain);
+            Assert.IsFalse(hadPlain);
+            Assert.AreEqual("pa\tss", back[0].Password);
+            Assert.AreEqual(string.Empty, back[1].Password);
+
+            // Secret that can't be read any more (app reinstalled): empty password, user logs in again.
+            Assert.AreEqual(string.Empty, NetworkSourceStore.Deserialize(text, s => null, out _)[0].Password);
+
+            // Old format from earlier versions is read and reported for re-saving.
+            string old = NetworkSourceStore.Serialize(sources);
+            StringAssert.StartsWith("v1\t", old);
+            var migrated = NetworkSourceStore.Deserialize(old, unprotect, out hadPlain);
+            Assert.IsTrue(hadPlain);
+            Assert.AreEqual("pa\tss", migrated[0].Password);
+
+            // Protection failing (keystore broken): falls back to the old format instead of losing the password.
+            StringAssert.StartsWith("v1\t", NetworkSourceStore.Serialize(sources, s => null));
+        }
+    }
+}
