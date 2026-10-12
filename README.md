@@ -18,7 +18,10 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
   im Menü mit „Sitz höher/tiefer“ feinjustierbar
 - **3D-Filme**: Side-by-Side und Over-Under, jeweils Half oder Full, „Augen tauschen“; das Format wird
   aus dem Dateinamen (`3D.HSBS`, `Half-OU`, `SBS`, …) und der Bildgröße erkannt
-- **2D → 3D**: normale Filme in 3D umrechnen (*Einstellungen → Bild & 3D*, Leicht/Stark, nur für dich).
+- **2D → 3D (experimentell)**: normale Filme in 3D umrechnen (*Einstellungen → Bild & 3D*, Leicht/Mittel/Stark,
+  nur für dich). Noch nicht ausgereift: der Effekt ist schwächer als bei echten 3D-Filmen, mit KI kann es ruckeln
+  („KI: Aus“ schaltet auf die sparsame Schätzung). Beste Qualität: Film vorher am PC umrechnen (z. B. mit *iw3*)
+  und die fertige SBS-Datei abspielen.
   Ohne Zusatz schätzt die App die Tiefe aus dem Bild; mit KI-Tiefe (Depth Anything V2 Small über Unitys
   Inference Engine) deutlich besser – einrichten im Editor über *The Movies → 2D→3D mit KI einrichten*
   (lädt Paket und ca. 100 MB Modell, danach neu bauen)

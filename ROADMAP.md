@@ -1,6 +1,6 @@
 # Roadmap – The Movies
 
-Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der Quest steht aus · 📋 geplant · 💡 Idee
+Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der Quest steht aus · ⚗️ experimentell · 📋 geplant · 💡 Idee
 
 ## Diese Runde umgesetzt (Test auf der Quest steht aus)
 
@@ -12,7 +12,7 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der
 | 🧪 | **Ton- und Untertitelspur, Ton-Versatz** | *Einstellungen → Ton & Untertitel*: Spuren des laufenden Films wählen, Ton-Versatz ±500 ms (Bluetooth-Kopfhörer). |
 | 🧪 | **Schönere Filmauswahl** | Kachelansicht mit Postern (Medienserver, `poster.jpg`/`Film.jpg`/`.tbn`, Kodi-`.nfo`), Suche/Filter, Tab „Zuletzt“, „Weiterschauen“ auf der Startseite. |
 | 🧪 | **Jellyfin/Emby und Plex** | Jellyfin mit Benutzer/Passwort, Plex per Code auf plex.tv/link; Bibliotheken, Serien, Suche, Direct Play; Netzwerksuche findet beide. |
-| 🧪 | **2D → 3D** | Tiefe pro Bild (KI: Depth Anything V2 Small über Unity Inference Engine, verteilt auf mehrere Frames, asynchron zurückgelesen, geglättet; ohne Modell: Schätzung aus dem Bild), Verschiebung pro Auge im Leinwand-Shader, Stärke so begrenzt, dass die Augen nie auseinanderlaufen. |
+| ⚗️ | **2D → 3D (experimentell, vorerst zurückgestellt)** | Auf der Quest getestet: Effekt zu schwach, mit KI ruckelig. Offen: KI-Status/Tempo auf der Brille prüfen, Tiefenkanten an Objektränder anpassen (kantenbewusstes Hochskalieren), kleineres Modell/geringere Auflösung, Vorhersage der Bewegung zwischen Tiefenbildern. Stand: Tiefe pro Bild (KI: Depth Anything V2 Small über Unity Inference Engine, verteilt auf mehrere Frames, asynchron zurückgelesen, geglättet; ohne Modell: Schätzung aus dem Bild), Verschiebung pro Auge im Leinwand-Shader, Stärke so begrenzt, dass die Augen nie auseinanderlaufen. |
 | 🧪 | **Leuchten um die Leinwand (MR)** | Weiches Ambilight aus den Randfarben des Bildes, das ins Passthrough-Zimmer ausläuft (Aus/Schwach/Stark). |
 | 🧪 | **180°/360°-Videos** | Halb-/Vollkugel um den Kopf, mono/SBS/OU, Erkennung über den Dateinamen, Saal wird ausgeblendet, für alle synchron. |
 

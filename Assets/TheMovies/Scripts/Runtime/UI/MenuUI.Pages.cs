@@ -84,7 +84,7 @@ namespace TheMovies.UI
 
             string[] levels = { "Aus", "Leicht", "Mittel", "Stark" };
             float y = 0.215f;
-            SettingRow(p, "2D → 3D", y, divider: false);
+            SettingRow(p, "2D → 3D (experimentell)", y, divider: false);
             for (int i = 0; i < levels.Length; i++)
             {
                 int level = i;
