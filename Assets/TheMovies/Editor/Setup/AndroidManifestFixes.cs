@@ -95,10 +95,13 @@ namespace TheMovies.EditorTools
                 string text = File.ReadAllText(libraryManifest);
                 string changed = ManifestEdits.AddPermission(text, "com.oculus.permission.HAND_TRACKING");
                 changed = ManifestEdits.AddUsesFeature(changed, "oculus.software.handtracking", required: false);
+                // The headset's controller models (XR_FB_render_model): without these the runtime hides the extension.
+                changed = ManifestEdits.AddPermission(changed, "com.oculus.permission.RENDER_MODEL");
+                changed = ManifestEdits.AddUsesFeature(changed, "com.oculus.feature.RENDER_MODEL", required: false);
                 if (changed != text)
                 {
                     File.WriteAllText(libraryManifest, changed);
-                    Debug.Log("[TheMovies] Hand tracking declared in the Android manifest.");
+                    Debug.Log("[TheMovies] Hand tracking and controller render models declared in the Android manifest.");
                 }
             }
 

@@ -116,8 +116,8 @@ namespace TheMovies.XR
             camGo.AddComponent<AudioListener>();
             Head = camGo.transform;
 
-            LeftGrip = CreateHand("Left Hand", out m_LeftAim);
-            RightGrip = CreateHand("Right Hand", out m_RightAim);
+            LeftGrip = CreateHand("Left Hand", true, out m_LeftAim);
+            RightGrip = CreateHand("Right Hand", false, out m_RightAim);
             m_LeftHandView = HandView.Create(m_Offset, "Left Tracked Hand");
             m_RightHandView = HandView.Create(m_Offset, "Right Tracked Hand");
             m_LeftPointer = LaserPointer.Create(m_LeftAim, "Left Pointer", true);
@@ -130,13 +130,15 @@ namespace TheMovies.XR
             InputSystem.onAfterUpdate += OnAfterInputUpdate;
         }
 
-        Transform CreateHand(string name, out Transform aim)
+        Transform CreateHand(string name, bool left, out Transform aim)
         {
             var hand = new GameObject(name).transform;
             hand.SetParent(m_Offset, false);
             var controller = new GameObject("Controller Model").transform;
             controller.SetParent(hand, false);
-            ControllerVisual.Build(controller);
+            var standIn = new GameObject("Stand-in").transform;
+            standIn.SetParent(controller, false);
+            ControllerVisual.Build(standIn, left);
             var handModel = new GameObject("Hand Model").transform;
             handModel.SetParent(hand, false);
             ControllerVisual.BuildHand(handModel);
@@ -279,6 +281,44 @@ namespace TheMovies.XR
                 ReadPoses();
         }
 
+        // The headset's own controller models (XR_FB_render_model); retried until the controllers are connected.
+        readonly bool[] m_OfficialModel = new bool[2];
+        readonly bool[] m_OfficialLoading = new bool[2];
+        readonly float[] m_NextModelTry = new float[2];
+        readonly int[] m_ModelTries = new int[2];
+
+        /// <summary>For the status line: whether the official controller models are shown.</summary>
+        public string ControllerModelStatus { get; private set; } = "Ersatzmodell";
+
+        void TryLoadControllerModels()
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                bool left = i == 0;
+                if (m_OfficialModel[i] || m_OfficialLoading[i] || m_ModelTries[i] >= 20 || Time.unscaledTime < m_NextModelTry[i]) continue;
+                if (!(left ? LeftTracked : RightTracked) || m_Inputs.IsHand(left)) continue; // only with the controller in hand
+                m_OfficialLoading[i] = true;
+                m_ModelTries[i]++;
+                int index = i;
+                ControllerVisual.LoadOfficial(left, this, (mesh, error) =>
+                {
+                    m_OfficialLoading[index] = false;
+                    if (mesh == null)
+                    {
+                        m_NextModelTry[index] = Time.unscaledTime + 3f;
+                        ControllerModelStatus = "Ersatzmodell (" + error + ")";
+                        if (m_ModelTries[index] == 1) Debug.Log("[TheMovies] Controller model not loaded yet: " + error);
+                        return;
+                    }
+                    m_OfficialModel[index] = true;
+                    ControllerModelStatus = "Meta-Modell";
+                    var container = (index == 0 ? LeftGrip : RightGrip).Find("Controller Model");
+                    if (container != null) ControllerVisual.ShowOfficial(container, mesh);
+                    Debug.Log("[TheMovies] Showing the headset's controller model (" + (index == 0 ? "left" : "right") + ").");
+                });
+            }
+        }
+
         void ReadPoses()
         {
             if (m_Inputs.TryGetHead(out var hp, out var hr))
@@ -291,13 +331,14 @@ namespace TheMovies.XR
             m_Inputs.UpdateSources(new Pose(Head.localPosition, Head.localRotation));
             LeftTracked = ReadHand(true, LeftGrip, m_LeftAim);
             RightTracked = ReadHand(false, RightGrip, m_RightAim);
+            if (XRActive) TryLoadControllerModels();
         }
 
         /// <summary>The hand is tracked as a hand (hand tracking) rather than holding a controller.</summary>
         public bool IsHandTracked(bool left) => XRActive && m_Inputs.IsHand(left);
 
         /// <summary>What the hands are (controller / hand) and which hand tracking runs, for the settings page.</summary>
-        public string InputStatus => XRActive ? m_Inputs.SourceStatus : "Ohne Brille (Maus/Tastatur)";
+        public string InputStatus => XRActive ? m_Inputs.SourceStatus + " · Controller: " + ControllerModelStatus : "Ohne Brille (Maus/Tastatur)";
 
         bool ReadHand(bool left, Transform grip, Transform aim)
         {

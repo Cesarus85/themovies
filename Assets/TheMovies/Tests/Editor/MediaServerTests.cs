@@ -487,3 +487,73 @@ namespace TheMovies.Tests
         }
     }
 }
+
+namespace TheMovies.Tests
+{
+    public class GltfTests
+    {
+        static byte[] Glb(string json, byte[] bin)
+        {
+            byte[] j = System.Text.Encoding.UTF8.GetBytes(json);
+            int jPad = (4 - j.Length % 4) % 4, bPad = (4 - bin.Length % 4) % 4;
+            var ms = new System.IO.MemoryStream();
+            var w = new System.IO.BinaryWriter(ms);
+            w.Write(0x46546C67u); w.Write(2u); w.Write(0u);
+            w.Write((uint)(j.Length + jPad)); w.Write(0x4E4F534Au); w.Write(j); for (int i = 0; i < jPad; i++) w.Write((byte)' ');
+            w.Write((uint)(bin.Length + bPad)); w.Write(0x004E4942u); w.Write(bin); for (int i = 0; i < bPad; i++) w.Write((byte)0);
+            var bytes = ms.ToArray();
+            BitConverter.GetBytes((uint)bytes.Length).CopyTo(bytes, 8);
+            return bytes;
+        }
+
+        [Test]
+        public void ReadsTriangleWithNodeTransformAndMaterial()
+        {
+            // One triangle (0,0,0) (1,0,0) (0,1,0), uv, indices 0 1 2 (ushort), a parent node moved by +2 on Z, a red material.
+            var bin = new System.IO.MemoryStream();
+            var bw = new System.IO.BinaryWriter(bin);
+            foreach (float f in new float[] { 0, 0, 0, 1, 0, 0, 0, 1, 0 }) bw.Write(f);       // positions: 36 bytes
+            foreach (float f in new float[] { 0, 0, 1, 0, 0, 1 }) bw.Write(f);                 // uvs: 24 bytes
+            foreach (ushort s in new ushort[] { 0, 1, 2, 0 }) bw.Write(s);                    // indices + pad: 8 bytes
+            string json = "{\"asset\":{\"version\":\"2.0\"},\"scene\":0,\"scenes\":[{\"nodes\":[0]}]," +
+                          "\"nodes\":[{\"translation\":[0,0,2],\"children\":[1]},{\"name\":\"Trigger\",\"mesh\":0}]," +
+                          "\"meshes\":[{\"primitives\":[{\"attributes\":{\"POSITION\":0,\"TEXCOORD_0\":1},\"indices\":2,\"material\":0}]}]," +
+                          "\"materials\":[{\"pbrMetallicRoughness\":{\"baseColorFactor\":[1,0,0,1]}}]," +
+                          "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}," +
+                          "{\"bufferView\":1,\"componentType\":5126,\"count\":3,\"type\":\"VEC2\"}," +
+                          "{\"bufferView\":2,\"componentType\":5123,\"count\":3,\"type\":\"SCALAR\"}]," +
+                          "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36},{\"buffer\":0,\"byteOffset\":36,\"byteLength\":24}," +
+                          "{\"buffer\":0,\"byteOffset\":60,\"byteLength\":6}],\"buffers\":[{\"byteLength\":68}]}";
+            var model = Gltf.ReadGlb(Glb(json, bin.ToArray()));
+            Assert.AreEqual(1, model.Meshes.Count);
+            var m = model.Meshes[0];
+            Assert.AreEqual("Trigger", m.Name);
+            CollectionAssert.AreEqual(new float[] { 0, 0, 2, -1, 0, 2, 0, 1, 2 }, m.Positions, "moved by the parent, X mirrored");
+            CollectionAssert.AreEqual(new[] { 0, 2, 1 }, m.Indices, "winding flipped for Unity");
+            Assert.AreEqual(1f, m.Uvs[1], "v flipped");
+            Assert.AreEqual(0f, m.Uvs[5]);
+            CollectionAssert.AreEqual(new float[] { 1, 0, 0, 1 }, m.Color);
+            Assert.AreEqual(-1, m.Image);
+            Assert.Throws<FormatException>(() => Gltf.ReadGlb(new byte[30]));
+        }
+
+        [Test]
+        public void ReadsKtx2Header()
+        {
+            var data = new byte[80 + 24 + 16];
+            new byte[] { 0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(data, 0);
+            BitConverter.GetBytes(158u).CopyTo(data, 12);   // ASTC 4x4 sRGB
+            BitConverter.GetBytes(4u).CopyTo(data, 20);
+            BitConverter.GetBytes(4u).CopyTo(data, 24);
+            BitConverter.GetBytes(104ul).CopyTo(data, 80);  // level 0 offset
+            BitConverter.GetBytes(16ul).CopyTo(data, 88);   // level 0 length
+            data[104] = 7;
+            var image = Ktx2Image.Read(data);
+            Assert.AreEqual(158, image.VkFormat);
+            Assert.AreEqual(4, image.Width);
+            Assert.AreEqual(16, image.Level0.Length);
+            Assert.AreEqual(7, image.Level0[0]);
+            Assert.IsFalse(image.Supercompressed);
+        }
+    }
+}

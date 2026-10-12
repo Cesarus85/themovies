@@ -23,6 +23,7 @@ namespace TheMovies.EditorTools
         {
             "MetaQuestFeature",
             "PassthroughFeature", // The Movies: own passthrough (XR_FB_passthrough)
+            "RenderModelFeature", // The Movies: the headset's controller models (XR_FB_render_model)
             "OculusTouchControllerProfile",
             "MetaQuestTouchPlusControllerProfile",
             "MetaQuestTouchProControllerProfile",

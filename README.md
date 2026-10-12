@@ -62,6 +62,9 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
 - **Handtracking**: Controller weglegen – Daumen und Zeigefinger zusammen („Pinch“) ist der Klick, der Strahl kommt
   aus der Hand. Einmalig im Editor *The Movies → Handtracking einrichten* (installiert „XR Hands“ und schaltet
   „Hand Tracking Subsystem“ + „Meta Hand Tracking Aim“ an), auf der Quest Handtracking in den Einstellungen aktivieren
+- **Controller**: die Brille liefert ihr eigenes Controller-Modell (Touch Plus, über `XR_FB_render_model`), bis
+  dahin ein nachgebautes; nach dem ersten Build mit dieser Funktion die App einmal deinstallieren und neu
+  installieren (Manifest-Änderung)
 - **Zugangsdaten verschlüsselt**: NAS-Passwörter und Medienserver-Tokens liegen mit einem Schlüssel aus dem
   Android-Keystore verschlüsselt auf der Brille
 - **Reaktionen**: 😂 😮 ❤️ ⭐ über dem eigenen Avatar und **Popcorn werfen** 🍿
