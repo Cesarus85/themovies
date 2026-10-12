@@ -17,6 +17,9 @@ Shader "TheMovies/StereoVideo"
         _Convert3D ("2D to 3D shift per eye (uv)", Float) = 0
         _Convergence ("Depth on the screen plane", Float) = 0.6
         _ShowDepth ("Show the depth map", Float) = 0
+        _Contrast ("Contrast", Float) = 1
+        _Saturation ("Saturation", Float) = 1
+        _EyeShift ("3D depth: sideways shift per eye (uv of one eye)", Float) = 0
     }
     SubShader
     {
@@ -39,6 +42,9 @@ Shader "TheMovies/StereoVideo"
             float _Convert3D;
             float _Convergence;
             float _ShowDepth;
+            float _Contrast;
+            float _Saturation;
+            float _EyeShift;
 
             struct appdata
             {
@@ -70,6 +76,12 @@ Shader "TheMovies/StereoVideo"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 float4 st = unity_StereoEyeIndex == 0 ? _LeftEyeST : _RightEyeST;
                 float2 uv = i.uv * st.xy + st.zw;
+                if (_EyeShift != 0)
+                {
+                    // 3D depth: both eye pictures move apart (farther) or together (nearer), staying inside their half.
+                    float eyeSide = unity_StereoEyeIndex == 0 ? 1 : -1;
+                    uv.x = clamp(uv.x + eyeSide * _EyeShift * st.x, st.z + 0.0005, st.z + st.x - 0.0005);
+                }
                 if (_Convert3D > 0 && _ShowDepth > 0)
                     return fixed4(tex2D(_DepthTex, uv).rrr, 1);
                 if (_Convert3D > 0)
@@ -83,6 +95,10 @@ Shader "TheMovies/StereoVideo"
                     uv = clamp(uv + float2(side * _Convert3D * (d - _Convergence), 0), 0.0005, 0.9995);
                 }
                 fixed3 video = tex2D(_MainTex, uv).rgb * _Brightness;
+                // Contrast around middle grey (0.18 in linear light), then saturation around the luminance.
+                video = max(0, (video - 0.18) * _Contrast + 0.18);
+                float luma = dot(video, float3(0.2126, 0.7152, 0.0722));
+                video = max(0, lerp(luma.xxx, video, _Saturation));
                 return fixed4(lerp(_IdleColor.rgb, video, saturate(_HasVideo)), 1);
             }
             ENDCG

@@ -49,6 +49,8 @@ namespace TheMovies.App
             Screen.Convert3D = Settings.Convert3D;
             Screen.GlowLevel = Settings.ScreenGlow;
             Screen.UseAiDepth = Settings.DepthAi;
+            Screen.SetPicture(Settings.Brightness, Settings.Contrast, Settings.Saturation);
+            Screen.DepthSteps = Settings.DepthSteps;
 
             m_Rig = XRRig.Create();
             m_Rig.SetHeightOffset(Settings.HeightOffset);
@@ -183,6 +185,29 @@ namespace TheMovies.App
         {
             Screen.Convert3D = level;
             Settings.Convert3D = Screen.Convert3D;
+            Settings.Save();
+        }
+
+        /// <summary>Changes brightness (0), contrast (1) or saturation (2) by <paramref name="delta"/>; NaN resets all.</summary>
+        public void ChangePicture(int which, float delta)
+        {
+            if (float.IsNaN(delta))
+            {
+                Settings.Brightness = Settings.Contrast = Settings.Saturation = 1f;
+                Settings.DepthSteps = 0;
+                Screen.DepthSteps = 0;
+            }
+            else if (which == 0) Settings.Brightness = Mathf.Clamp(Mathf.Round((Settings.Brightness + delta) * 20f) / 20f, 0.5f, 1.6f);
+            else if (which == 1) Settings.Contrast = Mathf.Clamp(Mathf.Round((Settings.Contrast + delta) * 20f) / 20f, 0.6f, 1.6f);
+            else Settings.Saturation = Mathf.Clamp(Mathf.Round((Settings.Saturation + delta) * 10f) / 10f, 0f, 2f);
+            Screen.SetPicture(Settings.Brightness, Settings.Contrast, Settings.Saturation);
+            Settings.Save();
+        }
+
+        public void ChangeDepthSteps(int delta)
+        {
+            Screen.DepthSteps += delta;
+            Settings.DepthSteps = Screen.DepthSteps;
             Settings.Save();
         }
 

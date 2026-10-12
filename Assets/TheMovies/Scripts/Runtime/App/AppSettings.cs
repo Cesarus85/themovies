@@ -19,6 +19,10 @@ namespace TheMovies.App
         const string k_Convert3D = "tm.convert3d";
         const string k_ScreenGlow = "tm.screenGlow";
         const string k_DepthAi = "tm.depthAi";
+        const string k_Brightness = "tm.brightness";
+        const string k_Contrast = "tm.contrast";
+        const string k_Saturation = "tm.saturation";
+        const string k_DepthSteps = "tm.depthSteps";
 
         public string Name;
         public int ScreenSize;
@@ -41,6 +45,12 @@ namespace TheMovies.App
         /// <summary>2D→3D may use the AI depth model.</summary>
         public bool DepthAi;
 
+        /// <summary>Picture of the screen (1 = unchanged).</summary>
+        public float Brightness, Contrast, Saturation;
+
+        /// <summary>3D depth for 3D movies (0 = as mastered, + farther, − nearer).</summary>
+        public int DepthSteps;
+
         public static AppSettings Load()
         {
             return new AppSettings
@@ -59,6 +69,10 @@ namespace TheMovies.App
                 Convert3D = PlayerPrefs.GetInt(k_Convert3D, 0),
                 ScreenGlow = PlayerPrefs.GetInt(k_ScreenGlow, 1),
                 DepthAi = PlayerPrefs.GetInt(k_DepthAi, 1) == 1,
+                Brightness = PlayerPrefs.GetFloat(k_Brightness, 1f),
+                Contrast = PlayerPrefs.GetFloat(k_Contrast, 1f),
+                Saturation = PlayerPrefs.GetFloat(k_Saturation, 1f),
+                DepthSteps = PlayerPrefs.GetInt(k_DepthSteps, 0),
             };
         }
 
@@ -78,6 +92,10 @@ namespace TheMovies.App
             PlayerPrefs.SetInt(k_Convert3D, Convert3D);
             PlayerPrefs.SetInt(k_ScreenGlow, ScreenGlow);
             PlayerPrefs.SetInt(k_DepthAi, DepthAi ? 1 : 0);
+            PlayerPrefs.SetFloat(k_Brightness, Brightness);
+            PlayerPrefs.SetFloat(k_Contrast, Contrast);
+            PlayerPrefs.SetFloat(k_Saturation, Saturation);
+            PlayerPrefs.SetInt(k_DepthSteps, DepthSteps);
             PlayerPrefs.Save();
         }
     }

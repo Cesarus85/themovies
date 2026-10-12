@@ -285,7 +285,32 @@ namespace TheMovies.World
             Layout();
         }
 
-        public void SetBrightness(float brightness) => m_Material.SetFloat(k_Brightness, brightness);
+        static readonly int k_Contrast = Shader.PropertyToID("_Contrast");
+        static readonly int k_Saturation = Shader.PropertyToID("_Saturation");
+        static readonly int k_EyeShift = Shader.PropertyToID("_EyeShift");
+        int m_DepthSteps;
+
+        /// <summary>Picture settings of this viewer (1 = unchanged).</summary>
+        public void SetPicture(float brightness, float contrast, float saturation)
+        {
+            m_Material.SetFloat(k_Brightness, brightness);
+            m_Material.SetFloat(k_Contrast, contrast);
+            m_Material.SetFloat(k_Saturation, saturation);
+        }
+
+        /// <summary>
+        /// 3D depth for 3D movies, in steps (0 = as mastered): positive moves the whole picture farther away,
+        /// negative brings it nearer (out of the screen).
+        /// </summary>
+        public int DepthSteps
+        {
+            get => m_DepthSteps;
+            set
+            {
+                m_DepthSteps = Mathf.Clamp(value, -6, 6);
+                ApplyFormat();
+            }
+        }
 
         bool m_UseAiDepth = true;
 
@@ -396,6 +421,8 @@ namespace TheMovies.World
             var r = m_Format.EyeUv(1, m_SwapEyes);
             m_Material.SetVector(k_LeftEyeST, new Vector4(l.ScaleX, l.ScaleY, l.OffsetX, l.OffsetY));
             m_Material.SetVector(k_RightEyeST, new Vector4(r.ScaleX, r.ScaleY, r.OffsetX, r.OffsetY));
+            // 0.15 % of one eye's width per step.
+            m_Material.SetFloat(k_EyeShift, m_Format.IsStereo() ? m_DepthSteps * 0.0015f : 0f);
         }
 
         void Layout()

@@ -22,6 +22,8 @@ namespace TheMovies.UI
         readonly UIButton[] m_Convert3DButtons = new UIButton[Conversion3D.Levels];
         UIButton m_ShowDepthButton;
         UIButton m_DepthAiButton;
+        readonly UILabel[] m_PictureValues = new UILabel[3];
+        UILabel m_DepthStepsLabel;
         readonly UIButton[] m_GlowButtons = new UIButton[3];
         UILabel m_Convert3DStatus;
 
@@ -79,44 +81,66 @@ namespace TheMovies.UI
         {
             var p = Page("Picture Page");
             Label(p, "Bild & 3D", k_Left, 0.305f, 0.026f, 0, TextAnchor.MiddleLeft, UIStyle.Accent);
+            Button(p, "Zurücksetzen", 0.17f, 0.305f, 0.17f, 0.04f, () => m_App.ChangePicture(0, float.NaN), 0.016f, style: ButtonStyle.Subtle);
             Button(p, "Zurück", 0.35f, 0.305f, 0.16f, 0.045f, () => ShowPage(m_SettingsPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
             Divider(p, 0.272f);
 
+            const float minusX = 0.0f, valueX = 0.18f, plusX = 0.36f, small = 0.045f, step = 0.055f;
+            string[] names = { "Helligkeit", "Kontrast", "Farbsättigung" };
+            float[] steps = { 0.05f, 0.05f, 0.1f };
+            float y = 0.235f;
+            for (int i = 0; i < 3; i++)
+            {
+                int which = i;
+                SettingRow(p, names[i], y);
+                Button(p, null, minusX, y, small, small, () => m_App.ChangePicture(which, -steps[which]), 0.02f, UIIcon.Minus);
+                m_PictureValues[i] = Label(p, string.Empty, valueX, y, 0.019f, 12, TextAnchor.MiddleCenter);
+                Button(p, null, plusX, y, small, small, () => m_App.ChangePicture(which, steps[which]), 0.02f, UIIcon.Plus);
+                y -= step;
+            }
+            SettingRow(p, "3D-Tiefe (3D-Filme)", y);
+            Button(p, null, minusX, y, small, small, () => m_App.ChangeDepthSteps(-1), 0.02f, UIIcon.Minus);
+            m_DepthStepsLabel = Label(p, string.Empty, valueX, y, 0.017f, 18, TextAnchor.MiddleCenter);
+            Button(p, null, plusX, y, small, small, () => m_App.ChangeDepthSteps(1), 0.02f, UIIcon.Plus);
+
+            y -= step + 0.012f;
             string[] levels = { "Aus", "Leicht", "Mittel", "Stark" };
-            float y = 0.215f;
             SettingRow(p, "2D → 3D (experimentell)", y, divider: false);
             for (int i = 0; i < levels.Length; i++)
             {
                 int level = i;
-                m_Convert3DButtons[i] = Button(p, levels[i], -0.08f + i * 0.11f, y, 0.1f, 0.05f, () => m_App.SetConvert3D(level), 0.017f);
+                m_Convert3DButtons[i] = Button(p, levels[i], -0.08f + i * 0.11f, y, 0.1f, small, () => m_App.SetConvert3D(level), 0.017f);
             }
-            m_ShowDepthButton = Button(p, "Tiefenbild", 0.37f, y, 0.13f, 0.05f, () => m_App.Screen.ShowDepth = !m_App.Screen.ShowDepth, 0.016f,
+            m_ShowDepthButton = Button(p, "Tiefenbild", 0.37f, y, 0.13f, small, () => m_App.Screen.ShowDepth = !m_App.Screen.ShowDepth, 0.016f,
                 style: ButtonStyle.Subtle);
-            m_Convert3DStatus = Label(p, string.Empty, k_Left, y - 0.05f, 0.0145f, 74, TextAnchor.MiddleLeft, UIStyle.Accent);
-            m_DepthAiButton = Button(p, "KI: An", 0.37f, y - 0.05f, 0.13f, 0.04f, () => m_App.SetDepthAi(!m_App.Screen.UseAiDepth), 0.016f,
+            y -= 0.045f;
+            m_Convert3DStatus = Label(p, string.Empty, k_Left, y, 0.0145f, 74, TextAnchor.MiddleLeft, UIStyle.Accent);
+            m_DepthAiButton = Button(p, "KI: An", 0.37f, y, 0.13f, 0.038f, () => m_App.SetDepthAi(!m_App.Screen.UseAiDepth), 0.016f,
                 style: ButtonStyle.Subtle);
-            Label(p, "Macht aus normalen 2D-Filmen 3D – nur für dich. „Tiefenbild“ zeigt die Tiefe statt des Films (hell = nah).\n" +
-                     "Ohne KI-Modell wird die Tiefe aus dem Bild geschätzt (Boden vorn, Himmel hinten). Deutlich besser mit KI:\n" +
-                     "im Unity-Editor „The Movies > 2D→3D mit KI einrichten“, dann neu bauen.",
-                k_Left, y - 0.11f, 0.0135f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
-            Divider(p, y - 0.165f);
+            Divider(p, y - 0.026f);
 
-            y = -0.02f;
+            y -= 0.062f;
             SettingRow(p, "Leuchten um die Leinwand", y, divider: false);
             levels = new[] { "Aus", "Schwach", "Stark" };
             for (int i = 0; i < 3; i++)
             {
                 int level = i;
-                m_GlowButtons[i] = Button(p, levels[i], 0.07f + i * 0.13f, y, 0.12f, 0.05f, () => m_App.SetScreenGlow(level), 0.018f);
+                m_GlowButtons[i] = Button(p, levels[i], 0.07f + i * 0.13f, y, 0.12f, small, () => m_App.SetScreenGlow(level), 0.018f);
             }
-            Label(p, "In Mixed Reality strahlen die Farben vom Bildrand weich ins Zimmer (wie Ambilight).",
-                k_Left, y - 0.05f, 0.0135f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            Label(p, "Nur für dich: Bild, 3D-Tiefe und 2D→3D. Leuchten: in Mixed Reality strahlen die Randfarben ins Zimmer.",
+                k_Left, y - 0.045f, 0.0135f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
             return p;
         }
 
         void RefreshPicture()
         {
             var screen = m_App.Screen;
+            var settings = m_App.Settings;
+            m_PictureValues[0].Text = Mathf.RoundToInt(settings.Brightness * 100) + " %";
+            m_PictureValues[1].Text = Mathf.RoundToInt(settings.Contrast * 100) + " %";
+            m_PictureValues[2].Text = Mathf.RoundToInt(settings.Saturation * 100) + " %";
+            int d = screen.DepthSteps;
+            m_DepthStepsLabel.Text = d == 0 ? "0 (Original)" : d > 0 ? $"+{d} (weiter weg)" : $"{d} (näher)";
             for (int i = 0; i < m_Convert3DButtons.Length; i++)
                 m_Convert3DButtons[i].Highlighted = screen.Convert3D == i;
             for (int i = 0; i < m_GlowButtons.Length; i++)
@@ -125,7 +149,7 @@ namespace TheMovies.UI
             m_ShowDepthButton.Interactable = screen.Convert3D > 0;
             m_DepthAiButton.Label = screen.UseAiDepth ? "KI: An" : "KI: Aus";
             m_DepthAiButton.Highlighted = screen.UseAiDepth;
-            m_Convert3DStatus.Text = screen.Convert3D == 0 ? string.Empty : "Stand: " + screen.Convert3DStatus;
+            m_Convert3DStatus.Text = screen.Convert3D == 0 ? "Macht aus 2D-Filmen 3D. „Tiefenbild“ zeigt die Tiefe (hell = nah)." : "Stand: " + screen.Convert3DStatus;
         }
 
         // ---------------- Ton & Untertitel ----------------
