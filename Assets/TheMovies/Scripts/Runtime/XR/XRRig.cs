@@ -24,6 +24,9 @@ namespace TheMovies.XR
         /// <summary>Toggle the menu (menu button, B/Y, or M on the keyboard).</summary>
         public event Action MenuToggleRequested;
 
+        /// <summary>Push-to-talk button held: a grip button on Quest, V on the PC.</summary>
+        public bool TalkHeld { get; private set; }
+
         /// <summary>Play/pause shortcut (A/X, or Space).</summary>
         public event Action PlayPauseRequested;
 
@@ -327,6 +330,7 @@ namespace TheMovies.XR
             m_RightPointer.Tick(RightTracked, new Ray(m_RightAim.position, m_RightAim.forward), rightDown, true, ShowRays && m_RightIsActive);
             m_MousePointer.Tick(false, default, false, false, false);
 
+            TalkHeld = m_Inputs.IsPressed("LGrip") || m_Inputs.IsPressed("RGrip");
             if (m_Inputs.WasPressed("LMenu") || m_Inputs.WasPressed("RMenu") ||
                 m_Inputs.WasPressed("LSecondary") || m_Inputs.WasPressed("RSecondary"))
                 MenuToggleRequested?.Invoke();
@@ -354,6 +358,7 @@ namespace TheMovies.XR
 
             var mouse = Mouse.current;
             var keyboard = Keyboard.current;
+            TalkHeld = keyboard != null && keyboard.vKey.isPressed;
 
             if (mouse != null && mouse.rightButton.isPressed)
             {

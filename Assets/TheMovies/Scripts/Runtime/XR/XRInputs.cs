@@ -133,6 +133,8 @@ namespace TheMovies.XR
             Sample("RSecondary", false, XRCommonUsages.secondaryButton);
             Sample("LMenu", true, XRCommonUsages.menuButton);
             Sample("RMenu", false, XRCommonUsages.menuButton);
+            Sample("LGrip", true, XRCommonUsages.gripButton);
+            Sample("RGrip", false, XRCommonUsages.gripButton);
         }
 
         public bool IsPressed(string button) => m_CurrentButtons.TryGetValue(button, out bool v) && v;

@@ -25,6 +25,8 @@ namespace TheMovies.App
         const string k_DepthSteps = "tm.depthSteps";
         const string k_SubtitleSize = "tm.subtitleSize";
         const string k_SubtitlePlacement = "tm.subtitlePlacement";
+        const string k_PushToTalk = "tm.pushToTalk";
+        const string k_Ducking = "tm.ducking";
 
         public string Name;
         public int ScreenSize;
@@ -56,6 +58,12 @@ namespace TheMovies.App
         public float SubtitleSize;
         public int SubtitlePlacement;
 
+        /// <summary>Voice chat: microphone only while a grip button is held.</summary>
+        public bool PushToTalk;
+
+        /// <summary>Movie sound while others talk: 0 = unchanged, 1 = a bit quieter, 2 = much quieter.</summary>
+        public int Ducking;
+
         public static AppSettings Load()
         {
             return new AppSettings
@@ -80,6 +88,8 @@ namespace TheMovies.App
                 DepthSteps = PlayerPrefs.GetInt(k_DepthSteps, 0),
                 SubtitleSize = PlayerPrefs.GetFloat(k_SubtitleSize, 1f),
                 SubtitlePlacement = PlayerPrefs.GetInt(k_SubtitlePlacement, 0),
+                PushToTalk = PlayerPrefs.GetInt(k_PushToTalk, 0) == 1,
+                Ducking = PlayerPrefs.GetInt(k_Ducking, 1),
             };
         }
 
@@ -105,6 +115,8 @@ namespace TheMovies.App
             PlayerPrefs.SetInt(k_DepthSteps, DepthSteps);
             PlayerPrefs.SetFloat(k_SubtitleSize, SubtitleSize);
             PlayerPrefs.SetInt(k_SubtitlePlacement, SubtitlePlacement);
+            PlayerPrefs.SetInt(k_PushToTalk, PushToTalk ? 1 : 0);
+            PlayerPrefs.SetInt(k_Ducking, Ducking);
             PlayerPrefs.Save();
         }
     }

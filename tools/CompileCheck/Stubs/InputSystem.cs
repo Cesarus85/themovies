@@ -81,6 +81,7 @@ namespace UnityEngine.InputSystem
         public Controls.KeyControl leftArrowKey => null;
         public Controls.KeyControl rightArrowKey => null;
         public Controls.KeyControl escapeKey => null;
+        public Controls.KeyControl vKey => null;
     }
 }
 

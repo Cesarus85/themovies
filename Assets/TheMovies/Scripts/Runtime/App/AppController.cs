@@ -71,6 +71,7 @@ namespace TheMovies.App
             Subtitles.Enabled = Settings.Subtitles;
             Subtitles.SizeScale = Settings.SubtitleSize;
             Subtitles.Placement = Settings.SubtitlePlacement;
+            VoiceChat.PushToTalk = Settings.PushToTalk;
 
             Menu = MenuUI.Create(this);
 
@@ -121,8 +122,20 @@ namespace TheMovies.App
                 m_Sessions.Changed -= OnSessionChanged;
         }
 
+        float m_DuckLevel = 1f;
+
+        /// <summary>Movie sound factor while others talk, per ducking setting.</summary>
+        static float DuckTarget(int setting) => setting == 1 ? 0.45f : setting == 2 ? 0.2f : 1f;
+
         void Update()
         {
+            VoiceChat.TalkHeld = m_Rig != null && m_Rig.TalkHeld;
+            // Lower the movie quickly when someone starts talking, raise it slowly after a pause.
+            float target = Settings.Ducking > 0 && VoiceChat.OthersSpeaking ? DuckTarget(Settings.Ducking) : 1f;
+            float speed = target < m_DuckLevel ? 4f : 0.8f;
+            m_DuckLevel = Mathf.MoveTowards(m_DuckLevel, target, speed * Time.unscaledDeltaTime);
+            Media.Player.Duck = m_DuckLevel;
+
             // Join the voice channel the host announced, leave it when the cinema is gone.
             var sync = CinemaSync.Instance;
             string channel = sync != null && sync.IsSpawned && sync.VoiceChannel.Length > 0 ? sync.VoiceChannel : null;
@@ -224,6 +237,19 @@ namespace TheMovies.App
         {
             Subtitles.Placement = placement;
             Settings.SubtitlePlacement = Subtitles.Placement;
+            Settings.Save();
+        }
+
+        public void SetPushToTalk(bool enabled)
+        {
+            VoiceChat.PushToTalk = enabled;
+            Settings.PushToTalk = enabled;
+            Settings.Save();
+        }
+
+        public void SetDucking(int level)
+        {
+            Settings.Ducking = Mathf.Clamp(level, 0, 2);
             Settings.Save();
         }
 

@@ -156,7 +156,7 @@ namespace TheMovies.Video
                 try
                 {
                     m_Native = new NativeVideoPlayer(pathOrUrl);
-                    m_Native.SetVolume(m_Volume);
+                    m_Native.SetVolume(m_Volume * m_Duck);
                     if (m_AudioDelayMs != 0) m_Native.SetAudioDelay(m_AudioDelayMs);
                     m_PrepareStartedAt = Now;
                     return;
@@ -258,16 +258,32 @@ namespace TheMovies.Video
             }
         }
 
+        float m_Duck = 1f;
+
+        /// <summary>Factor on top of <see cref="Volume"/> (lowered while others talk in the voice chat).</summary>
+        public float Duck
+        {
+            get => m_Duck;
+            set
+            {
+                value = Mathf.Clamp01(value);
+                if (Mathf.Abs(value - m_Duck) < 0.01f && value != 1f && value != 0f) return;
+                if (value == m_Duck) return;
+                m_Duck = value;
+                ApplyVolume();
+            }
+        }
+
         void ApplyVolume()
         {
             if (m_Native != null)
             {
-                m_Native.SetVolume(m_Volume);
+                m_Native.SetVolume(m_Volume * m_Duck);
                 return;
             }
             if (State != MovieState.Ready) return;
             for (ushort i = 0; i < m_Player.audioTrackCount; i++)
-                m_Player.SetDirectAudioVolume(i, m_Volume);
+                m_Player.SetDirectAudioVolume(i, m_Volume * m_Duck);
         }
 
         void OnPrepared(VideoPlayer source)

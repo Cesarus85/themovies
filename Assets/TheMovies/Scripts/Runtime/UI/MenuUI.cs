@@ -79,7 +79,7 @@ namespace TheMovies.UI
         UILabel m_SetSize;
         UIButton m_SetLightAuto, m_SetLightOn, m_SetLightOff;
         UILabel m_SetVolume;
-        UIButton m_SetMic;
+        UIButton m_SetMic, m_SetPushToTalk, m_SetDucking;
         UILabel m_SetHeight;
         UIButton m_SetSubtitles;
         UIButton m_SetCinema, m_SetMixed;
@@ -475,8 +475,10 @@ namespace TheMovies.UI
             Button(p, null, plusX, y, small, small, () => m_App.ChangeVolume(0.1f), 0.02f, UIIcon.Plus);
 
             y -= step;
-            SettingRow(p, "Mikrofon", y);
-            m_SetMic = Button(p, "An", valueX, y, 0.2f, small, ToggleMic, 0.019f);
+            SettingRow(p, "Sprachchat", y);
+            m_SetMic = Button(p, "An", -0.03f, y, 0.13f, small, ToggleMic, 0.018f);
+            m_SetPushToTalk = Button(p, "Sprechtaste", 0.12f, y, 0.15f, small, () => m_App.SetPushToTalk(!VoiceChat.PushToTalk), 0.016f);
+            m_SetDucking = Button(p, "Film leiser: etwas", 0.33f, y, 0.24f, small, () => m_App.SetDucking((m_App.Settings.Ducking + 1) % 3), 0.016f);
 
             y -= step;
             SettingRow(p, "Sitzhöhe", y, divider: false);
@@ -814,7 +816,11 @@ namespace TheMovies.UI
             bool micAvailable = Playback.Current.IsNetworked && VoiceChat.Compiled;
             m_SetMic.Interactable = micAvailable;
             m_SetMic.Highlighted = micAvailable && !VoiceChat.Muted;
-            m_SetMic.Label = !VoiceChat.Compiled ? "nicht installiert" : VoiceChat.Muted ? "Aus" : "An";
+            m_SetMic.Label = !VoiceChat.Compiled ? "fehlt" : VoiceChat.Muted ? "Aus" : VoiceChat.PushToTalk && !VoiceChat.TalkHeld ? "Taste" : "An";
+            m_SetPushToTalk.Highlighted = VoiceChat.PushToTalk;
+            m_SetPushToTalk.Interactable = VoiceChat.Compiled;
+            m_SetDucking.Label = "Film leiser: " + (m_App.Settings.Ducking == 0 ? "nein" : m_App.Settings.Ducking == 1 ? "etwas" : "stark");
+            m_SetDucking.Interactable = VoiceChat.Compiled;
             float height = XRRig.Instance != null ? XRRig.Instance.HeightOffset : 0f;
             m_SetHeight.Text = $"{height * 100:+0;-0;0} cm";
 

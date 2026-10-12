@@ -33,6 +33,37 @@ namespace TheMovies.Net
 
         public static bool InChannel => s_Channel != null;
         public static bool Muted => s_Muted;
+
+        static bool s_PushToTalk;
+        static bool s_TalkHeld;
+
+        /// <summary>Push-to-talk: the microphone is only open while the talk button (grip) is held.</summary>
+        public static bool PushToTalk
+        {
+            get => s_PushToTalk;
+            set
+            {
+                if (s_PushToTalk == value) return;
+                s_PushToTalk = value;
+                ApplyMute();
+                Changed?.Invoke();
+            }
+        }
+
+        /// <summary>State of the talk button, set every frame by the app.</summary>
+        public static bool TalkHeld
+        {
+            get => s_TalkHeld;
+            set
+            {
+                if (s_TalkHeld == value) return;
+                s_TalkHeld = value;
+                if (s_PushToTalk) ApplyMute();
+            }
+        }
+
+        /// <summary>The microphone is actually open (not muted, and with push-to-talk the button is held).</summary>
+        public static bool Transmitting => InChannel && !s_Muted && (!s_PushToTalk || s_TalkHeld);
         public static string Status { get; private set; } = Compiled ? "Sprachchat bereit" : "Sprachchat nicht installiert";
 
         public static async Task Join(string channel, string displayName)
@@ -111,7 +142,7 @@ namespace TheMovies.Net
             if (s_Channel == null) return;
             try
             {
-                if (s_Muted) VivoxService.Instance.MuteInputDevice();
+                if (s_Muted || (s_PushToTalk && !s_TalkHeld)) VivoxService.Instance.MuteInputDevice();
                 else VivoxService.Instance.UnmuteInputDevice();
             }
             catch (Exception e)
@@ -119,6 +150,31 @@ namespace TheMovies.Net
                 Debug.LogWarning($"[TheMovies] Mute failed: {e.Message}");
             }
 #endif
+        }
+
+        /// <summary>Somebody else in the voice channel is talking right now (for lowering the movie sound).</summary>
+        public static bool OthersSpeaking
+        {
+            get
+            {
+#if THEMOVIES_VIVOX
+                if (s_Channel == null) return false;
+                try
+                {
+                    if (VivoxService.Instance.ActiveChannels.TryGetValue(s_Channel, out var participants))
+                    {
+                        foreach (var p in participants)
+                            if (!p.IsSelf && p.SpeechDetected)
+                                return true;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Channel is shutting down.
+                }
+#endif
+                return false;
+            }
         }
 
         /// <summary>True if the participant with this Unity Services player id is talking right now.</summary>

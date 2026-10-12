@@ -76,6 +76,7 @@ namespace Unity.Services.Vivox
         public string PlayerId { get; }
         public string DisplayName { get; }
         public bool SpeechDetected { get; }
+        public bool IsSelf { get; }
     }
     public interface IVivoxService
     {
