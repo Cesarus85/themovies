@@ -27,6 +27,8 @@ namespace TheMovies.EditorTools
             "MetaQuestTouchPlusControllerProfile",
             "MetaQuestTouchProControllerProfile",
             "HandInteractionProfile", // hand tracking: aim pose + pinch (XR_EXT_hand_interaction)
+            "HandTracking",           // XR Hands package: Hand Tracking Subsystem (XR_EXT_hand_tracking)
+            "MetaHandTrackingAim",    // XR Hands package: Meta aim pose + pinch strength (XR_FB_hand_tracking_aim)
         };
 
         static readonly string[] k_DesktopFeatures =

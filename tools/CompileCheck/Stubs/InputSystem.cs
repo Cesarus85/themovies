@@ -10,11 +10,20 @@ namespace UnityEngine.InputSystem
     public static class InputSystem
     {
         public static event Action onAfterUpdate;
+        public static event Action<InputDevice, InputDeviceChange> onDeviceChange;
+        public static ReadOnlyArray<InputDevice> devices => default;
     }
+
+    public enum InputDeviceChange { Added, Removed, Disconnected, Reconnected, Enabled, Disabled, UsageChanged, ConfigurationChanged }
 
     public class InputControl { public InputDevice device => null; }
 
-    public class InputDevice : InputControl { public string layout => string.Empty; }
+    public class InputDevice : InputControl
+    {
+        public string layout => string.Empty;
+        public string name => string.Empty;
+        public ReadOnlyArray<string> usages => default;
+    }
 
     public static class InputActionSetupExtensions
     {
@@ -23,7 +32,13 @@ namespace UnityEngine.InputSystem
             string processors = null, string groups = null) => default;
     }
 
-    public struct ReadOnlyArray<T> { public int Count => 0; public T this[int index] => default; }
+    public struct ReadOnlyArray<T> : IEnumerable<T>
+    {
+        public int Count => 0;
+        public T this[int index] => default;
+        public IEnumerator<T> GetEnumerator() { yield break; }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 
     public sealed class InputAction : IDisposable
     {

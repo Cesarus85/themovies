@@ -60,7 +60,8 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
 - **Sprachchat-Komfort**: „Sprechtaste“ (Push-to-Talk auf der Grip-Taste bzw. Faust, am PC V) und
   „Film leiser“, solange jemand anderes spricht
 - **Handtracking**: Controller weglegen – Daumen und Zeigefinger zusammen („Pinch“) ist der Klick, der Strahl kommt
-  aus der Hand
+  aus der Hand. Einmalig im Editor *The Movies → Handtracking einrichten* (installiert „XR Hands“ und schaltet
+  „Hand Tracking Subsystem“ + „Meta Hand Tracking Aim“ an), auf der Quest Handtracking in den Einstellungen aktivieren
 - **Zugangsdaten verschlüsselt**: NAS-Passwörter und Medienserver-Tokens liegen mit einem Schlüssel aus dem
   Android-Keystore verschlüsselt auf der Brille
 - **Reaktionen**: 😂 😮 ❤️ ⭐ über dem eigenen Avatar und **Popcorn werfen** 🍿

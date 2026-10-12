@@ -21,14 +21,16 @@ namespace TheMovies.XR
             public InputAction Position;
             public InputAction Rotation;
 
-            public PoseActions(string device, string position, string rotation, string handDevice = null)
+            /// <param name="extra">More "position binding|rotation binding" pairs (hand tracking devices).</param>
+            public PoseActions(string device, string position, string rotation, params string[] extra)
             {
                 Position = new InputAction(type: InputActionType.Value, binding: $"{device}/{position}", expectedControlType: "Vector3");
                 Rotation = new InputAction(type: InputActionType.Value, binding: $"{device}/{rotation}", expectedControlType: "Quaternion");
-                if (handDevice != null)
+                foreach (string pair in extra)
                 {
-                    Position.AddBinding($"{handDevice}/{position}");
-                    Rotation.AddBinding($"{handDevice}/{rotation}");
+                    int bar = pair.IndexOf('|');
+                    Position.AddBinding(pair.Substring(0, bar));
+                    Rotation.AddBinding(pair.Substring(bar + 1));
                 }
                 Position.Enable();
                 Rotation.Enable();
@@ -67,17 +69,26 @@ namespace TheMovies.XR
         static readonly InputFeatureUsage<Quaternion> k_PointerRotation = new InputFeatureUsage<Quaternion>("PointerRotation");
 
         readonly PoseActions m_Head = new PoseActions("<XRHMD>", "centerEyePosition", "centerEyeRotation");
+        // Hand tracking comes in two flavours: Meta's aim pose from the XR Hands package ("Meta Hand Tracking Aim",
+        // device MetaAimHand: devicePosition/Rotation = aim, pinchStrengthIndex) and the standard OpenXR Hand
+        // Interaction Profile (HandInteraction: pointer pose, pinchValue). Both are bound; whichever the runtime offers works.
         const string k_LeftHand = "<HandInteraction>{LeftHand}";
         const string k_RightHand = "<HandInteraction>{RightHand}";
-        readonly PoseActions m_LeftAim = new PoseActions("<XRController>{LeftHand}", "pointerPosition", "pointerRotation", k_LeftHand);
-        readonly PoseActions m_RightAim = new PoseActions("<XRController>{RightHand}", "pointerPosition", "pointerRotation", k_RightHand);
-        readonly PoseActions m_LeftGrip = new PoseActions("<XRController>{LeftHand}", "devicePosition", "deviceRotation", k_LeftHand);
-        readonly PoseActions m_RightGrip = new PoseActions("<XRController>{RightHand}", "devicePosition", "deviceRotation", k_RightHand);
+        const string k_LeftMeta = "<MetaAimHand>{LeftHand}";
+        const string k_RightMeta = "<MetaAimHand>{RightHand}";
+        readonly PoseActions m_LeftAim = new PoseActions("<XRController>{LeftHand}", "pointerPosition", "pointerRotation",
+            k_LeftHand + "/pointerPosition|" + k_LeftHand + "/pointerRotation", k_LeftMeta + "/devicePosition|" + k_LeftMeta + "/deviceRotation");
+        readonly PoseActions m_RightAim = new PoseActions("<XRController>{RightHand}", "pointerPosition", "pointerRotation",
+            k_RightHand + "/pointerPosition|" + k_RightHand + "/pointerRotation", k_RightMeta + "/devicePosition|" + k_RightMeta + "/deviceRotation");
+        readonly PoseActions m_LeftGrip = new PoseActions("<XRController>{LeftHand}", "devicePosition", "deviceRotation",
+            k_LeftHand + "/devicePosition|" + k_LeftHand + "/deviceRotation", k_LeftMeta + "/devicePosition|" + k_LeftMeta + "/deviceRotation");
+        readonly PoseActions m_RightGrip = new PoseActions("<XRController>{RightHand}", "devicePosition", "deviceRotation",
+            k_RightHand + "/devicePosition|" + k_RightHand + "/deviceRotation", k_RightMeta + "/devicePosition|" + k_RightMeta + "/deviceRotation");
 
         // Trigger as an analog value: more reliable than a single "pressed" flag, and a light pull is enough.
         // With hand tracking the pinch (thumb + index finger) is the trigger.
-        readonly InputAction m_LeftTrigger = Axis("<XRController>{LeftHand}/trigger", k_LeftHand + "/pinchValue");
-        readonly InputAction m_RightTrigger = Axis("<XRController>{RightHand}/trigger", k_RightHand + "/pinchValue");
+        readonly InputAction m_LeftTrigger = Axis("<XRController>{LeftHand}/trigger", k_LeftHand + "/pinchValue", k_LeftMeta + "/pinchStrengthIndex");
+        readonly InputAction m_RightTrigger = Axis("<XRController>{RightHand}/trigger", k_RightHand + "/pinchValue", k_RightMeta + "/pinchStrengthIndex");
 
         // A fist (grasp) counts as the grip button with hand tracking (push-to-talk).
         readonly InputAction m_LeftGrasp = Axis(k_LeftHand + "/graspValue");
@@ -88,12 +99,24 @@ namespace TheMovies.XR
         const float k_TriggerPress = 0.35f;
         const float k_TriggerRelease = 0.2f;
 
-        static InputAction Axis(string binding, string handBinding = null)
+        static InputAction Axis(string binding, params string[] more)
         {
             var action = new InputAction(type: InputActionType.Value, binding: binding, expectedControlType: "Axis");
-            if (handBinding != null) action.AddBinding(handBinding);
+            foreach (string b in more) action.AddBinding(b);
             action.Enable();
             return action;
+        }
+
+        public XRInputs()
+        {
+            // For the log (Einstellungen > Protokoll): which input devices the headset reports, e.g. whether hands appear.
+            foreach (var device in InputSystem.devices)
+                Debug.Log($"[TheMovies] Input device: {device.layout} \"{device.name}\" {string.Join(",", device.usages)}");
+            InputSystem.onDeviceChange += (device, change) =>
+            {
+                if (change == InputDeviceChange.Added || change == InputDeviceChange.Removed)
+                    Debug.Log($"[TheMovies] Input device {change}: {device.layout} \"{device.name}\" {string.Join(",", device.usages)}");
+            };
         }
 
         readonly Dictionary<string, bool> m_PreviousButtons = new Dictionary<string, bool>();
@@ -203,7 +226,9 @@ namespace TheMovies.XR
         {
             float value = TriggerValue(left);
             bool wasDown = m_PreviousButtons.TryGetValue(key, out bool before) && before;
-            bool down = wasDown ? value > k_TriggerRelease : value > k_TriggerPress;
+            // A pinch counts only when the fingers really touch (a hand half-closes when pointing).
+            bool hand = IsHand(left);
+            bool down = wasDown ? value > (hand ? 0.5f : k_TriggerRelease) : value > (hand ? 0.85f : k_TriggerPress);
             // The XR input API's own "pressed" flag counts as well (some runtimes only report that).
             if (!down && Device(left).TryGetFeatureValue(XRCommonUsages.triggerButton, out bool pressed) && pressed)
                 down = true;
