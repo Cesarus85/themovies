@@ -23,6 +23,8 @@ namespace TheMovies.App
         const string k_Contrast = "tm.contrast";
         const string k_Saturation = "tm.saturation";
         const string k_DepthSteps = "tm.depthSteps";
+        const string k_SubtitleSize = "tm.subtitleSize";
+        const string k_SubtitlePlacement = "tm.subtitlePlacement";
 
         public string Name;
         public int ScreenSize;
@@ -51,6 +53,9 @@ namespace TheMovies.App
         /// <summary>3D depth for 3D movies (0 = as mastered, + farther, − nearer).</summary>
         public int DepthSteps;
 
+        public float SubtitleSize;
+        public int SubtitlePlacement;
+
         public static AppSettings Load()
         {
             return new AppSettings
@@ -73,6 +78,8 @@ namespace TheMovies.App
                 Contrast = PlayerPrefs.GetFloat(k_Contrast, 1f),
                 Saturation = PlayerPrefs.GetFloat(k_Saturation, 1f),
                 DepthSteps = PlayerPrefs.GetInt(k_DepthSteps, 0),
+                SubtitleSize = PlayerPrefs.GetFloat(k_SubtitleSize, 1f),
+                SubtitlePlacement = PlayerPrefs.GetInt(k_SubtitlePlacement, 0),
             };
         }
 
@@ -96,6 +103,8 @@ namespace TheMovies.App
             PlayerPrefs.SetFloat(k_Contrast, Contrast);
             PlayerPrefs.SetFloat(k_Saturation, Saturation);
             PlayerPrefs.SetInt(k_DepthSteps, DepthSteps);
+            PlayerPrefs.SetFloat(k_SubtitleSize, SubtitleSize);
+            PlayerPrefs.SetInt(k_SubtitlePlacement, SubtitlePlacement);
             PlayerPrefs.Save();
         }
     }

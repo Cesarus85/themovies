@@ -31,6 +31,39 @@ namespace TheMovies.Video
         int m_LoadToken;
 
         public bool Enabled { get; set; } = true;
+
+        float m_SizeScale = 1f;
+        int m_Placement;
+
+        /// <summary>Text size relative to the default (0.6 … 1.8).</summary>
+        public float SizeScale
+        {
+            get => m_SizeScale;
+            set
+            {
+                m_SizeScale = Mathf.Clamp(value, 0.6f, 1.8f);
+                Relayout();
+            }
+        }
+
+        /// <summary>0 = bottom of the picture, 1 = a bit higher, 2 = below the picture.</summary>
+        public int Placement
+        {
+            get => m_Placement;
+            set
+            {
+                m_Placement = Mathf.Clamp(value, 0, 2);
+                Relayout();
+            }
+        }
+
+        public static readonly string[] PlacementNames = { "Unten im Bild", "Etwas höher", "Unter dem Bild" };
+
+        void Relayout()
+        {
+            if (m_Text == null || string.IsNullOrEmpty(m_Shown)) return;
+            Show(m_Shown);
+        }
         public bool HasTrack => m_Track != null && m_Track.Count > 0;
 
         /// <summary>The raw .srt file of the loaded track (sent to participants who stream from the host).</summary>
@@ -163,13 +196,15 @@ namespace TheMovies.Video
 
             // Size relative to the picture: about 5 % of its height per line, in the lower tenth.
             Vector2 screen = m_Screen.Size;
-            float lineHeight = Mathf.Clamp(screen.y * 0.05f, 0.08f, 0.5f);
+            float lineHeight = Mathf.Clamp(screen.y * 0.05f, 0.08f, 0.5f) * m_SizeScale;
             m_Text.characterSize = lineHeight / (m_Text.fontSize * 0.1f);
             m_Text.text = wrapped;
 
             float width = longest * lineHeight * 0.52f + lineHeight;
             float height = lines.Length * lineHeight * 1.12f + lineHeight * 0.4f;
-            float centerY = screen.y * 0.06f + height * 0.5f;
+            float centerY = m_Placement == 1 ? screen.y * 0.2f + height * 0.5f
+                : m_Placement == 2 ? -height * 0.5f - lineHeight * 0.3f
+                : screen.y * 0.06f + height * 0.5f;
             transform.localPosition = new Vector3(0, centerY, -0.12f);
             m_Background.transform.localScale = new Vector3(width, height, 1f);
         }

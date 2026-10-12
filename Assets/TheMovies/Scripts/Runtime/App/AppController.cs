@@ -69,6 +69,8 @@ namespace TheMovies.App
 
             Subtitles = SubtitleService.Create(Screen, () => Media.Player.State == MovieState.Ready ? Media.Player.Time : Media.DisplayTime);
             Subtitles.Enabled = Settings.Subtitles;
+            Subtitles.SizeScale = Settings.SubtitleSize;
+            Subtitles.Placement = Settings.SubtitlePlacement;
 
             Menu = MenuUI.Create(this);
 
@@ -208,6 +210,20 @@ namespace TheMovies.App
         {
             Screen.DepthSteps += delta;
             Settings.DepthSteps = Screen.DepthSteps;
+            Settings.Save();
+        }
+
+        public void ChangeSubtitleSize(float delta)
+        {
+            Subtitles.SizeScale = Mathf.Round((Subtitles.SizeScale + delta) * 10f) / 10f;
+            Settings.SubtitleSize = Subtitles.SizeScale;
+            Settings.Save();
+        }
+
+        public void SetSubtitlePlacement(int placement)
+        {
+            Subtitles.Placement = placement;
+            Settings.SubtitlePlacement = Subtitles.Placement;
             Settings.Save();
         }
 

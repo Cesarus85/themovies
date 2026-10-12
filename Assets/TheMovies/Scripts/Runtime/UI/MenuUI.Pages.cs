@@ -11,7 +11,7 @@ namespace TheMovies.UI
     /// <summary>Additional menu pages: "Ton & Untertitel" and "Protokoll".</summary>
     public sealed partial class MenuUI
     {
-        const int k_TrackRows = 7;
+        const int k_TrackRows = 6;
         const int k_LogLines = 17;
 
         GameObject m_TracksPage;
@@ -31,6 +31,8 @@ namespace TheMovies.UI
         UILabel m_TracksInfo;
         UILabel m_TracksPageLabel;
         UILabel m_AudioDelayLabel;
+        UILabel m_SubtitleSizeLabel;
+        readonly UIButton[] m_SubtitlePlacementButtons = new UIButton[3];
         readonly UIButton[] m_TrackRows = new UIButton[k_TrackRows];
         readonly object[] m_TrackRowItems = new object[k_TrackRows];
         int m_TracksPageIndex;
@@ -167,6 +169,19 @@ namespace TheMovies.UI
                 int index = i;
                 m_TrackRows[i] = Button(p, string.Empty, 0, 0.19f - i * 0.058f, k_Width - 0.06f, 0.05f, () => PickTrack(index), 0.019f);
             }
+            float sy = -0.172f;
+            Label(p, "Untertitel", k_Left, sy, 0.018f, 12, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            Button(p, null, -0.27f, sy, 0.045f, 0.045f, () => m_App.ChangeSubtitleSize(-0.1f), 0.02f, UIIcon.Minus);
+            m_SubtitleSizeLabel = Label(p, string.Empty, -0.195f, sy, 0.016f, 8, TextAnchor.MiddleCenter);
+            Button(p, null, -0.12f, sy, 0.045f, 0.045f, () => m_App.ChangeSubtitleSize(0.1f), 0.02f, UIIcon.Plus);
+            for (int i = 0; i < 3; i++)
+            {
+                int placement = i;
+                m_SubtitlePlacementButtons[i] = Button(p, SubtitleService.PlacementNames[i], 0.0f + i * 0.15f, sy, 0.14f, 0.045f,
+                    () => m_App.SetSubtitlePlacement(placement), 0.014f);
+            }
+            Divider(p, sy - 0.04f);
+
             float y = -0.255f;
             Button(p, "Vorherige", -0.33f, y, 0.15f, 0.05f, () => { m_TracksPageIndex--; RefreshTracks(); }, 0.018f);
             Button(p, "Nächste", -0.17f, y, 0.15f, 0.05f, () => { m_TracksPageIndex++; RefreshTracks(); }, 0.018f);
@@ -228,6 +243,9 @@ namespace TheMovies.UI
             }
             int delay = m_App.Settings.AudioDelayMs;
             m_AudioDelayLabel.Text = "Ton-Versatz " + (delay > 0 ? "+" : string.Empty) + delay + " ms";
+            m_SubtitleSizeLabel.Text = Mathf.RoundToInt(m_App.Subtitles.SizeScale * 100) + " %";
+            for (int i = 0; i < m_SubtitlePlacementButtons.Length; i++)
+                m_SubtitlePlacementButtons[i].Highlighted = m_App.Subtitles.Placement == i;
         }
 
         void PickTrack(int index)
