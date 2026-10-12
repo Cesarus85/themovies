@@ -48,6 +48,7 @@ namespace TheMovies.App
             Screen.SetRoomLight(0.7f, immediate: true);
             Screen.Convert3D = Settings.Convert3D;
             Screen.GlowLevel = Settings.ScreenGlow;
+            Screen.UseAiDepth = Settings.DepthAi;
 
             m_Rig = XRRig.Create();
             m_Rig.SetHeightOffset(Settings.HeightOffset);
@@ -182,6 +183,13 @@ namespace TheMovies.App
         {
             Screen.Convert3D = level;
             Settings.Convert3D = Screen.Convert3D;
+            Settings.Save();
+        }
+
+        public void SetDepthAi(bool enabled)
+        {
+            Screen.UseAiDepth = enabled;
+            Settings.DepthAi = enabled;
             Settings.Save();
         }
 

@@ -287,6 +287,19 @@ namespace TheMovies.World
 
         public void SetBrightness(float brightness) => m_Material.SetFloat(k_Brightness, brightness);
 
+        bool m_UseAiDepth = true;
+
+        /// <summary>2D→3D may use the AI depth model (if installed); off = only the nearly free estimate from the picture.</summary>
+        public bool UseAiDepth
+        {
+            get => m_UseAiDepth;
+            set
+            {
+                m_UseAiDepth = value;
+                if (m_Depth != null) m_Depth.UseModel = value;
+            }
+        }
+
         /// <summary>Shows the depth map instead of the picture (bright = near), to see what 2D→3D works with.</summary>
         public bool ShowDepth { get; set; }
 
@@ -334,7 +347,7 @@ namespace TheMovies.World
                 m_Material.SetFloat(k_ShowDepth, 0f);
                 return;
             }
-            m_Depth ??= new DepthEstimator();
+            m_Depth ??= new DepthEstimator(m_UseAiDepth);
             m_Depth.Update(m_Texture);
             // The strength is an angle, so it depends on how far away the screen is.
             var rig = XRRig.Instance;

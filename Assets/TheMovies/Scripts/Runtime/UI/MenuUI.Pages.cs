@@ -21,6 +21,7 @@ namespace TheMovies.UI
         // Picture page
         readonly UIButton[] m_Convert3DButtons = new UIButton[Conversion3D.Levels];
         UIButton m_ShowDepthButton;
+        UIButton m_DepthAiButton;
         readonly UIButton[] m_GlowButtons = new UIButton[3];
         UILabel m_Convert3DStatus;
 
@@ -91,7 +92,9 @@ namespace TheMovies.UI
             }
             m_ShowDepthButton = Button(p, "Tiefenbild", 0.37f, y, 0.13f, 0.05f, () => m_App.Screen.ShowDepth = !m_App.Screen.ShowDepth, 0.016f,
                 style: ButtonStyle.Subtle);
-            m_Convert3DStatus = Label(p, string.Empty, k_Left, y - 0.048f, 0.015f, 90, TextAnchor.MiddleLeft, UIStyle.Accent);
+            m_Convert3DStatus = Label(p, string.Empty, k_Left, y - 0.05f, 0.0145f, 74, TextAnchor.MiddleLeft, UIStyle.Accent);
+            m_DepthAiButton = Button(p, "KI: An", 0.37f, y - 0.05f, 0.13f, 0.04f, () => m_App.SetDepthAi(!m_App.Screen.UseAiDepth), 0.016f,
+                style: ButtonStyle.Subtle);
             Label(p, "Macht aus normalen 2D-Filmen 3D – nur für dich. „Tiefenbild“ zeigt die Tiefe statt des Films (hell = nah).\n" +
                      "Ohne KI-Modell wird die Tiefe aus dem Bild geschätzt (Boden vorn, Himmel hinten). Deutlich besser mit KI:\n" +
                      "im Unity-Editor „The Movies > 2D→3D mit KI einrichten“, dann neu bauen.",
@@ -120,6 +123,8 @@ namespace TheMovies.UI
                 m_GlowButtons[i].Highlighted = screen.GlowLevel == i;
             m_ShowDepthButton.Highlighted = screen.ShowDepth;
             m_ShowDepthButton.Interactable = screen.Convert3D > 0;
+            m_DepthAiButton.Label = screen.UseAiDepth ? "KI: An" : "KI: Aus";
+            m_DepthAiButton.Highlighted = screen.UseAiDepth;
             m_Convert3DStatus.Text = screen.Convert3D == 0 ? string.Empty : "Stand: " + screen.Convert3DStatus;
         }
 

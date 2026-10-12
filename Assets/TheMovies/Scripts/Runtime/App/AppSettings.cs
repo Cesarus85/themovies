@@ -18,6 +18,7 @@ namespace TheMovies.App
         const string k_AudioDelay = "tm.audioDelay";
         const string k_Convert3D = "tm.convert3d";
         const string k_ScreenGlow = "tm.screenGlow";
+        const string k_DepthAi = "tm.depthAi";
 
         public string Name;
         public int ScreenSize;
@@ -37,6 +38,9 @@ namespace TheMovies.App
         /// <summary>Light around the screen in mixed reality: 0 = off, 1 = soft, 2 = strong.</summary>
         public int ScreenGlow;
 
+        /// <summary>2D→3D may use the AI depth model.</summary>
+        public bool DepthAi;
+
         public static AppSettings Load()
         {
             return new AppSettings
@@ -54,6 +58,7 @@ namespace TheMovies.App
                 AudioDelayMs = PlayerPrefs.GetInt(k_AudioDelay, 0),
                 Convert3D = PlayerPrefs.GetInt(k_Convert3D, 0),
                 ScreenGlow = PlayerPrefs.GetInt(k_ScreenGlow, 1),
+                DepthAi = PlayerPrefs.GetInt(k_DepthAi, 1) == 1,
             };
         }
 
@@ -72,6 +77,7 @@ namespace TheMovies.App
             PlayerPrefs.SetInt(k_AudioDelay, AudioDelayMs);
             PlayerPrefs.SetInt(k_Convert3D, Convert3D);
             PlayerPrefs.SetInt(k_ScreenGlow, ScreenGlow);
+            PlayerPrefs.SetInt(k_DepthAi, DepthAi ? 1 : 0);
             PlayerPrefs.Save();
         }
     }
