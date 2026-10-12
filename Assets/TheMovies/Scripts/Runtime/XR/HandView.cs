@@ -35,6 +35,19 @@ namespace TheMovies.XR
 
         Transform[] m_Segments;
         Transform m_Palm;
+        bool m_Mask;
+        Renderer[] m_Renderers;
+
+        /// <summary>
+        /// Mask mode: the hand is drawn a bit thicker as a hole into the picture, so the passthrough shows the real
+        /// hand there (see PassthroughFeature.SetForHands).
+        /// </summary>
+        public void SetMask(bool mask, Material maskMaterial)
+        {
+            if (m_Mask == mask) return;
+            m_Mask = mask;
+            foreach (var r in m_Renderers) r.sharedMaterial = mask ? maskMaterial : Shapes.Lit;
+        }
 
         public static HandView Create(Transform parent, string name)
         {
@@ -52,6 +65,7 @@ namespace TheMovies.XR
             for (int i = 0; i < k_Bones.Length; i++)
                 m_Segments[i] = Shapes.Create(PrimitiveType.Capsule, transform, "Bone " + i, Vector3.zero, Vector3.one * 0.01f, k_Skin).transform;
             m_Palm = Shapes.Create(PrimitiveType.Sphere, transform, "Palm", Vector3.zero, Vector3.one * 0.01f, k_Skin * 0.97f).transform;
+            m_Renderers = GetComponentsInChildren<Renderer>(true);
         }
 
         /// <param name="joints">Poses in the parent's space, indexed like XRHandJointID.</param>
@@ -60,6 +74,7 @@ namespace TheMovies.XR
             for (int i = 0; i < k_Bones.Length; i++)
             {
                 var (a, b, r) = k_Bones[i];
+                if (m_Mask) r = r * 1.35f + 0.003f; // a little margin: tracking and camera don't match to the millimetre
                 Vector3 pa = joints[a].position, pb = joints[b].position;
                 Vector3 d = pb - pa;
                 float length = d.magnitude;
@@ -80,7 +95,9 @@ namespace TheMovies.XR
             Vector3 along = (joints[13].position - joints[1].position);
             m_Palm.localPosition = Vector3.Lerp(palm.position, (joints[1].position + joints[13].position) * 0.5f, 0.3f);
             m_Palm.localRotation = palm.rotation;
-            m_Palm.localScale = new Vector3(Mathf.Max(0.05f, across.magnitude * 1.25f), 0.026f, Mathf.Max(0.06f, along.magnitude * 0.85f));
+            float grow = m_Mask ? 1.15f : 1f;
+            m_Palm.localScale = new Vector3(Mathf.Max(0.05f, across.magnitude * 1.25f) * grow, 0.026f * (m_Mask ? 1.6f : 1f),
+                Mathf.Max(0.06f, along.magnitude * 0.85f) * grow);
         }
     }
 }

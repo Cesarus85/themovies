@@ -71,6 +71,14 @@ namespace TheMovies.XR
         Transform m_Offset;
         Transform m_LeftAim;
         HandView m_LeftHandView, m_RightHandView;
+        Material m_MaskMaterial;
+        bool m_Masking;
+
+        /// <summary>Show the real hands and controllers through passthrough instead of models (when passthrough is available).</summary>
+        public bool RealHands { get; set; } = true;
+
+        /// <summary>The real hands/controllers are shown right now (passthrough holes).</summary>
+        public bool ShowingRealHands => m_Masking;
         readonly Pose[] m_Joints = new Pose[HandView.JointCount];
         Transform m_RightAim;
         LaserPointer m_LeftPointer;
@@ -313,10 +321,43 @@ namespace TheMovies.XR
                     m_OfficialModel[index] = true;
                     ControllerModelStatus = "Meta-Modell";
                     var container = (index == 0 ? LeftGrip : RightGrip).Find("Controller Model");
-                    if (container != null) ControllerVisual.ShowOfficial(container, mesh);
+                    if (container != null)
+                    {
+                        ControllerVisual.ShowOfficial(container, mesh);
+                        if (m_Masking)
+                            foreach (var r in container.GetComponentsInChildren<Renderer>(true)) r.sharedMaterial = m_MaskMaterial;
+                    }
                     Debug.Log("[TheMovies] Showing the headset's controller model (" + (index == 0 ? "left" : "right") + ").");
                 });
             }
+        }
+
+        /// <summary>Hands and controllers as holes into the picture with passthrough behind them – you see your real ones.</summary>
+        void UpdateRealHands()
+        {
+            bool available = false;
+#if THEMOVIES_OPENXR
+            available = PassthroughFeature.Ready;
+#endif
+            bool masking = XRActive && RealHands && available;
+            if (masking != m_Masking)
+            {
+                m_Masking = masking;
+                if (m_MaskMaterial == null) m_MaskMaterial = new Material(TheMovies.UI.UIFactory.FindShader("TheMovies/PassthroughMask"));
+                m_LeftHandView.SetMask(masking, m_MaskMaterial);
+                m_RightHandView.SetMask(masking, m_MaskMaterial);
+                foreach (var grip in new[] { LeftGrip, RightGrip })
+                {
+                    foreach (var r in grip.GetComponentsInChildren<Renderer>(true))
+                        r.sharedMaterial = masking ? m_MaskMaterial : TheMovies.World.Shapes.Lit;
+                    var container = grip.Find("Controller Model");
+                    // A little larger than the controller, so its edges are not cut off.
+                    if (container != null) container.localScale = Vector3.one * (masking ? 1.12f : 1f);
+                }
+            }
+#if THEMOVIES_OPENXR
+            PassthroughFeature.SetForHands(masking && (LeftTracked || RightTracked));
+#endif
         }
 
         void ReadPoses()
@@ -332,6 +373,7 @@ namespace TheMovies.XR
             LeftTracked = ReadHand(true, LeftGrip, m_LeftAim);
             RightTracked = ReadHand(false, RightGrip, m_RightAim);
             if (XRActive) TryLoadControllerModels();
+            UpdateRealHands();
         }
 
         /// <summary>The hand is tracked as a hand (hand tracking) rather than holding a controller.</summary>

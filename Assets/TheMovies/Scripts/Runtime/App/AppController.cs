@@ -55,6 +55,7 @@ namespace TheMovies.App
 
             m_Rig = XRRig.Create();
             m_Rig.SetHeightOffset(Settings.HeightOffset);
+            m_Rig.RealHands = Settings.RealHands;
             var seat = CinemaEnvironment.SeatPose(1);
             m_Rig.SetSeat(seat.position, seat.rotation);
 
@@ -266,6 +267,18 @@ namespace TheMovies.App
             Settings.Ducking = Mathf.Clamp(level, 0, 2);
             Settings.Save();
         }
+
+        /// <summary>Real hands and controllers (passthrough) or models.</summary>
+        public void SetRealHands(bool enabled)
+        {
+            m_Rig.RealHands = enabled;
+            Settings.RealHands = enabled;
+            Settings.Save();
+        }
+
+        public bool RealHands => Settings.RealHands;
+
+        public bool ShowingRealHands => m_Rig != null && m_Rig.ShowingRealHands;
 
         public void SetDepthAi(bool enabled)
         {

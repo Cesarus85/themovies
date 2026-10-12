@@ -28,6 +28,7 @@ namespace TheMovies.App
         const string k_PushToTalk = "tm.pushToTalk";
         const string k_Ducking = "tm.ducking";
         const string k_Room = "tm.room";
+        const string k_RealHands = "tm.realHands";
 
         public string Name;
         public int ScreenSize;
@@ -68,6 +69,9 @@ namespace TheMovies.App
         /// <summary>Room: 0 = cinema, 1 = living room (per viewer).</summary>
         public int Room;
 
+        /// <summary>Real hands and controllers through passthrough instead of models.</summary>
+        public bool RealHands;
+
         public static AppSettings Load()
         {
             return new AppSettings
@@ -95,6 +99,7 @@ namespace TheMovies.App
                 PushToTalk = PlayerPrefs.GetInt(k_PushToTalk, 0) == 1,
                 Ducking = PlayerPrefs.GetInt(k_Ducking, 1),
                 Room = PlayerPrefs.GetInt(k_Room, 0),
+                RealHands = PlayerPrefs.GetInt(k_RealHands, 1) == 1,
             };
         }
 
@@ -123,6 +128,7 @@ namespace TheMovies.App
             PlayerPrefs.SetInt(k_PushToTalk, PushToTalk ? 1 : 0);
             PlayerPrefs.SetInt(k_Ducking, Ducking);
             PlayerPrefs.SetInt(k_Room, Room);
+            PlayerPrefs.SetInt(k_RealHands, RealHands ? 1 : 0);
             PlayerPrefs.Save();
         }
     }

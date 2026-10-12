@@ -12,7 +12,8 @@ Shader "TheMovies/Text"
         Tags { "Queue" = "Transparent" "IgnoreProjector" = "True" "RenderType" = "Transparent" }
         Cull Off
         ZWrite Off
-        Blend SrcAlpha OneMinusSrcAlpha
+        // Alpha: covers what is behind (keeps it opaque over the scene, so passthrough only shows where nothing is).
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         Pass
         {
             CGPROGRAM

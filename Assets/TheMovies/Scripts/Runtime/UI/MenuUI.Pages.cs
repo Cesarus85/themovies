@@ -22,6 +22,8 @@ namespace TheMovies.UI
         readonly UIButton[] m_Convert3DButtons = new UIButton[Conversion3D.Levels];
         UIButton m_ShowDepthButton;
         UIButton m_DepthAiButton;
+        UIButton m_RealHandsButton, m_ModelHandsButton;
+        UILabel m_RealHandsInfo;
         readonly UILabel[] m_PictureValues = new UILabel[3];
         UILabel m_DepthStepsLabel;
         readonly UIButton[] m_GlowButtons = new UIButton[3];
@@ -131,6 +133,13 @@ namespace TheMovies.UI
             }
             Label(p, "Nur für dich: Bild, 3D-Tiefe und 2D→3D. Leuchten: in Mixed Reality strahlen die Randfarben ins Zimmer.",
                 k_Left, y - 0.045f, 0.0135f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            Divider(p, y - 0.07f);
+
+            y -= 0.105f;
+            SettingRow(p, "Hände & Controller", y, divider: false);
+            m_RealHandsButton = Button(p, "Echt (Kamera)", 0.12f, y, 0.19f, small, () => m_App.SetRealHands(true), 0.016f);
+            m_ModelHandsButton = Button(p, "Modell", 0.3f, y, 0.13f, small, () => m_App.SetRealHands(false), 0.016f);
+            m_RealHandsInfo = Label(p, string.Empty, k_Left, y - 0.045f, 0.0135f, 110, TextAnchor.MiddleLeft, UIStyle.TextDim);
             return p;
         }
 
@@ -148,6 +157,11 @@ namespace TheMovies.UI
             for (int i = 0; i < m_GlowButtons.Length; i++)
                 m_GlowButtons[i].Highlighted = screen.GlowLevel == i;
             m_ShowDepthButton.Highlighted = screen.ShowDepth;
+            m_RealHandsButton.Highlighted = m_App.RealHands;
+            m_ModelHandsButton.Highlighted = !m_App.RealHands;
+            m_RealHandsInfo.Text = !m_App.RealHands ? "Hände und Controller als Modell."
+                : m_App.ShowingRealHands ? "Deine echten Hände und Controller sind durch die Kamera der Brille zu sehen."
+                : "Echt braucht das Passthrough-Feature (wie Mixed Reality) – bis dahin Modelle.";
             m_ShowDepthButton.Interactable = screen.Convert3D > 0;
             m_DepthAiButton.Label = screen.UseAiDepth ? "KI: An" : "KI: Aus";
             m_DepthAiButton.Highlighted = screen.UseAiDepth;

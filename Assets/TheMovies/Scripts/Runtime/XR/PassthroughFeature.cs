@@ -70,14 +70,34 @@ namespace TheMovies.XR
         /// <summary>How many frames had the passthrough layer inserted (status line).</summary>
         public static int FramesWithPassthrough => s_Frames;
 
-        /// <summary>Shows or hides the room. Called from the main thread.</summary>
+        static bool s_ForEnvironment, s_ForHands;
+
+        /// <summary>Shows or hides the room for mixed reality. Called from the main thread.</summary>
         public static void SetVisible(bool visible)
         {
+            s_ForEnvironment = visible;
+            Apply();
+        }
+
+        /// <summary>
+        /// Passthrough for the real hands / controllers: the app cuts holes where they are (PassthroughMask shader),
+        /// the room shows only there. Called from the main thread.
+        /// </summary>
+        public static void SetForHands(bool visible)
+        {
+            s_ForHands = visible;
+            if ((s_ForEnvironment || s_ForHands) != s_Visible) Apply(); // also after the session was recreated
+        }
+
+        static void Apply()
+        {
+            bool visible = s_ForEnvironment || s_ForHands;
             if (!Ready)
             {
                 s_Visible = false;
                 return;
             }
+            if (visible == s_Visible) return;
             try
             {
                 if (visible)
