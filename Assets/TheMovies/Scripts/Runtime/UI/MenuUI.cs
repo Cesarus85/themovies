@@ -139,6 +139,10 @@ namespace TheMovies.UI
             m_SettingsPage = BuildSettingsPage();
             BuildExtraPages();
 
+            // Close button on the top right corner (on every page) – with hand tracking there is no menu button.
+            UIButton.Create(m_Root, null, new Vector3(k_Width * 0.5f - 0.004f, k_Height * 0.5f - 0.004f, -3 * UIStyle.Layer),
+                new Vector2(0.05f, 0.05f), Hide, 0.02f, UIIcon.Close, ButtonStyle.Normal, round: true);
+
             m_Handle = UIGrabHandle.Create(m_Root, new Vector3(0, -k_Height * 0.5f - 0.035f, 0), 0.2f);
             m_Handle.Began += OnGrabBegan;
             m_Handle.Moved += OnGrabMoved;

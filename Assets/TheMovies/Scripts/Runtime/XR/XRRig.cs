@@ -70,6 +70,8 @@ namespace TheMovies.XR
 
         Transform m_Offset;
         Transform m_LeftAim;
+        HandView m_LeftHandView, m_RightHandView;
+        readonly Pose[] m_Joints = new Pose[HandView.JointCount];
         Transform m_RightAim;
         LaserPointer m_LeftPointer;
         LaserPointer m_RightPointer;
@@ -116,6 +118,8 @@ namespace TheMovies.XR
 
             LeftGrip = CreateHand("Left Hand", out m_LeftAim);
             RightGrip = CreateHand("Right Hand", out m_RightAim);
+            m_LeftHandView = HandView.Create(m_Offset, "Left Tracked Hand");
+            m_RightHandView = HandView.Create(m_Offset, "Right Tracked Hand");
             m_LeftPointer = LaserPointer.Create(m_LeftAim, "Left Pointer", true);
             m_RightPointer = LaserPointer.Create(m_RightAim, "Right Pointer", true);
             m_MousePointer = LaserPointer.Create(transform, "Mouse Pointer", false);
@@ -284,7 +288,7 @@ namespace TheMovies.XR
                 if (m_HeadTrackedSince < 0) m_HeadTrackedSince = Time.unscaledTime;
             }
 
-            m_Inputs.UpdateSources(Head.localPosition);
+            m_Inputs.UpdateSources(new Pose(Head.localPosition, Head.localRotation));
             LeftTracked = ReadHand(true, LeftGrip, m_LeftAim);
             RightTracked = ReadHand(false, RightGrip, m_RightAim);
         }
@@ -299,10 +303,16 @@ namespace TheMovies.XR
         {
             bool tracked = m_Inputs.TryGetGrip(left, out var gp, out var gr);
             bool isHand = m_Inputs.IsHand(left);
+            // Hand tracking with joints: draw the real hand shape instead of the simple stand-in.
+            var view = left ? m_LeftHandView : m_RightHandView;
+            bool jointsShown = isHand && m_Inputs.TryGetHandJoints(left, m_Joints);
+            if (jointsShown) view.Apply(m_Joints);
+            if (view.gameObject.activeSelf != jointsShown) view.gameObject.SetActive(jointsShown);
             var controllerModel = grip.Find("Controller Model");
             var handModel = grip.Find("Hand Model");
             if (controllerModel != null && controllerModel.gameObject.activeSelf == isHand) controllerModel.gameObject.SetActive(!isHand);
-            if (handModel != null && handModel.gameObject.activeSelf != isHand) handModel.gameObject.SetActive(isHand);
+            bool standIn = isHand && !jointsShown;
+            if (handModel != null && handModel.gameObject.activeSelf != standIn) handModel.gameObject.SetActive(standIn);
             if (tracked)
             {
                 grip.localPosition = gp;

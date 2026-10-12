@@ -1,8 +1,11 @@
 // API stubs for the XR Hands package (com.unity.xr.hands 1.x), only what the hand joint source uses.
 namespace UnityEngine.XR.Hands
 {
-    public enum XRHandJointID { Invalid, BeginMarker, Wrist = 1, Palm, ThumbMetacarpal, ThumbProximal, ThumbDistal, ThumbTip,
-        IndexMetacarpal, IndexProximal, IndexIntermediate, IndexDistal, IndexTip }
+    public enum XRHandJointID { Invalid = 0, BeginMarker = 1, Wrist = 1, Palm, ThumbMetacarpal, ThumbProximal, ThumbDistal, ThumbTip,
+        IndexMetacarpal, IndexProximal, IndexIntermediate, IndexDistal, IndexTip,
+        MiddleMetacarpal, MiddleProximal, MiddleIntermediate, MiddleDistal, MiddleTip,
+        RingMetacarpal, RingProximal, RingIntermediate, RingDistal, RingTip,
+        LittleMetacarpal, LittleProximal, LittleIntermediate, LittleDistal, LittleTip, EndMarker }
 
     public struct XRHandJoint { public bool TryGetPose(out Pose pose) { pose = default; return false; } }
 

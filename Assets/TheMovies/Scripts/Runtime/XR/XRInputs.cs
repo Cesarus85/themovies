@@ -99,12 +99,18 @@ namespace TheMovies.XR
 
         public Source SourceOf(bool left) => m_Sources[left ? 0 : 1];
 
+        /// <summary>Joint poses of a tracked hand (tracking space, indexed like XRHandJointID) for drawing it.</summary>
+        public bool TryGetHandJoints(bool left, Pose[] joints) =>
+            m_Sources[left ? 0 : 1] == Source.HandJoints && m_Joints != null && m_Joints.TryGetJoints(left, joints);
+
         /// <summary>
         /// Decides per hand where input comes from this frame: a tracked controller first, then hand joints, then the
         /// hand aim devices. Call once per frame before reading poses; <paramref name="head"/> in tracking space.
+        /// The hand rays are smoothed a little (tracked fingers tremble).
         /// </summary>
-        public void UpdateSources(Vector3 head)
+        public void UpdateSources(Pose head)
         {
+            float smoothing = 1f - Mathf.Exp(-18f * Time.unscaledDeltaTime);
             for (int i = 0; i < 2; i++)
             {
                 bool left = i == 0;
@@ -113,8 +119,11 @@ namespace TheMovies.XR
                     m_Sources[i] = Source.Controller;
                     continue;
                 }
-                if (m_Joints != null && m_Joints.TryGetHand(left, head, out m_HandAim[i], out m_HandPalm[i], out m_HandPinch[i]))
+                if (m_Joints != null && m_Joints.TryGetHand(left, head, out var handAim, out m_HandPalm[i], out m_HandPinch[i]))
                 {
+                    bool wasHand = m_Sources[i] == Source.HandJoints;
+                    m_HandAim[i] = !wasHand ? handAim : new Pose(Vector3.Lerp(m_HandAim[i].position, handAim.position, smoothing),
+                        Quaternion.Slerp(m_HandAim[i].rotation, handAim.rotation, smoothing));
                     m_Sources[i] = Source.HandJoints;
                     continue;
                 }
