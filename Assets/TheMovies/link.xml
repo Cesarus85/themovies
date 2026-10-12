@@ -1,4 +1,11 @@
 <linker>
   <!-- HttpClient (WebDAV and DLNA on a NAS) picks its platform handler via reflection; keep it at any stripping level. -->
   <assembly fullname="System.Net.Http" preserve="all"/>
+  <!-- GameObject.CreatePrimitive adds a collider of the matching type. No code names these classes, so engine code
+       stripping removes them and every primitive logged "Can't add component because class … doesn't exist". -->
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.SphereCollider" preserve="all"/>
+    <type fullname="UnityEngine.CapsuleCollider" preserve="all"/>
+    <type fullname="UnityEngine.MeshCollider" preserve="all"/>
+  </assembly>
 </linker>

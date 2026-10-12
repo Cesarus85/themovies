@@ -141,7 +141,7 @@ namespace TheMovies.EditorTools
 
                 var openXrSettings = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup))
                     ?.Invoke(null, new object[] { BuildTargetGroup.Android });
-                var features = openXrSettings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(openXrSettings, null) as Array;
+                var features = Features(openXrSettings);
                 if (features == null) return Readiness.Unknown;
                 bool sawQuestFeature = false;
                 var metaFeatures = new System.Collections.Generic.List<string>();
@@ -277,7 +277,7 @@ namespace TheMovies.EditorTools
         {
             var get = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup));
             var settings = get?.Invoke(null, new object[] { group });
-            var features = settings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
+            var features = Features(settings);
             if (features == null) return;
             foreach (var feature in features)
             {
@@ -348,7 +348,7 @@ namespace TheMovies.EditorTools
             if (openXrSettingsType == null) return null;
             var get = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup));
             settings = get?.Invoke(null, new object[] { BuildTargetGroup.Android });
-            return settings?.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
+            return Features(settings);
         }
 
         /// <summary>The name shown in the OpenXR settings ("Meta Quest: Session"), falling back to the class name.</summary>
@@ -368,7 +368,7 @@ namespace TheMovies.EditorTools
             var get = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup));
             var settings = get?.Invoke(null, new object[] { group });
             if (settings == null) return 0;
-            var features = settings.GetType().GetMethod("GetFeatures", Type.EmptyTypes)?.Invoke(settings, null) as Array;
+            var features = Features(settings);
             if (features == null) return 0;
 
             int enabled = 0;
@@ -399,6 +399,17 @@ namespace TheMovies.EditorTools
                         return p;
             }
             return null;
+        }
+
+        /// <summary>
+        /// OpenXRSettings.GetFeatures(). Looked up by hand: the generic GetFeatures&lt;T&gt;() also has no parameters,
+        /// so GetMethod("GetFeatures", Type.EmptyTypes) throws "Ambiguous match found".
+        /// </summary>
+        static Array Features(object settings)
+        {
+            var method = settings?.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .FirstOrDefault(m => m.Name == "GetFeatures" && !m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
+            return method?.Invoke(settings, null) as Array;
         }
 
         /// <summary>Public static method with exactly these parameters (other overloads don't make it ambiguous).</summary>

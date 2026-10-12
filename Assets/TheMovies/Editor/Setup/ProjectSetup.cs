@@ -88,16 +88,7 @@ namespace TheMovies.EditorTools
                 return;
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(k_ApkPath));
-            var options = new BuildPlayerOptions
-            {
-                scenes = new[] { ScenePath },
-                locationPathName = k_ApkPath,
-                target = BuildTarget.Android,
-                targetGroup = BuildTargetGroup.Android,
-                options = BuildOptions.None,
-            };
-            var report = BuildPipeline.BuildPlayer(options);
+            var report = BuildAndroid();
             if (report.summary.result == BuildResult.Succeeded)
             {
                 EditorUtility.RevealInFinder(k_ApkPath);
@@ -110,6 +101,51 @@ namespace TheMovies.EditorTools
             {
                 EditorUtility.DisplayDialog("The Movies", "Build fehlgeschlagen – Details in der Console.", "OK");
             }
+        }
+
+        /// <summary>
+        /// Command-line build (editor closed), used by tools/quest.sh:
+        /// Unity -batchmode -quit -projectPath . -buildTarget Android -executeMethod TheMovies.EditorTools.ProjectSetup.BuildApkBatch
+        /// Exits with 0 on success, 1 otherwise.
+        /// </summary>
+        public static void BuildApkBatch()
+        {
+            int exitCode = 1;
+            try
+            {
+                if (!File.Exists(ScenePath))
+                    Debug.LogError("[TheMovies] " + ScenePath + " fehlt – einmal im Editor 'The Movies > 1. Projekt einrichten' ausführen.");
+                else if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
+                    Debug.LogError("[TheMovies] Build-Plattform ist nicht Android – Unity mit '-buildTarget Android' starten.");
+                else
+                {
+                    var report = BuildAndroid();
+                    var summary = report.summary;
+                    Debug.Log($"[TheMovies] Build {summary.result}: {summary.outputPath}, {summary.totalSize / (1024 * 1024)} MB, " +
+                              $"{summary.totalErrors} Fehler, {summary.totalWarnings} Warnungen, {summary.totalTime:mm\\:ss}");
+                    if (summary.result == BuildResult.Succeeded)
+                        exitCode = 0;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+            EditorApplication.Exit(exitCode);
+        }
+
+        static BuildReport BuildAndroid()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(k_ApkPath));
+            var options = new BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath },
+                locationPathName = k_ApkPath,
+                target = BuildTarget.Android,
+                targetGroup = BuildTargetGroup.Android,
+                options = BuildOptions.None,
+            };
+            return BuildPipeline.BuildPlayer(options);
         }
 
         [MenuItem("The Movies/VR-Einrichtung prüfen", priority = 30)]

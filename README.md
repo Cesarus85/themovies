@@ -112,6 +112,11 @@ Wer die Datei nicht hat, bekommt sie automatisch **vom Gastgeber gestreamt**.
 
 Die Mitschauer installieren dieselbe APK auf ihrer Quest.
 
+**Ohne Editor (macOS, Kommandozeile):** `tools/quest.sh` baut im Batchmode (Editor muss geschlossen sein),
+installiert per adb und liest Logcat mit – `build`, `install`, `reinstall` (deinstalliert vorher, nötig nach
+Manifest-Änderungen, löscht App-Daten), `start`, `log`, `applog` (In-App-Protokoll holen) oder `all`.
+Build-Log: `Logs/batch-build.log`.
+
 ## Problemlösung
 
 **Die App öffnet sich auf der Quest als flaches Fenster** – dann war VR beim Bauen nicht aktiv:
