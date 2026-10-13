@@ -139,6 +139,10 @@ namespace TheMovies.XR
             if (standIn != null) standIn.gameObject.SetActive(false);
             var go = new GameObject("Headset Model");
             go.transform.SetParent(container, false);
+            // The runtime's model is in OpenXR grip space (right-handed, -Z forward: the head with the buttons lies
+            // at -Z). Gltf.ReadGlb converts like any glTF by mirroring X, Unity's OpenXR poses mirror Z – the
+            // difference is half a turn about Y. Without it the head points at the little finger (down).
+            go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = Shapes.Lit;

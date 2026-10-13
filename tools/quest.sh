@@ -49,7 +49,13 @@ build() {
 }
 
 device() {
-    "$ADB" get-state >/dev/null 2>&1 || { echo "Keine Quest per adb erreichbar (USB, Entwicklermodus, 'USB-Debugging zulassen')."; exit 1; }
+    # The Quest drops off USB for a moment now and then (sleep, putting it on): wait up to 20 s.
+    for _ in $(seq 1 20); do
+        "$ADB" get-state >/dev/null 2>&1 && return 0
+        sleep 1
+    done
+    echo "Keine Quest per adb erreichbar (USB, Entwicklermodus, 'USB-Debugging zulassen')."
+    exit 1
 }
 
 install() {
