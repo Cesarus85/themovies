@@ -60,8 +60,26 @@ namespace TheMovies.XR
 
         // ---------------- Official models ----------------
 
-        /// <summary>Loads the headset's model of a controller in the background; calls back on the main thread (null = not available).</summary>
-        public static void LoadOfficial(bool left, MonoBehaviour host, Action<Mesh, string> done)
+        /// <summary>The headset's controller model, ready to show: one sub-mesh and one material per part.</summary>
+        public sealed class OfficialModel
+        {
+            public Mesh Mesh;
+            public Material[] Materials;
+
+            /// <summary>Parts shown with their texture (Meta's black and white look); the others are dark grey.</summary>
+            public int TexturedParts;
+
+            /// <summary>Why a texture could not be read, null if all were.</summary>
+            public string TextureError;
+        }
+
+        static Material s_Grey;
+
+        /// <summary>
+        /// Loads the headset's model of a controller: the GLB in the background, then its KTX2 textures (Basis UASTC +
+        /// Zstandard, decoded by the package KTX for Unity). Calls back on the main thread (null = not available).
+        /// </summary>
+        public static void LoadOfficial(bool left, MonoBehaviour host, Action<OfficialModel, string> done)
         {
 #if THEMOVIES_OPENXR
             if (!RenderModelFeature.Available)
@@ -91,7 +109,7 @@ namespace TheMovies.XR
 #endif
         }
 
-        static System.Collections.IEnumerator Wait(Task<(GltfModel model, string error)> task, Action<Mesh, string> done)
+        static System.Collections.IEnumerator Wait(Task<(GltfModel model, string error)> task, Action<OfficialModel, string> done)
         {
             while (!task.IsCompleted) yield return null;
             if (task.IsFaulted)
@@ -99,17 +117,98 @@ namespace TheMovies.XR
                 done(null, task.Exception?.GetBaseException().Message);
                 yield break;
             }
-            var (model, error) = task.Result;
-            done(model != null ? ToMesh(model) : null, error);
+            var (gltf, error) = task.Result;
+            // The battery indicator is a strip of all charge levels (Meta shifts it by the battery level): left out.
+            var parts = gltf?.Meshes.FindAll(p => p.Name.IndexOf("battery", StringComparison.OrdinalIgnoreCase) < 0);
+            var mesh = parts != null ? ToMesh(parts) : null;
+            if (mesh == null)
+            {
+                done(null, error ?? "Modell ohne Geometrie");
+                yield break;
+            }
+
+            var model = new OfficialModel { Mesh = mesh, Materials = new Material[parts.Count] };
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var part = parts[i];
+                model.Materials[i] = Grey;
+                if (part.Image < 0 || part.Image >= gltf.Images.Count || part.Uvs == null) continue;
+                var decode = DecodeTexture(gltf.Images[part.Image]);
+                while (!decode.IsCompleted) yield return null;
+                var (texture, flipY, textureError) = decode.IsFaulted
+                    ? ((Texture2D)null, false, decode.Exception?.GetBaseException().Message)
+                    : decode.Result;
+                if (texture == null)
+                {
+                    model.TextureError = textureError;
+                    continue;
+                }
+                texture.name = gltf.Images[part.Image].MimeType + " " + part.Name;
+                texture.anisoLevel = 4;
+                var material = new Material(Shapes.Lit) { name = "Controller " + part.Name, mainTexture = texture };
+                material.EnableKeyword("_TM_TEXTURED");
+                material.color = new Color(part.Color[0], part.Color[1], part.Color[2], part.Color[3]);
+                if (flipY)
+                {
+                    // Gltf.ReadGlb flips V for bottom-up textures (PNG/JPEG in Unity); KTX2 rows are stored top-down.
+                    material.mainTextureScale = new Vector2(1f, -1f);
+                    material.mainTextureOffset = new Vector2(0f, 1f);
+                }
+                model.Materials[i] = material;
+                model.TexturedParts++;
+            }
+            done(model, null);
         }
 
-        /// <summary>All parts of the model in one mesh.</summary>
-        static Mesh ToMesh(GltfModel model)
+        /// <summary>The model's dark grey where no texture could be read.</summary>
+        static Material Grey
+        {
+            get
+            {
+                if (s_Grey != null) return s_Grey;
+                s_Grey = new Material(Shapes.Lit) { name = "Controller (grey)", color = new Color(0.13f, 0.13f, 0.145f) };
+                return s_Grey;
+            }
+        }
+
+        static Task<(Texture2D texture, bool flipY, string error)> DecodeTexture(GltfImage image)
+        {
+            if (image.Bytes == null || image.Bytes.Length == 0)
+                return Task.FromResult(((Texture2D)null, false, "Bild ohne Daten"));
+            if (image.MimeType != "image/ktx2")
+            {
+                var texture = new Texture2D(2, 2, TextureFormat.RGBA32, true);
+                if (texture.LoadImage(image.Bytes, true))
+                    return Task.FromResult((texture, false, (string)null));
+                UnityEngine.Object.Destroy(texture);
+                return Task.FromResult(((Texture2D)null, false, "Bild nicht lesbar: " + image.MimeType));
+            }
+#if THEMOVIES_KTX
+            return DecodeKtx(image.Bytes);
+#else
+            return Task.FromResult(((Texture2D)null, false, "KTX2-Texturen brauchen das Paket 'KTX for Unity' (com.unity.cloud.ktx)"));
+#endif
+        }
+
+#if THEMOVIES_KTX
+        static async Task<(Texture2D texture, bool flipY, string error)> DecodeKtx(byte[] bytes)
+        {
+            using var data = new Unity.Collections.NativeArray<byte>(bytes, Unity.Collections.Allocator.Persistent);
+            var result = await new KtxUnity.KtxTexture().LoadFromBytes(data.AsReadOnly(), linear: false);
+            if (result.errorCode != KtxUnity.ErrorCode.Success || result.texture == null)
+                return (null, false, "KTX2: " + result.errorCode);
+            return (result.texture, KtxUnity.TextureOrientationExtension.IsYFlipped(result.orientation), null);
+        }
+#endif
+
+        /// <summary>The parts of the model as sub-meshes of one mesh (part i = sub-mesh i), with texture coordinates.</summary>
+        static Mesh ToMesh(System.Collections.Generic.List<GltfMesh> meshes)
         {
             var vertices = new System.Collections.Generic.List<Vector3>();
             var normals = new System.Collections.Generic.List<Vector3>();
-            var triangles = new System.Collections.Generic.List<int>();
-            foreach (var part in model.Meshes)
+            var uvs = new System.Collections.Generic.List<Vector2>();
+            var parts = new System.Collections.Generic.List<int[]>();
+            foreach (var part in meshes)
             {
                 int start = vertices.Count;
                 int count = part.Positions.Length / 3;
@@ -119,21 +218,28 @@ namespace TheMovies.XR
                     normals.Add(part.Normals != null && part.Normals.Length >= (v + 1) * 3
                         ? new Vector3(part.Normals[v * 3], part.Normals[v * 3 + 1], part.Normals[v * 3 + 2])
                         : Vector3.up);
+                    uvs.Add(part.Uvs != null && part.Uvs.Length >= (v + 1) * 2
+                        ? new Vector2(part.Uvs[v * 2], part.Uvs[v * 2 + 1])
+                        : Vector2.zero);
                 }
-                foreach (int i in part.Indices) triangles.Add(start + i);
+                var indices = new int[part.Indices.Length];
+                for (int i = 0; i < indices.Length; i++) indices[i] = start + part.Indices[i];
+                parts.Add(indices);
             }
             if (vertices.Count == 0) return null;
             var mesh = new Mesh { name = "Controller (headset model)" };
             if (vertices.Count > 65000) mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
             mesh.SetVertices(vertices);
             mesh.SetNormals(normals);
-            mesh.SetTriangles(triangles, 0);
+            mesh.SetUVs(0, uvs);
+            mesh.subMeshCount = parts.Count;
+            for (int i = 0; i < parts.Count; i++) mesh.SetTriangles(parts[i], i);
             mesh.RecalculateBounds();
             return mesh;
         }
 
         /// <summary>Shows a loaded headset model under the controller container (hides the stand-in).</summary>
-        public static void ShowOfficial(Transform container, Mesh mesh)
+        public static void ShowOfficial(Transform container, OfficialModel model)
         {
             var standIn = container.Find("Stand-in");
             if (standIn != null) standIn.gameObject.SetActive(false);
@@ -143,13 +249,11 @@ namespace TheMovies.XR
             // at -Z). Gltf.ReadGlb converts like any glTF by mirroring X, Unity's OpenXR poses mirror Z – the
             // difference is half a turn about Y. Without it the head points at the little finger (down).
             go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshFilter>().sharedMesh = model.Mesh;
             var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = Shapes.Lit;
+            mr.sharedMaterials = model.Materials;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
-            // The model's textures are Basis-compressed (not readable here): Meta's dark grey instead.
-            Shapes.SetColor(mr, new Color(0.13f, 0.13f, 0.145f));
         }
     }
 }

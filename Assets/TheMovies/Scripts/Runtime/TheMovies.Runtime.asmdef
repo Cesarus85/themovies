@@ -16,7 +16,8 @@
         "Unity.XR.CoreUtils",
         "Unity.XR.OpenXR",
         "Unity.InferenceEngine",
-        "Unity.XR.Hands"
+        "Unity.XR.Hands",
+        "Ktx"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -60,6 +61,11 @@
             "name": "com.unity.xr.hands",
             "expression": "1.1.0",
             "define": "THEMOVIES_XRHANDS"
+        },
+        {
+            "name": "com.unity.cloud.ktx",
+            "expression": "3.0.0",
+            "define": "THEMOVIES_KTX"
         }
     ],
     "noEngineReferences": false

@@ -308,10 +308,10 @@ namespace TheMovies.XR
                 m_OfficialLoading[i] = true;
                 m_ModelTries[i]++;
                 int index = i;
-                ControllerVisual.LoadOfficial(left, this, (mesh, error) =>
+                ControllerVisual.LoadOfficial(left, this, (model, error) =>
                 {
                     m_OfficialLoading[index] = false;
-                    if (mesh == null)
+                    if (model == null)
                     {
                         m_NextModelTry[index] = Time.unscaledTime + 3f;
                         ControllerModelStatus = "Ersatzmodell (" + error + ")";
@@ -319,15 +319,16 @@ namespace TheMovies.XR
                         return;
                     }
                     m_OfficialModel[index] = true;
-                    ControllerModelStatus = "Meta-Modell";
+                    ControllerModelStatus = model.TexturedParts > 0 ? "Meta-Modell" : "Meta-Modell ohne Texturen (" + model.TextureError + ")";
                     var container = (index == 0 ? LeftGrip : RightGrip).Find("Controller Model");
                     if (container != null)
                     {
-                        ControllerVisual.ShowOfficial(container, mesh);
+                        ControllerVisual.ShowOfficial(container, model);
                         if (m_Masking)
-                            foreach (var r in container.GetComponentsInChildren<Renderer>(true)) r.sharedMaterial = m_MaskMaterial;
+                            foreach (var r in container.GetComponentsInChildren<Renderer>(true)) SetMasked(r, true);
                     }
-                    Debug.Log("[TheMovies] Showing the headset's controller model (" + (index == 0 ? "left" : "right") + ").");
+                    Debug.Log("[TheMovies] Showing the headset's controller model (" + (index == 0 ? "left" : "right") + "), textured parts: " +
+                              model.TexturedParts + "/" + model.Materials.Length + (model.TextureError != null ? " – " + model.TextureError : string.Empty));
                 });
             }
         }
@@ -349,7 +350,7 @@ namespace TheMovies.XR
                 foreach (var grip in new[] { LeftGrip, RightGrip })
                 {
                     foreach (var r in grip.GetComponentsInChildren<Renderer>(true))
-                        r.sharedMaterial = masking ? m_MaskMaterial : TheMovies.World.Shapes.Lit;
+                        SetMasked(r, masking);
                     var container = grip.Find("Controller Model");
                     // A little larger than the controller, so its edges are not cut off.
                     if (container != null) container.localScale = Vector3.one * (masking ? 1.12f : 1f);
@@ -358,6 +359,27 @@ namespace TheMovies.XR
 #if THEMOVIES_OPENXR
             PassthroughFeature.SetForHands(masking && (LeftTracked || RightTracked));
 #endif
+        }
+
+        readonly Dictionary<Renderer, Material[]> m_Unmasked = new Dictionary<Renderer, Material[]>();
+
+        /// <summary>Swaps all of a renderer's materials for the passthrough mask, and back to its own (textured) ones.</summary>
+        void SetMasked(Renderer r, bool mask)
+        {
+            if (mask)
+            {
+                if (m_Unmasked.ContainsKey(r)) return;
+                var own = r.sharedMaterials;
+                m_Unmasked[r] = own;
+                var masks = new Material[own.Length];
+                for (int i = 0; i < masks.Length; i++) masks[i] = m_MaskMaterial;
+                r.sharedMaterials = masks;
+            }
+            else if (m_Unmasked.TryGetValue(r, out var own))
+            {
+                r.sharedMaterials = own;
+                m_Unmasked.Remove(r);
+            }
         }
 
         void ReadPoses()

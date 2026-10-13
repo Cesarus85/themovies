@@ -18,6 +18,8 @@ namespace UnityEngine.InputSystem
 
     public class InputControl { public InputDevice device => null; }
 
+    public abstract class InputControl<TValue> : InputControl where TValue : struct { public TValue ReadValue() => default; }
+
     public class InputDevice : InputControl
     {
         public string layout => string.Empty;
