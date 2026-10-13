@@ -367,28 +367,7 @@ namespace TheMovies.EditorTools
             }
             QualitySettings.SetQualityLevel(current, false);
 
-            EnableBothInputHandlers();
-        }
-
-        /// <summary>Keyboard, mouse and controller input go through the Input System package, so it must be active.</summary>
-        static void EnableBothInputHandlers()
-        {
-            try
-            {
-                var settings = Unsupported.GetSerializedAssetInterfaceSingleton("PlayerSettings");
-                var so = new SerializedObject(settings);
-                var prop = so.FindProperty("activeInputHandler");
-                if (prop != null && prop.intValue == 0)
-                {
-                    prop.intValue = 2; // Both
-                    so.ApplyModifiedProperties();
-                    Debug.Log("[TheMovies] Active Input Handling set to 'Both'. Unity may ask for a restart.");
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[TheMovies] Could not set Active Input Handling: " + e.Message);
-            }
+            ProjectHealth.UseInputSystemOnly();
         }
     }
 }

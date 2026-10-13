@@ -69,10 +69,20 @@ namespace TheMovies.XR
                 done(null, RenderModelFeature.Status);
                 return;
             }
+            // Kept next to the log (Android/data/…/files) to look at the model on a PC.
+            string copy = System.IO.Path.Combine(Application.persistentDataPath, left ? "controller-left.glb" : "controller-right.glb");
             var task = Task.Run(() =>
             {
                 byte[] glb = RenderModelFeature.LoadController(left, out string error);
                 if (glb == null) return ((GltfModel)null, error);
+                try
+                {
+                    System.IO.File.WriteAllBytes(copy, glb);
+                }
+                catch (Exception)
+                {
+                    // only a copy for diagnosis
+                }
                 return (Gltf.ReadGlb(glb), (string)null);
             });
             host.StartCoroutine(Wait(task, done));

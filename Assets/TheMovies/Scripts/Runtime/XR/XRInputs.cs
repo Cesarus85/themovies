@@ -20,6 +20,14 @@ namespace TheMovies.XR
         {
             public InputAction Position;
             public InputAction Rotation;
+            bool m_ControllersOnly;
+
+            /// <summary>
+            /// Pose of a real controller: &lt;XRController&gt; also matches the hands of the Hand Interaction Profile, so
+            /// bound controls on hand devices are skipped.
+            /// </summary>
+            public static PoseActions Controller(string device, string position, string rotation) =>
+                new PoseActions(device, position, rotation) { m_ControllersOnly = true };
 
             /// <param name="extra">More "position binding|rotation binding" pairs (hand tracking devices).</param>
             public PoseActions(string device, string position, string rotation, params string[] extra)
@@ -42,9 +50,29 @@ namespace TheMovies.XR
                 rotation = Quaternion.identity;
                 if (Position.controls.Count == 0 || Rotation.controls.Count == 0)
                     return false;
+                if (m_ControllersOnly)
+                    return TryReadController(out position, out rotation);
                 position = Position.ReadValue<Vector3>();
                 rotation = Rotation.ReadValue<Quaternion>();
                 return IsValidRotation(rotation);
+            }
+
+            bool TryReadController(out Vector3 position, out Quaternion rotation)
+            {
+                position = default;
+                rotation = Quaternion.identity;
+                foreach (var p in Position.controls)
+                {
+                    if (IsHandDevice(p.device) || !(p is InputControl<Vector3> pos)) continue;
+                    foreach (var r in Rotation.controls)
+                    {
+                        if (r.device != p.device || !(r is InputControl<Quaternion> rot)) continue;
+                        position = pos.ReadValue();
+                        rotation = rot.ReadValue();
+                        if (IsValidRotation(rotation)) return true;
+                    }
+                }
+                return false;
             }
 
             public void Dispose()
@@ -59,10 +87,10 @@ namespace TheMovies.XR
 
         readonly PoseActions m_Head = new PoseActions("<XRHMD>", "centerEyePosition", "centerEyeRotation");
         // Controllers
-        readonly PoseActions m_LeftAim = new PoseActions("<XRController>{LeftHand}", "pointerPosition", "pointerRotation");
-        readonly PoseActions m_RightAim = new PoseActions("<XRController>{RightHand}", "pointerPosition", "pointerRotation");
-        readonly PoseActions m_LeftGrip = new PoseActions("<XRController>{LeftHand}", "devicePosition", "deviceRotation");
-        readonly PoseActions m_RightGrip = new PoseActions("<XRController>{RightHand}", "devicePosition", "deviceRotation");
+        readonly PoseActions m_LeftAim = PoseActions.Controller("<XRController>{LeftHand}", "pointerPosition", "pointerRotation");
+        readonly PoseActions m_RightAim = PoseActions.Controller("<XRController>{RightHand}", "pointerPosition", "pointerRotation");
+        readonly PoseActions m_LeftGrip = PoseActions.Controller("<XRController>{LeftHand}", "devicePosition", "deviceRotation");
+        readonly PoseActions m_RightGrip = PoseActions.Controller("<XRController>{RightHand}", "devicePosition", "deviceRotation");
 
         // Trigger as an analog value: more reliable than a single "pressed" flag, and a light pull is enough.
         readonly InputAction m_LeftTrigger = Axis("<XRController>{LeftHand}/trigger");
@@ -136,19 +164,40 @@ namespace TheMovies.XR
                     m_Sources[i] = Source.HandAim;
                     continue;
                 }
-                m_Sources[i] = (left ? m_LeftAim : m_RightAim).TryRead(out _, out _) || Device(left).isValid ? Source.Controller : Source.None;
+                m_Sources[i] = (left ? m_LeftAim : m_RightAim).TryRead(out _, out _) || ControllerDevice(left).isValid ? Source.Controller : Source.None;
             }
         }
 
         bool ControllerTracked(bool left)
         {
             var action = left ? m_LeftControllerTracked : m_RightControllerTracked;
-            if (action.controls.Count > 0) return action.ReadValue<float>() > 0.5f;
+            bool sawController = false;
+            foreach (var control in action.controls)
+            {
+                if (IsHandDevice(control.device)) continue;
+                sawController = true;
+                if (control is InputControl<float> value && value.ReadValue() > 0.5f) return true;
+            }
+            if (sawController) return false;
+            var device = ControllerDevice(left);
+            return device.isValid && device.TryGetFeatureValue(XRCommonUsages.isTracked, out bool tracked) && tracked;
+        }
+
+        /// <summary>
+        /// Hands as input devices: the Hand Interaction Profile's hands (which Unity derives from XRController, so
+        /// &lt;XRController&gt; bindings match them too), MetaAimHand and XRHandDevice. Their layouts all contain "Hand".
+        /// </summary>
+        static bool IsHandDevice(UnityEngine.InputSystem.InputDevice device) =>
+            device != null && device.layout.IndexOf("Hand", System.StringComparison.Ordinal) >= 0;
+
+        /// <summary>The XR input API's device at the hand node if it is a controller (not a tracked hand).</summary>
+        static XRInputDevice ControllerDevice(bool left)
+        {
             var device = Device(left);
-            if (!device.isValid) return false;
-            // A device at the hand node that is a hand-tracking device doesn't count as a controller.
-            if ((device.characteristics & InputDeviceCharacteristics.HandTracking) != 0) return false;
-            return device.TryGetFeatureValue(XRCommonUsages.isTracked, out bool tracked) && tracked;
+            if (!device.isValid || (device.characteristics & InputDeviceCharacteristics.HandTracking) != 0 ||
+                device.name.IndexOf("Hand", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return default;
+            return device;
         }
 
         /// <summary>For the settings page: what each hand is and which hand tracking extensions run.</summary>
@@ -245,7 +294,7 @@ namespace TheMovies.XR
             }
             if ((left ? m_LeftAim : m_RightAim).TryRead(out position, out rotation))
                 return true;
-            var device = Device(left);
+            var device = ControllerDevice(left);
             if (TryLegacyPose(device, k_PointerPosition, k_PointerRotation, out position, out rotation))
                 return true;
             if (TryGetGrip(left, out position, out rotation))
@@ -269,7 +318,7 @@ namespace TheMovies.XR
             }
             if ((left ? m_LeftGrip : m_RightGrip).TryRead(out position, out rotation))
                 return true;
-            return TryLegacyPose(Device(left), XRCommonUsages.devicePosition, XRCommonUsages.deviceRotation, out position, out rotation);
+            return TryLegacyPose(ControllerDevice(left), XRCommonUsages.devicePosition, XRCommonUsages.deviceRotation, out position, out rotation);
         }
 
         /// <summary>Call once per frame before querying button edges.</summary>

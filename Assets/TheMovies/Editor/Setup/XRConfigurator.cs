@@ -247,6 +247,7 @@ namespace TheMovies.EditorTools
                     changed.Add("Passthrough (Meta Quest: Session/Camera)");
                 if (EnsureMetaSession() > 0)
                     changed.Add("Meta Quest: Session");
+                TuneAndroidRenderSettings(openXrSettingsType, changed);
                 if (changed.Count > 0)
                     AssetDatabase.SaveAssets();
             }
@@ -289,6 +290,56 @@ namespace TheMovies.EditorTools
                 if (settings is Object s) EditorUtility.SetDirty(s);
                 changed.Add(DisplayName(feature) + " (" + label + ")");
             }
+        }
+
+        /// <summary>
+        /// OpenXR render settings for the Quest (Android): "Optimize Buffer Discards" only works with Vulkan – with our
+        /// OpenGL ES 3 it is off (the build warns otherwise); latency optimization "Prioritize Input Polling", as Unity's
+        /// Meta Quest validation recommends (newer hand and controller poses).
+        /// </summary>
+        static void TuneAndroidRenderSettings(Type openXrSettingsType, System.Collections.Generic.List<string> changed)
+        {
+            if (openXrSettingsType == null) return;
+            var settings = StaticMethod(openXrSettingsType, "GetSettingsForBuildTargetGroup", typeof(BuildTargetGroup))
+                ?.Invoke(null, new object[] { BuildTargetGroup.Android });
+            if (settings == null) return;
+
+            int before = changed.Count;
+            var apis = PlayerSettings.GetGraphicsAPIs(BuildTarget.Android);
+            bool vulkan = apis.Length > 0 && apis[0] == UnityEngine.Rendering.GraphicsDeviceType.Vulkan;
+            var discards = Prop(settings, "optimizeBufferDiscards");
+            if (!vulkan && discards != null && discards.GetValue(settings) is bool on && on)
+            {
+                discards.SetValue(settings, false);
+                changed.Add("Optimize Buffer Discards aus (nur Vulkan)");
+            }
+            // Meta Quest Support has its own copy of the switch (copied into the settings at start, and the one its
+            // build validation checks).
+            if (!vulkan)
+            {
+                foreach (var feature in Features(settings) ?? Array.Empty<object>())
+                {
+                    if (!(feature is Object featureObject) || feature.GetType().Name != "MetaQuestFeature") continue;
+                    var so = new SerializedObject(featureObject);
+                    var prop = so.FindProperty("m_optimizeBufferDiscards");
+                    if (prop == null || !prop.boolValue) continue;
+                    prop.boolValue = false;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                    changed.Add("Meta Quest Support: Optimize Buffer Discards aus (nur Vulkan)");
+                }
+            }
+
+            var latency = Prop(settings, "latencyOptimization");
+            if (latency != null && latency.PropertyType.IsEnum && Enum.IsDefined(latency.PropertyType, "PrioritizeInputPolling"))
+            {
+                object polling = Enum.Parse(latency.PropertyType, "PrioritizeInputPolling");
+                if (!Equals(latency.GetValue(settings), polling))
+                {
+                    latency.SetValue(settings, polling);
+                    changed.Add("Latency Optimization: Prioritize Input Polling");
+                }
+            }
+            if (changed.Count > before && settings is Object s) EditorUtility.SetDirty(s);
         }
 
         public const string MetaOpenXrPackage = "com.unity.xr.meta-openxr";

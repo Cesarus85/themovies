@@ -65,7 +65,7 @@ reinstall() {
 
 start_app() {
     device
-    "$ADB" shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null
+    "$ADB" shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
     echo "Gestartet: $PACKAGE"
 }
 
