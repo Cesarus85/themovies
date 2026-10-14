@@ -71,7 +71,7 @@ namespace TheMovies.XR
         Transform m_Offset;
         Transform m_LeftAim;
         HandView m_LeftHandView, m_RightHandView;
-        Material m_MaskMaterial;
+        Material m_MaskMaterial, m_HandMaskMaterial;
         bool m_Masking;
 
         /// <summary>Show the real hands and controllers through passthrough instead of models (when passthrough is available).</summary>
@@ -344,9 +344,9 @@ namespace TheMovies.XR
             if (masking != m_Masking)
             {
                 m_Masking = masking;
-                if (m_MaskMaterial == null) m_MaskMaterial = new Material(TheMovies.UI.UIFactory.FindShader("TheMovies/PassthroughMask"));
-                m_LeftHandView.SetMask(masking, m_MaskMaterial);
-                m_RightHandView.SetMask(masking, m_MaskMaterial);
+                CreateMaskMaterials();
+                m_LeftHandView.SetMask(masking, m_HandMaskMaterial);
+                m_RightHandView.SetMask(masking, m_HandMaskMaterial);
                 foreach (var grip in new[] { LeftGrip, RightGrip })
                 {
                     foreach (var r in grip.GetComponentsInChildren<Renderer>(true))
@@ -359,6 +359,47 @@ namespace TheMovies.XR
 #if THEMOVIES_OPENXR
             PassthroughFeature.SetForHands(masking && (LeftTracked || RightTracked));
 #endif
+        }
+
+        /// <summary>
+        /// Passthrough masks with soft edges (Meta's guideline for "masking" hands). The hands grow 6 mm beyond the
+        /// tracked shape – tracking, camera and render latency never line up to the millimetre; the controllers are
+        /// scaled up instead (see UpdateRealHands).
+        /// </summary>
+        void CreateMaskMaterials()
+        {
+            if (m_MaskMaterial != null) return;
+            var shader = TheMovies.UI.UIFactory.FindShader("TheMovies/PassthroughMask");
+            m_MaskMaterial = new Material(shader) { name = "Mask (controllers)" };
+            m_MaskMaterial.SetFloat("_Inflate", 0f);
+            m_MaskMaterial.SetFloat("_Feather", 0.5f);
+            m_HandMaskMaterial = new Material(shader) { name = "Mask (hands)" };
+            m_HandMaskMaterial.SetFloat("_Inflate", 0.006f);
+            m_HandMaskMaterial.SetFloat("_Feather", 0.7f);
+        }
+
+        // The runtime's hand meshes (XR_FB_hand_tracking_mesh): asked for once a hand is tracked, retried a few times.
+        readonly float[] m_NextHandMeshTry = new float[2];
+        readonly int[] m_HandMeshTries = new int[2];
+        readonly string[] m_HandMeshStatus = { "–", "–" };
+
+        void TryLoadHandMesh(bool left, HandView view)
+        {
+            int i = left ? 0 : 1;
+            if (m_HandMeshTries[i] >= 5 || Time.unscaledTime < m_NextHandMeshTry[i]) return;
+            m_HandMeshTries[i]++;
+            m_NextHandMeshTry[i] = Time.unscaledTime + 2f;
+            var mesh = m_Inputs.TryCreateHandMesh(left, out string status);
+            m_HandMeshStatus[i] = (mesh != null ? "Mesh " : "Kapseln, ") + status;
+            if (mesh != null)
+            {
+                view.SetMesh(mesh);
+                Debug.Log($"[TheMovies] Hand mesh ({(left ? "left" : "right")}) from the runtime: {status}.");
+            }
+            else if (m_HandMeshTries[i] == 1 || m_HandMeshTries[i] == 5)
+            {
+                Debug.Log($"[TheMovies] No hand mesh ({(left ? "left" : "right")}), drawing segments: {status}");
+            }
         }
 
         readonly Dictionary<Renderer, Material[]> m_Unmasked = new Dictionary<Renderer, Material[]>();
@@ -402,7 +443,8 @@ namespace TheMovies.XR
         public bool IsHandTracked(bool left) => XRActive && m_Inputs.IsHand(left);
 
         /// <summary>What the hands are (controller / hand) and which hand tracking runs, for the settings page.</summary>
-        public string InputStatus => XRActive ? m_Inputs.SourceStatus + " · Controller: " + ControllerModelStatus : "Ohne Brille (Maus/Tastatur)";
+        public string InputStatus => XRActive ? m_Inputs.SourceStatus + " · Controller: " + ControllerModelStatus +
+            " · Hand-Mesh L: " + m_HandMeshStatus[0] + ", R: " + m_HandMeshStatus[1] : "Ohne Brille (Maus/Tastatur)";
 
         bool ReadHand(bool left, Transform grip, Transform aim)
         {
@@ -411,6 +453,7 @@ namespace TheMovies.XR
             // Hand tracking with joints: draw the real hand shape instead of the simple stand-in.
             var view = left ? m_LeftHandView : m_RightHandView;
             bool jointsShown = isHand && m_Inputs.TryGetHandJoints(left, m_Joints);
+            if (jointsShown && !view.HasMesh) TryLoadHandMesh(left, view);
             if (jointsShown) view.Apply(m_Joints);
             if (view.gameObject.activeSelf != jointsShown) view.gameObject.SetActive(jointsShown);
             var controllerModel = grip.Find("Controller Model");

@@ -30,6 +30,7 @@ namespace TheMovies.EditorTools
             "HandInteractionProfile", // hand tracking: aim pose + pinch (XR_EXT_hand_interaction)
             "HandTracking",           // XR Hands package: Hand Tracking Subsystem (XR_EXT_hand_tracking)
             "MetaHandTrackingAim",    // XR Hands package: Meta aim pose + pinch strength (XR_FB_hand_tracking_aim)
+            "MetaOpenXRHandMeshData", // OpenXR 1.18 + XR Hands 1.9: the runtime's hand mesh for the real-hands mask (XR_FB_hand_tracking_mesh)
         };
 
         static readonly string[] k_DesktopFeatures =

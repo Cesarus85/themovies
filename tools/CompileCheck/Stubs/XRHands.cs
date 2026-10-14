@@ -20,8 +20,38 @@ namespace UnityEngine.XR.Hands
         public XRHand leftHand => default;
         public XRHand rightHand => default;
         public bool running => false;
+        public bool TryGetMeshData(out Meshing.XRHandMeshDataQueryResult result, ref Meshing.XRHandMeshDataQueryParams queryParams)
+        {
+            result = default;
+            return false;
+        }
         public void Start() { }
         public void Stop() { }
         public void Destroy() { }
+    }
+}
+
+namespace UnityEngine.XR.Hands.Meshing
+{
+    using Unity.Collections;
+
+    public struct XRHandMeshDataQueryParams { public Allocator allocator { get; set; } }
+
+    public struct XRHandMeshDataQueryResult : System.IDisposable
+    {
+        public XRHandMeshData leftHand => default;
+        public XRHandMeshData rightHand => default;
+        public void Dispose() { }
+    }
+
+    public struct XRHandMeshData
+    {
+        public NativeArray<int> indices => default;
+        public NativeArray<Vector3> positions => default;
+        public NativeArray<Vector3> normals => default;
+        public NativeArray<byte> bonesPerVertex => default;
+        public NativeArray<BoneWeight1> boneWeights => default;
+        public NativeArray<Matrix4x4> jointBindPoseMatricesRaw => default;
+        public bool TryGetJointBindPoseMatrix(out Matrix4x4 bindPose, XRHandJointID jointID) { bindPose = default; return false; }
     }
 }

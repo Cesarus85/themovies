@@ -131,6 +131,17 @@ namespace TheMovies.XR
         public bool TryGetHandJoints(bool left, Pose[] joints) =>
             m_Sources[left ? 0 : 1] == Source.HandJoints && m_Joints != null && m_Joints.TryGetJoints(left, joints);
 
+        /// <summary>The runtime's mesh of a hand for drawing it (see IHandJointSource.TryCreateMesh); null if not available.</summary>
+        public Mesh TryCreateHandMesh(bool left, out string status)
+        {
+            if (m_Joints == null)
+            {
+                status = "XR Hands nicht im Build";
+                return null;
+            }
+            return m_Joints.TryCreateMesh(left, out status);
+        }
+
         /// <summary>
         /// Decides per hand where input comes from this frame: a tracked controller first, then hand joints, then the
         /// hand aim devices. Call once per frame before reading poses; <paramref name="head"/> in tracking space.

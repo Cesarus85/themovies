@@ -4,9 +4,10 @@ using UnityEngine;
 namespace TheMovies.XR
 {
     /// <summary>
-    /// The user's hand drawn from the tracked joints (hand tracking): rounded segments for the finger bones and
-    /// metacarpals plus a palm, so it moves exactly like the real hand. Joint indices follow XRHandJointID
-    /// (1 = wrist, 2 = palm, 3–6 thumb, 7–11 index, 12–16 middle, 17–21 ring, 22–26 little finger).
+    /// The user's hand from the tracked joints (hand tracking). Best case the runtime's own hand mesh
+    /// (XR_FB_hand_tracking_mesh, see <see cref="SetMesh"/>), skinned on the GPU to the joints – the exact shape of
+    /// the user's hand. Otherwise rounded segments for the finger bones and metacarpals plus a palm. Joint indices
+    /// follow XRHandJointID (1 = wrist, 2 = palm, 3–6 thumb, 7–11 index, 12–16 middle, 17–21 ring, 22–26 little finger).
     /// </summary>
     public sealed class HandView : MonoBehaviour
     {
@@ -33,20 +34,30 @@ namespace TheMovies.XR
             (23, 24, 0.0085f), (24, 25, 0.0078f), (25, 26, 0.0072f),
         };
 
+        Transform m_CapsuleRoot;
         Transform[] m_Segments;
         Transform m_Palm;
         bool m_Mask;
-        Renderer[] m_Renderers;
+        Material m_MaskMaterial;
+        Renderer[] m_CapsuleRenderers;
+
+        Transform[] m_MeshJoints;
+        SkinnedMeshRenderer m_MeshRenderer;
+
+        /// <summary>Drawn with the runtime's hand mesh (rather than the segments).</summary>
+        public bool HasMesh => m_MeshRenderer != null;
 
         /// <summary>
-        /// Mask mode: the hand is drawn a bit thicker as a hole into the picture, so the passthrough shows the real
-        /// hand there (see PassthroughFeature.SetForHands).
+        /// Mask mode: the hand is drawn as a hole into the picture, so the passthrough shows the real hand there (see
+        /// PassthroughFeature.SetForHands). The mask material grows the hand a little and fades its edges.
         /// </summary>
         public void SetMask(bool mask, Material maskMaterial)
         {
-            if (m_Mask == mask) return;
+            if (m_Mask == mask && m_MaskMaterial == maskMaterial) return;
             m_Mask = mask;
-            foreach (var r in m_Renderers) r.sharedMaterial = mask ? maskMaterial : Shapes.Lit;
+            m_MaskMaterial = maskMaterial;
+            foreach (var r in m_CapsuleRenderers) r.sharedMaterial = mask ? maskMaterial : Shapes.Lit;
+            if (m_MeshRenderer != null) ApplyMeshMaterial();
         }
 
         public static HandView Create(Transform parent, string name)
@@ -61,20 +72,64 @@ namespace TheMovies.XR
 
         void Build()
         {
+            m_CapsuleRoot = new GameObject("Segments").transform;
+            m_CapsuleRoot.SetParent(transform, false);
             m_Segments = new Transform[k_Bones.Length];
             for (int i = 0; i < k_Bones.Length; i++)
-                m_Segments[i] = Shapes.Create(PrimitiveType.Capsule, transform, "Bone " + i, Vector3.zero, Vector3.one * 0.01f, k_Skin).transform;
-            m_Palm = Shapes.Create(PrimitiveType.Sphere, transform, "Palm", Vector3.zero, Vector3.one * 0.01f, k_Skin * 0.97f).transform;
-            m_Renderers = GetComponentsInChildren<Renderer>(true);
+                m_Segments[i] = Shapes.Create(PrimitiveType.Capsule, m_CapsuleRoot, "Bone " + i, Vector3.zero, Vector3.one * 0.01f, k_Skin).transform;
+            m_Palm = Shapes.Create(PrimitiveType.Sphere, m_CapsuleRoot, "Palm", Vector3.zero, Vector3.one * 0.01f, k_Skin * 0.97f).transform;
+            m_CapsuleRenderers = m_CapsuleRoot.GetComponentsInChildren<Renderer>(true);
+        }
+
+        /// <summary>
+        /// Switches to the runtime's hand mesh: <paramref name="mesh"/> has bone weights and bind poses for the 26
+        /// joints in Unity's joint index order (index i = XRHandJointID i + 1).
+        /// </summary>
+        public void SetMesh(Mesh mesh)
+        {
+            if (mesh == null || m_MeshRenderer != null) return;
+            int count = mesh.bindposeCount;
+            m_MeshJoints = new Transform[count];
+            for (int i = 0; i < count; i++)
+            {
+                m_MeshJoints[i] = new GameObject("Joint " + (i + 1)).transform;
+                m_MeshJoints[i].SetParent(transform, false);
+            }
+            var go = new GameObject("Hand Mesh");
+            go.transform.SetParent(transform, false);
+            m_MeshRenderer = go.AddComponent<SkinnedMeshRenderer>();
+            m_MeshRenderer.sharedMesh = mesh;
+            m_MeshRenderer.bones = m_MeshJoints;
+            m_MeshRenderer.rootBone = m_MeshJoints[0]; // wrist
+            m_MeshRenderer.localBounds = new Bounds(Vector3.zero, Vector3.one * 0.5f);
+            m_MeshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            m_MeshRenderer.receiveShadows = false;
+            m_MeshRenderer.skinnedMotionVectors = false;
+            ApplyMeshMaterial();
+            m_CapsuleRoot.gameObject.SetActive(false);
+        }
+
+        void ApplyMeshMaterial()
+        {
+            m_MeshRenderer.sharedMaterial = m_Mask ? m_MaskMaterial : Shapes.Lit;
+            Shapes.SetColor(m_MeshRenderer, k_Skin);
         }
 
         /// <param name="joints">Poses in the parent's space, indexed like XRHandJointID.</param>
         public void Apply(Pose[] joints)
         {
+            if (m_MeshJoints != null)
+            {
+                for (int i = 0; i < m_MeshJoints.Length && i + 1 < joints.Length; i++)
+                    m_MeshJoints[i].SetLocalPositionAndRotation(joints[i + 1].position, joints[i + 1].rotation);
+                return;
+            }
+
             for (int i = 0; i < k_Bones.Length; i++)
             {
                 var (a, b, r) = k_Bones[i];
-                if (m_Mask) r = r * 1.35f + 0.003f; // a little margin: tracking and camera don't match to the millimetre
+                // A little margin: tracking and camera don't match to the millimetre (the mask material adds more).
+                if (m_Mask) r *= 1.15f;
                 Vector3 pa = joints[a].position, pb = joints[b].position;
                 Vector3 d = pb - pa;
                 float length = d.magnitude;
@@ -95,8 +150,8 @@ namespace TheMovies.XR
             Vector3 along = (joints[13].position - joints[1].position);
             m_Palm.localPosition = Vector3.Lerp(palm.position, (joints[1].position + joints[13].position) * 0.5f, 0.3f);
             m_Palm.localRotation = palm.rotation;
-            float grow = m_Mask ? 1.15f : 1f;
-            m_Palm.localScale = new Vector3(Mathf.Max(0.05f, across.magnitude * 1.25f) * grow, 0.026f * (m_Mask ? 1.6f : 1f),
+            float grow = m_Mask ? 1.1f : 1f;
+            m_Palm.localScale = new Vector3(Mathf.Max(0.05f, across.magnitude * 1.25f) * grow, 0.026f * (m_Mask ? 1.4f : 1f),
                 Mathf.Max(0.06f, along.magnitude * 0.85f) * grow);
         }
     }
