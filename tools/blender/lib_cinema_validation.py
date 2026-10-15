@@ -20,7 +20,7 @@ def normal_rows(obj):
     return np.concatenate((pts.reshape(-1,9),ns.reshape(-1,9)),axis=1)[face_order]
 
 
-def chair_masks(obj):
+def chair_masks(obj,shift_y=0):
     # Shared standards cross the old per-chair bounds. Compare complete row
     # envelopes, identical for baseline and revised export. Box bounds include
     # both old front/back chairs and the new two-place row; no balustrades/floors.
@@ -33,6 +33,7 @@ def chair_masks(obj):
             bounds.append((side*10.6-.84,side*10.6+.84,y-1.45,y+.61,3.6199,4.86))
     mesh=obj.data;mesh.calc_loop_triangles()
     coords=np.array([list(obj.matrix_world@v.co) for v in mesh.vertices])
+    coords[:,1]-=shift_y
     vi=np.array([tuple(t.vertices) for t in mesh.loop_triangles])
     mask=np.zeros(len(vi),bool)
     for x0,x1,y0,y1,z0,z1 in bounds:
@@ -41,16 +42,16 @@ def chair_masks(obj):
     return mask
 
 
-def architecture_signature(objects):
+def architecture_signature(objects,shift_y=0):
     # Disregard new UV2 packing and the rebake, but compare every non-chair triangle
     # including its original flat/smooth flag and material assignment.
     import hashlib
     result={}
     for o in objects:
-        mask=chair_masks(o);rows=[];mesh=o.data
+        mask=chair_masks(o,shift_y);rows=[];mesh=o.data
         for is_seat,t in zip(mask,mesh.loop_triangles):
             if is_seat:continue
-            p=sorted(tuple(round(c,5) for c in o.matrix_world@mesh.vertices[i].co) for i in t.vertices)
+            p=sorted(tuple(round(c-(shift_y if axis==1 else 0),5) for axis,c in enumerate(o.matrix_world@mesh.vertices[i].co)) for i in t.vertices)
             rows.append((tuple(p),mesh.polygons[t.polygon_index].use_smooth))
         if rows:result[o.name]={'triangles':len(rows),'sha256':hashlib.sha256(repr(sorted(rows)).encode()).hexdigest()}
     return result

@@ -2,6 +2,7 @@
 
 Blender -b --factory-startup -P tools/blender/cinema.py -- Assets/TheMovies/Art/Cinema
 Optional --preview-only rebuilds previews from art/blender/Cinema-baked.blend.
+Optional --reanchor-only reuses that baked checkpoint, measures head markers and re-exports.
 Raw CC0 downloads are restricted to Poly Haven and verified against their API MD5.
 """
 import os
@@ -20,6 +21,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_cinema import Geometry,texture
 from lib_cinema_chairs import add_chairs
 from lib_cinema_validation import normal_rows
+from lib_cinema_markers import chair_layout,anchor_seated_heads
 
 ROOT=Path(__file__).resolve().parents[2]
 args=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
@@ -77,11 +79,34 @@ def preview():
            ('Seat2-neighbours-side',(-.375,0,1.2),(1.05,-.40,.72),25,1),
            ('Seat-closeup',(-5.25,1.05,1.20),(-4.125,-.36,.63),32,1)]
     for name,loc,target,lens,dim in views:
-        cam.location=loc;aim(cam,target);data.lens=lens;data.clip_start=.05;data.clip_end=100
+        shift=Vector((0,float(scene.get('hall_shift_y',0)),0))
+        cam.location=Vector(loc)+(Vector((0,0,0)) if name.startswith('Seat2-') else shift)
+        aim(cam,Vector(target)+shift);data.lens=lens;data.clip_start=.05;data.clip_end=100
         for sock in dimmers:sock.default_value=2*dim
         scene.render.filepath=str(PREVIEW/f'{name}.png');bpy.ops.render.render(write_still=True)
     bpy.data.objects.remove(cam,do_unlink=True)
     log('Baked previews complete')
+
+def export_anchored(report):
+    scene=bpy.context.scene
+    report['head_anchors']=anchor_seated_heads(scene)
+    log('Measured head anchors: '+json.dumps(report['head_anchors']))
+    objects=[o for o in scene.objects if o.type=='MESH']
+    np.savez_compressed(PREVIEW/'normals-before-export.npz',**{o.name:normal_rows(o) for o in objects})
+    bpy.ops.export_scene.fbx(filepath=str(OUT/'Cinema.fbx'),use_selection=False,object_types={'EMPTY','MESH'},apply_unit_scale=True,apply_scale_options='FBX_SCALE_ALL',axis_forward='-Z',axis_up='Y',use_space_transform=True,bake_space_transform=True,mesh_smooth_type='FACE',use_mesh_modifiers=True,add_leaf_bones=False,bake_anim=False,path_mode='AUTO')
+    report['markers']={o.name:list(o.location) for o in scene.objects if o.type=='EMPTY'}
+    report['elapsed_seconds']=round(time.time()-START)
+    scene['cinema_build_metrics']=json.dumps(report)
+    (PREVIEW/'metrics.json').write_text(json.dumps(report,indent=2)+'\n')
+    bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Cinema-baked.blend'))
+    preview();log(f'Complete: {report["total_triangles"]} triangles; {len(objects)} materials')
+
+if '--reanchor-only' in args:
+    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Cinema-baked.blend'))
+    scene=bpy.context.scene
+    report=json.loads(scene['cinema_build_metrics']) if 'cinema_build_metrics' in scene else json.loads((PREVIEW/'metrics.json').read_text())
+    report['bake_reused']=True
+    export_anchored(report);sys.exit(0)
 
 if '--preview-only' in args:
     bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Cinema-baked.blend'));preview();sys.exit(0)
@@ -293,15 +318,12 @@ for x in [-10,-6,-2,2,6,10]:
 for r in [1.5,1.7,2.05]:g.tube(gold,[(r*math.cos(t),2.6+r*math.sin(t),10.77) for t in np.linspace(0,math.tau,80,endpoint=False)],.065,8,True)
 for j in range(24):
     a=math.tau*j/24;g.sphere(ivory,(1.27*math.cos(a),2.6+1.27*math.sin(a),10.82),(.15,.15,.08),8,4)
-# Low-poly velvet chairs: 120 main seats, 20 gallery seats, 12 box seats. Seat markers sit immediately ahead of their cushions.
-xs=[(i-5.5)*.75 for i in range(12)]+[s*x for s in (-1,1) for x in [6.3,7.05,7.8,8.55]]
-chair_positions=[(x,-row*1.65,row*.45) for row in range(-2,4) for x in xs]
-chair_positions += [(x,-6.08,4.825) for x in xs]
-chair_positions += [(side*10.6+dx,y+.2,3.62) for side in (-1,1) for y in [-2.7,3.15,8.2] for dx in [-.375,.375]]
+# Original seat placement; the entire completed, baked hall is anchored at export.
+chair_positions=chair_layout()
 chair_stats=add_chairs(g,chair_positions,seat_velvet,walnut,gold,bronze)
 log('Chair budgets: '+json.dumps({k:v for k,v in chair_stats.items() if k!='rows'}))
-# Markers are the only empties in the exported scene.
-for name,loc in [(f'Seat{i+1}',((i-1.5)*.75,0,0)) for i in range(4)]+[('ScreenAnchor',(0,11.9,.4)),('ScreenTop',(0,11.9,8.6))]:
+# Screen markers move with the portal; seated head markers are measured at export.
+for name,loc in [('ScreenAnchor',(0,11.9,.4)),('ScreenTop',(0,11.9,8.6))]:
     o=bpy.data.objects.new(name,None);scene.collection.objects.link(o);o.location=loc;o.empty_display_type='ARROWS'
 meshes=g.objects();log('Procedural geometry built')
 # Import actual CC0 chandelier mesh, simplify from ~29k to ~9k, recolor brass.
@@ -402,13 +424,9 @@ objects=[o for o in scene.objects if o.type=='MESH']
 for o in objects:
     used=next(m for m in o.data.materials if m);o.name='Cinema_'+used.name
     o.data.uv_layers.active=o.data.uv_layers['UVMap']
-np.savez_compressed(PREVIEW/'normals-before-export.npz',**{o.name:normal_rows(o) for o in objects})
-bpy.ops.export_scene.fbx(filepath=str(OUT/'Cinema.fbx'),use_selection=False,object_types={'EMPTY','MESH'},apply_unit_scale=True,apply_scale_options='FBX_SCALE_ALL',axis_forward='-Z',axis_up='Y',use_space_transform=True,bake_space_transform=True,mesh_smooth_type='FACE',use_mesh_modifiers=True,add_leaf_bones=False,bake_anim=False,path_mode='AUTO')
 stats={o.name:sum(len(p.vertices)-2 for p in o.data.polygons) for o in objects}
 assert sum(stats.values())<=250000,stats
 assert len(objects)<=16
 report={'triangles':stats,'total_triangles':sum(stats.values()),'materials':sorted(materials),'markers':{o.name:list(o.location) for o in scene.objects if o.type=='EMPTY'},'lightmap':[4096,4096],'basecolors':[1024,1024],'chairs':len(chair_positions),'chair_detail':chair_stats,'imported_chandelier_triangles':imported_triangles,'bake_samples':256,'atlas_denoise':'OpenImageDenoise compositor, linear irradiance','device':scene.cycles.device,'elapsed_seconds':round(time.time()-START),'blender':bpy.app.version_string}
-(PREVIEW/'metrics.json').write_text(json.dumps(report,indent=2)+'\n')
-# Local checkpoint supports preview iteration; not needed by Unity or committed.
-bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Cinema-baked.blend'))
-preview();log(f'Complete: {report["total_triangles"]} triangles; {len(objects)} materials')
+report['bake_reused']=False
+export_anchored(report)

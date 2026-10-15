@@ -35,29 +35,53 @@ Export-Einstellungen sind verbindlich, weil die App die Modelle automatisch einb
 
 ## 2. Koordinaten, Maße, Marker (verbindlich)
 
-Blender-Einheiten = **Meter**, **Z oben**. Die vier Plätze der Zuschauer:
+Blender-Einheiten = **Meter**, **Z oben**. Die vier Standardplätze der Zuschauer sind tatsächliche
+Sitzplätze der Teilnehmerreihe (im Heimkino entsprechende Sofaplätze):
 
 - stehen **auf dem Boden bei z = 0**, in einer Reihe entlang **X**, **0,75 m** Abstand, mittig um den Ursprung:
   x = −1,125 / −0,375 / +0,375 / +1,125, y = 0;
 - blicken nach **+Y**; die Leinwand liegt auf **+Y**;
 - Augenhöhe sitzend: **1,2 m** über diesem Boden.
 
-**Marker** (Empties, Namen exakt so, ohne `.001`):
+**Definition der Sitzmarker (Kinosaal und später auch Heimkino-Sofa):** Ein Sitzmarker liegt am Bodenpunkt
+senkrecht unter den Augen eines angelehnten, sitzenden Erwachsenen, auf der **Bodenhöhe der jeweiligen Reihe**.
+Er liegt horizontal **0,12 m vor der gepolsterten Vorderfläche der Rückenlehne**, gemessen auf der Mittellinie des
+Sitzplatzes in **0,85 m Höhe über dem Reihenboden** (Schulterhöhe). Die Fläche ist am tatsächlichen fertigen
+Polstermesh zu messen, bei unterschiedlichen Detailstufen jeweils separat. Der Marker liegt damit unter der
+sitzenden Kopfposition, nicht vor der Sitzvorderkante; die App addiert die Augenhöhe von 1,2 m.
+
+`Seat1` … `Seat4` bleiben exakt an den oben festgelegten Standardkoordinaten. Falls zur Korrektur nötig, wird der
+**gesamte Saal einschließlich aller Sitze, Architektur, Lichtquellen und Leinwandmarker starr verschoben**.
+Sitze dürfen dabei nicht relativ zum Saal versetzt werden. Bei bereits gebackenen Meshes bleiben beide UV-Sätze
+und der Lichtatlas erhalten; eine reine gemeinsame Translation benötigt keinen neuen Bake.
+
+**Marker** (Empties, Namen exakt so, ohne `.001`; Orientierung beliebig):
 
 | Name | Lage |
 | --- | --- |
-| `Seat1` … `Seat4` | auf dem Boden vor dem jeweiligen Sitz (Positionen oben, Seat1 links) |
+| `Seat1` … `Seat4` | Bodenprojektion der angelehnten Kopfposition gemäß obiger Definition; exakte Standardkoordinaten, Seat1 links |
+| `Spot_000`, `Spot_001`, … | Ein Marker pro tatsächlichem Sitzplatz, lückenlos mit drei Ziffern; gleiche Kopfpositionsdefinition und jeweilige Reihenbodenhöhe. Einschließlich aller vier Standardplätze; im Heimkino später je Sofasitzplatz. |
 | `ScreenAnchor` | Unterkante Mitte der Leinwand |
 | `ScreenTop` | Oberkante der größtmöglichen Leinwand (gleiches x/y wie der Anker, nur höher) |
+
+Im Kinosaal gibt es **152 Spot-Marker**: `Spot_000`–`Spot_119` im Parkett,
+`Spot_120`–`Spot_139` auf der hinteren Galerie und `Spot_140`–`Spot_151` in den Logen.
+`Seat1`–`Seat4` sind deckungsgleich mit `Spot_044`–`Spot_047`.
+Jeder Spot muss direkt vor einem Rückenpolster und über einem Boden liegen; Abstand zwischen zwei Spots mindestens 0,4 m.
+`ScreenAnchor` und `ScreenTop` bewegen sich mit dem Saal und bleiben mittig im Portal.
 
 Die App richtet das Modell anhand dieser Marker aus. Sie zeichnet die **Leinwand selbst** (leicht gewölbt, eigener
 Shader). Bitte **keine Leinwandfläche modellieren**, nur Rahmen/Portal/Vorhänge drumherum und eine dunkle Wand dahinter.
 
 ### Kinosaal – Maße
 
-- Leinwand: Unterkante **0,4 m** über dem Boden der Zuschauerreihe, **11,9 m** vor ihr (y = 11,9); bis **19 m breit**
-  und **8,2 m hoch** (die App wählt je nach Film und Einstellung). Das Portal muss diese Öffnung frei lassen.
-- Raum etwa **22 m breit**, Rückwand **7,2 m** hinter der Reihe, Stirnwand ~**13,6 m** davor, Decke ~**10,5 m** hoch.
+- Leinwand: Unterkante **0,4 m** über dem Boden der Zuschauerreihe; bis **19 m breit** und **8,2 m hoch**
+  (die App wählt je nach Film und Einstellung). Das Portal muss diese Öffnung frei lassen.
+  Die ursprüngliche Konstruktionslage y = 11,9 m wird mit dem gesamten Saal verschoben: nach der am fertigen
+  Parkettpolster gemessenen Kopfkorrektur um **+0,4575765 m in Y** liegen beide Leinwandmarker bei
+  **y = 12,3575765 m**. Z bleibt 0,4 m für `ScreenAnchor` bzw. 8,6 m für `ScreenTop`.
+- Ursprüngliche Konstruktionsmaße vor der gemeinsamen Kopfkorrektur: Raum etwa **22 m breit**, Rückwand
+  **7,2 m** hinter der Reihe, Stirnwand ~**13,6 m** davor, Decke ~**10,5 m** hoch.
   Abweichungen sind ok, wenn es dem Raum gut tut.
 - Stadion-Bestuhlung: Reihenabstand **1,65 m**, Stufenhöhe **0,45 m**; die Zuschauerreihe ist eine mittlere Reihe
   (2 Reihen davor tiefer, 3 dahinter höher), Sessel ~0,55–0,6 m breit. Vordere Reihen dürfen die Sicht aus 1,2 m
