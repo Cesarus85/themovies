@@ -2,6 +2,7 @@
 
 /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/blender/rooftop.py -- Assets/TheMovies/Art/Rooftop
 Optional --preview-only uses the ignored Rooftop-baked.blend checkpoint.
+Optional --head-positions-only re-exports the existing bake with corrected markers.
 Optional --geometry-only creates a draft without replacing the delivered FBX.
 """
 import sys
@@ -18,6 +19,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_rooftop_textures import texture,panorama
 from lib_rooftop_room import build,surroundings,SEATS,SCREEN
 from lib_rooftop_uvs import uv_overlaps
+from lib_rooftop_markers import correct_heads,SCENE_SHIFT_Y
 
 ROOT=Path(__file__).resolve().parents[2]
 ARGS=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
@@ -84,11 +86,22 @@ def preview():
            ('rooftop-overview',(10,-12,10),(0,1.8,.8),24,1),
            ('rooftop-lounge',(-4.4,3.9,2.1),(.3,-.65,.7),25,1)]
     for name,loc,target,lens,dim in views:
-        cam.location=loc;aim(cam,target);data.lens=lens;data.clip_start=.04;data.clip_end=400
+        shift=Vector((0,SCENE_SHIFT_Y,0))
+        cam.location=Vector(loc)+(shift if name in ('rooftop-overview','rooftop-lounge') else Vector((0,0,0)))
+        aim(cam,Vector(target)+shift);data.lens=lens;data.clip_start=.04;data.clip_end=400
         for sock in dimmers:sock.default_value=2*dim
         scene.render.filepath=str(PREVIEW/f'{name}.png');bpy.ops.render.render(write_still=True)
     bpy.data.objects.remove(cam,do_unlink=True)
     log('Baked-only terrace previews complete; unlit panorama bypasses dimmer')
+
+if '--head-positions-only' in ARGS:
+    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Rooftop-baked.blend'))
+    correct_heads(bpy.context.scene)
+    bpy.context.view_layer.update()
+    bpy.ops.export_scene.fbx(filepath=str(OUT/'Rooftop.fbx'),use_selection=False,object_types={'EMPTY','MESH'},apply_unit_scale=True,apply_scale_options='FBX_SCALE_ALL',axis_forward='-Z',axis_up='Y',use_space_transform=True,bake_space_transform=True,mesh_smooth_type='FACE',use_mesh_modifiers=True,add_leaf_bones=False,bake_anim=False,path_mode='AUTO')
+    bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Rooftop-baked.blend'))
+    log('Head positions corrected; textures, UVs and baked lighting untouched')
+    sys.exit(0)
 
 if '--preview-only' in ARGS:
     bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Rooftop-baked.blend'));preview();sys.exit(0)
@@ -244,6 +257,8 @@ report={'triangles':stats,'total_triangles':sum(stats.values()),'materials':sort
         'source_panorama':'clarens_night_02 / Dimitrios Savva, Jarod Guest / CC0','screen_max_m':[9.5,4],'device':scene.cycles.device,'blender':bpy.app.version_string,'repaired_uv_faces':repaired,
         'elapsed_seconds':round(time.time()-START)}
 assert report['total_triangles']<=120000 and len(objects)<=14
+correct_heads(scene)
+bpy.context.view_layer.update()
 bpy.ops.export_scene.fbx(filepath=str(OUT/'Rooftop.fbx'),use_selection=False,object_types={'EMPTY','MESH'},apply_unit_scale=True,apply_scale_options='FBX_SCALE_ALL',axis_forward='-Z',axis_up='Y',use_space_transform=True,bake_space_transform=True,mesh_smooth_type='FACE',use_mesh_modifiers=True,add_leaf_bones=False,bake_anim=False,path_mode='AUTO')
 scene['rooftop_build_metrics']=json.dumps(report)
 (PREVIEW/'rooftop-metrics.json').write_text(json.dumps(report,indent=2)+'\n')

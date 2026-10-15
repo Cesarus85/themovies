@@ -43,12 +43,18 @@ Sitzplätze der Teilnehmerreihe (im Heimkino entsprechende Sofaplätze):
 - blicken nach **+Y**; die Leinwand liegt auf **+Y**;
 - Augenhöhe sitzend: **1,25 m** über diesem Boden.
 
-**Definition der Sitzmarker (Kinosaal und später auch Heimkino-Sofa):** Ein Sitzmarker liegt am Bodenpunkt
-senkrecht unter den Augen eines angelehnten, sitzenden Erwachsenen, auf der **Bodenhöhe der jeweiligen Reihe**.
-Er liegt horizontal **0,12 m vor der gepolsterten Vorderfläche der Rückenlehne**, gemessen auf der Mittellinie des
-Sitzplatzes in **0,85 m Höhe über dem Reihenboden** (Schulterhöhe). Die Fläche ist am tatsächlichen fertigen
-Polstermesh zu messen, bei unterschiedlichen Detailstufen jeweils separat. Der Marker liegt damit unter der
-sitzenden Kopfposition, nicht vor der Sitzvorderkante; die App addiert die Augenhöhe von 1,25 m.
+**Definition der Sitzmarker (alle Räume):** Ein Sitzmarker liegt am Bodenpunkt senkrecht unter den
+Augen eines sitzenden Erwachsenen, auf der **Bodenhöhe der jeweiligen Reihe**. Die App addiert
+**1,25 m Augenhöhe**. Ein Kopf mit **0,20 m Durchmesser** muss vollständig vor/frei von
+Rückenpolster, Rahmen und allen anderen Oberflächen liegen, mit **mindestens 0,08 m Luft in jeder
+Richtung**. Die Prüfung erfolgt an der tatsächlichen exportierten Geometrie, einschließlich aller
+Polsterdetails, als Kugel mit Radius 0,10 m über **Mittenhöhen 1,10–1,35 m** relativ zum jeweiligen
+Boden. Der kleinste Oberflächenabstand muss also mindestens 0,18 m betragen; bei diskreten Proben
+ist deren Zwischenraum konservativ abzusichern (5-mm-Schritte: zusätzlich 2,5 mm Abstand).
+Die Kopfmitte muss außerhalb der Möbel liegen. Marker und die Bodenprojektion der Kopffläche
+(±0,10 m in X/Y) bleiben über dem Sitzpolster, nicht vor der Sitzvorderkante. Eine einzelne Probe
+in Schulterhöhe 0,85 m und der frühere pauschale 0,12-m-Rückenabstand genügen ausdrücklich nicht.
+Bestehende Räume bei einem fehlgeschlagenen Test melden; Änderungen nur im beauftragten Raum.
 
 `Seat1` … `Seat4` bleiben exakt an den oben festgelegten Standardkoordinaten. Falls zur Korrektur nötig, wird der
 **gesamte Saal einschließlich aller Sitze, Architektur, Lichtquellen und Leinwandmarker starr verschoben**.
@@ -254,16 +260,20 @@ Fächerpalmen. Pflanzen bestehen aus opaker Geometrie; keine Alpha-Karten oder G
 Warmweiße Festons an schlanken Metallpfosten, Kerzenlaternen, Beistelltische, eine kleine Bar
 mit niedrigen Rückenlehnen-Hockern und ein rollbarer Servierwagen.
 
-**Maße und Sitze:** Deck 13,6 × 14 m (X ±6,8; Y −4,8 bis +9,2), Oberkante Z=0.
+**Maße und Sitze:** Deck 13,6 × 14 m (X ±6,8; Y −4,9 bis +9,1), Oberkante Z=0.
 Brüstungsabdeckung maximal 0,79 m. Die vier Standardmarker bleiben exakt bei
 X −1,125 / −0,375 / +0,375 / +1,125, Y=Z=0 und entsprechen Spot_000–003.
-Weitere Plätze: zwei Lounge-Sessel (−3,15 / −4,35; Y=0,10), zwei Bankplätze
-(X ±0,70; Y=−2,80) und zwei niedrige Barhocker (X 3,15 / 4,25; Y=−2,65),
+Weitere Plätze: zwei Lounge-Sessel (−3,15 / −4,35; Y=0,08), zwei Bankplätze
+(X ±0,70; Y=−2,82) und zwei niedrige Barhocker (X 3,15 / 4,25; Y=−2,67),
 alle auf Z=0, alle nach +Y. Spot_000–009 stehen unter den angelehnten Köpfen;
-bei Schulterhöhe Z=0,85 liegt die fertige Rückenpolsterfront jeweils 0,12 m dahinter.
+die Kopfhülle gemäß Abschnitt 2 ist frei und bleibt über dem Sitzpolster.
+Die akzeptierte Szene wurde insgesamt starr um Y=−0,10 m verschoben (inklusive Panorama und
+Leinwandmarker); Loveseat-Köpfe liegen dadurch 0,10 m weiter vorn relativ zum Sitz. Die übrigen
+Spots wurden um 0,08 m relativ zu ihren Sitzen nach vorn gesetzt. Geometrie, UVs und Texturen
+bleiben unverändert; kein neuer Bake. Bei Schulterhöhe beträgt der Rückenabstand nun 0,22 bzw. 0,20 m.
 Sitzende Augenhöhe ist 1,25 m; jeder Platz muss das vollständige Projektionsraster sehen.
 
-**Leinwand:** ScreenAnchor=(0; 8,50; 1,10), ScreenTop=(0; 8,50; 5,10).
+**Leinwand:** ScreenAnchor=(0; 8,40; 1,10), ScreenTop=(0; 8,40; 5,10).
 Freie Fläche 9,5 × 4 m für die App-Bildbreiten 3,5–9,5 m. Stabiler Teakrahmen und
 dunkle bauliche Nachbarwand dahinter, keine modellierte Leinwandfläche.
 
@@ -282,7 +292,10 @@ Basisfarbe × gespeicherten Lichtatlas ×2; bei Filmlicht ×0,04. Unlit-Panorama
 bleiben unverändert. Keine Echtzeitlampen im Export.
 
 Aufruf: `Blender -b --factory-startup -P tools/blender/rooftop.py -- Assets/TheMovies/Art/Rooftop`.
-Prüfung: `Blender -b --factory-startup -P tools/blender/verify_rooftop.py`.
+Prüfung: `Blender -b --factory-startup -P tools/blender/verify_rooftop.py` (inklusive rein lesender
+Kopffreiheitsprüfung von Home/Cinema; deren Befunde in `all-rooms-head-clearance.json`).
+Nur Kopfkorrektur aus vorhandenem Bake-Checkpoint: gleicher Build-Aufruf mit `--head-positions-only`
+(idempotent, ohne Textur- oder Bake-Änderung).
 Lieferung: `Rooftop.fbx`, `Textures/`, Sitz-/Leinwandmarker; Bake-Checkpoint nur unter
 `art/blender/`. Reimport-, UV-, Kopfpositions- und Sichtlinienprüfungen sowie gebackene Ansichten
 unter `Logs/art-preview/`; Bericht `ROOFTOP-REPORT.md`. Keine Änderungen an Kino/Heimkino,

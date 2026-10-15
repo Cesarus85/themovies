@@ -15,6 +15,7 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_rooftop_uvs import uv_overlaps,audit_padding
+from lib_seated_head_clearance import audit as audit_heads
 ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'Assets/TheMovies/Art/Rooftop';PREVIEW=ROOT/'Logs/art-preview'
 PREVIEW.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -27,10 +28,10 @@ materials={o.data.materials[0].name for o in objects};assert len(materials)==len
 required={'Rooftop_Canvas_Linen','Rooftop_Blackened_Metal','Rooftop_Festoon_bulb','Rooftop_Panorama_unlit'}
 assert required<=materials
 # Deliberately independent expected coordinates, rather than importing the builder's seats.
-seat_points=[(-1.125,0,0),(-.375,0,0),(.375,0,0),(1.125,0,0),(-3.15,.1,0),(-4.35,.1,0),(-.7,-2.8,0),(.7,-2.8,0),(3.15,-2.65,0),(4.25,-2.65,0)]
+seat_points=[(-1.125,0,0),(-.375,0,0),(.375,0,0),(1.125,0,0),(-3.15,.08,0),(-4.35,.08,0),(-.7,-2.82,0),(.7,-2.82,0),(3.15,-2.67,0),(4.25,-2.67,0)]
 expected={f'Seat{i+1}':seat_points[i] for i in range(4)}
 expected.update({f'Spot_{i:03d}':p for i,p in enumerate(seat_points)})
-expected.update(ScreenAnchor=(0,8.5,1.1),ScreenTop=(0,8.5,5.1))
+expected.update(ScreenAnchor=(0,8.4,1.1),ScreenTop=(0,8.4,5.1))
 assert {o.name for o in scene.objects if o.type=='EMPTY'}==set(expected)
 for i,a in enumerate(seat_points):
     for b in seat_points[i+1:]:assert (Vector(a)-Vector(b)).length>=.4
@@ -73,8 +74,10 @@ for pts in tris*N:
     count[mn[1]:mx[1]+1,mn[0]:mx[0]+1]+=mask.astype(np.uint16)
 assert not np.any(count>1),'Overlapping atlas texels'
 assert (count>0).mean()>.10,('Insufficient atlas surface coverage',float((count>0).mean()))
-# Every actual seat must have a cushion underneath, a finished padded back at 12 cm,
-# a structural floor at the marker, and a free 1.25 m eye position.
+# Audit the whole spherical head envelope, then retain floor/back/sightline tests.
+head_clearance=audit_heads(objects,scene.objects)
+(PREVIEW/'rooftop-head-clearance.json').write_text(json.dumps(head_clearance,indent=2)+'\n')
+assert head_clearance['pass'],head_clearance['failed_markers']
 bvh=bvh_for(objects)
 upholstery=bvh_for([o for o in objects if o.name=='Rooftop_Canvas_Linen'])
 floor=bvh_for([o for o in objects if o.name in ('Rooftop_Teak','Rooftop_Woven_Rug')])
@@ -82,7 +85,7 @@ spots=[];sightlines=[]
 for i in range(10):
     name=f'Spot_{i:03d}';p=scene.objects[name].matrix_world.translation
     hit,n,face,distance=upholstery.ray_cast(p+Vector((0,0,.85)),Vector((0,-1,0)),.3)
-    assert hit is not None and n.y>.8 and abs(distance-.12)<.0001,(name,'padded back',distance)
+    assert hit is not None and n.y>.8 and abs(distance-(.22 if i<4 else .20))<.0001,(name,'padded back',distance)
     ground,normal,_,_=floor.ray_cast(p+Vector((0,0,.05)),Vector((0,0,-1)),.1)
     assert ground is not None and normal.z>.95 and abs(ground.z-p.z)<.011,(name,'floor')
     cushion,n,_,_=upholstery.ray_cast(p+Vector((0,.15,.78)),Vector((0,0,-1)),.4)
@@ -92,7 +95,7 @@ for i in range(10):
     assert bvh.find_nearest(origin)[3]>.10,(name,'eye inside furniture')
     for x in np.linspace(-4.75,4.75,39):
         for z in np.linspace(1.1,5.1,17):
-            target=Vector((float(x),8.5,float(z)));delta=target-origin
+            target=Vector((float(x),8.4,float(z)));delta=target-origin
             hit=bvh.ray_cast(origin,delta.normalized(),delta.length-.001)
             assert hit[0] is None,(name,'blocked screen',x,z,list(hit[0]) if hit[0] else None)
             sightlines.append([name,float(x),float(z)])
@@ -167,7 +170,7 @@ for m in bpy.data.materials:
     assert Path(image.filepath).name==f'{m.name}_BaseColor.png'
 # No alpha textures and exact spherical longitude/latitude UV0 on reimport.
 pano=next(o for o in objects if 'Panorama' in o.name)
-center=Vector((0,0,1.25));radius=150.;rotation=.31*2*np.pi
+center=Vector((0,-.10,1.25));radius=150.;rotation=.31*2*np.pi
 for mat in (o.data.materials[0] for o in objects):
     bs=next(n for n in mat.node_tree.nodes if n.type=='BSDF_PRINCIPLED')
     assert not bs.inputs['Alpha'].is_linked and bs.inputs['Alpha'].default_value==1
@@ -187,7 +190,7 @@ for poly in pano.data.polygons:
 # Keep the projection plane and its immediate depth reserve empty.
 for x in np.linspace(-4.75,4.75,39):
     for z in np.linspace(1.1,5.1,17):
-        assert bvh.ray_cast(Vector((x,8.48,z)),Vector((0,1,0)),.12)[0] is None,'Modeled screen face'
+        assert bvh.ray_cast(Vector((x,8.38,z)),Vector((0,1,0)),.12)[0] is None,'Modeled screen face'
 # Every seat can see over the parapet into all three city sectors. Model vegetation
 # may interrupt individual rays, but not close off a sector. Count the actual rays.
 city_views=[]
@@ -200,8 +203,8 @@ for i,p in enumerate(seat_points):
             limits=[]
             if direction.x>1e-6:limits.append((7.05-origin.x)/direction.x)
             if direction.x< -1e-6:limits.append((-7.05-origin.x)/direction.x)
-            if direction.y>1e-6:limits.append((9.45-origin.y)/direction.y)
-            if direction.y< -1e-6:limits.append((-5.05-origin.y)/direction.y)
+            if direction.y>1e-6:limits.append((9.35-origin.y)/direction.y)
+            if direction.y< -1e-6:limits.append((-5.15-origin.y)/direction.y)
             distance=min(t for t in limits if t>0)
             hit=bvh.ray_cast(origin,direction,distance)
             if hit[0] is None:clear+=1
@@ -213,7 +216,7 @@ for i,p in enumerate(seat_points):
 roof_samples=[(-14,5,.35),(-16,-10,.1),(14,-5,.3),(16,10,.45),(-4,-16,.2),(6,-21,-2),(-22,21,-1.8),(23,21,-2),(27,-18,-3),(-24,-21,-2),(0,27,-1.8),(9,32,-2)]
 roof_bvh=bvh_for([o for o in objects if o.name in ('Rooftop_City_Plaster','Rooftop_Limestone')])
 for x,y,z in roof_samples:
-    hit=roof_bvh.ray_cast(Vector((x,y,z+2)),Vector((0,0,-1)),2.2)[0]
+    hit=roof_bvh.ray_cast(Vector((x,y-.10,z+2)),Vector((0,0,-1)),2.2)[0]
     assert hit is not None and abs(hit.z-(z+.12))<.002,('missing roof geometry',x,y,hit)
     assert 10<=np.hypot(x,y)<=40
 # Near roofs are actual mesh components, with a different bearing under head motion.
@@ -230,7 +233,7 @@ exterior={'city_sectors':city_views,'relative_parallax_30cm_deg':parallax,'paral
           'panorama_angular_mapping':'full 360x180 longitude/latitude checked on imported vertices',
           'panorama_unlit':True,'opaque_geometry':True,'screen_plane_empty':True,'verified_near_roofs':roof_samples}
 result={'exterior':exterior,'validation':'PASS','fbx_reimport':'PASS','fbx_sha256':hashlib.sha256((OUT/'Rooftop.fbx').read_bytes()).hexdigest(),'triangles':stats,'total_triangles':sum(stats.values()),
-        'materials':len(materials),'mesh_objects':len(objects),'markers':expected,'seated_head_surface_checks':spots,
+        'materials':len(materials),'mesh_objects':len(objects),'markers':expected,'seated_head_surface_checks':spots,'head_clearance':head_clearance,
         'sightlines':{'eye_height_m':1.25,'screen_size_m':[9.5,4],'grid':[39,17],'clear':len(sightlines),'blocked':0},
         'atlas':atlas_stats,'visible_surface_light':visible_evidence,'atlas_padding':padding,'textures':textures,'custom_normals':normal_evidence}
 (PREVIEW/'rooftop-verification.json').write_text(json.dumps(result,indent=2)+'\n')
@@ -247,7 +250,8 @@ lines += ['', 'Die Basisfarben heißen jeweils `Textures/<Material>_BaseColor.pn
           'Export: `Assets/TheMovies/Art/Rooftop/Rooftop.fbx`. Kein Leinwandmesh; nur Rahmen und bauliche Wand dahinter.',
           '', '## Prüfungen','',
           '- Seat1–4 exakt an den Standardkoordinaten; Spot_000–009 lückenlos, Boden und Sitzpolster vorhanden.',
-          '- Jede tatsächliche Rückenpolsterfront bei Schulterhöhe 0,85 m: gemessener Abstand zum Marker 0,12 m.',
+          f"- Kopfhülle Ø20 cm, Mittenhöhe 1,10–1,35 m: alle 14 Marker bestanden, garantierter Freiraum ≥{head_clearance['minimum_clearance_lower_bound_m']*100:.2f} cm.",
+          '- Gesamte Terrasse starr um Y=−0,10 m verschoben; weitere Spots +0,08 m relativ zu ihren Sitzen. Kein neuer Bake.',
           '- 6.630 freie Sichtstrahlen aus 1,25 m Augenhöhe auf die ganze 9,5 × 4 m Projektionsfläche.',
           '- 930 zusätzliche horizontale Strahlen: jeder Platz hat offene Stadtblicke links, rechts und hinten.',
           '- Zwölf reale Nachbardächer per Reimport-Raytest; messbare Parallaxe zwischen Nahgeometrie und 150-m-Panorama.',
@@ -270,7 +274,28 @@ lines += ['', 'Die Basisfarben heißen jeweils `Textures/<Material>_BaseColor.pn
           '', 'Quelle: Clarens Night 02, Dimitrios Savva / Jarod Guest, Poly Haven, CC0; vollständige Herkunft und Bearbeitung in `docs/CREDITS.md`.',
           'Reproduzierbarer Build: `tools/blender/rooftop.py`; unabhängiger Exporttest: `tools/blender/verify_rooftop.py`.',
           'Maschinenlesbare Details: `rooftop-metrics.json` und `rooftop-verification.json`.',
-          '', 'Offen: Unity-Import, tatsächliche Quest-3-Darstellung, Performance und subjektive Abnahme im Headset.',
+          '', 'Gestaltung auf Quest 3 vom Nutzer als ausgezeichnet bestätigt. Erneute Kopfpositionskontrolle im Headset bleibt offen.',
           'Unity wurde nicht gestartet. Kino/Heimkino, App-Code, Packages und ProjectSettings bleiben unverändert.',
           'Logs, Blender-Checkpoints und Rohquellen sind von Git ausgeschlossen.']
 (PREVIEW/'ROOFTOP-REPORT.md').write_text('\n'.join(lines)+'\n')
+
+# Reference rooms are imported read-only and reported, never repaired or exported.
+# Their failures are explicit findings, not a reason to silently change accepted art.
+room_heads={'Rooftop':head_clearance}
+for room_name in ('Home','Cinema'):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.fbx(filepath=str(ROOT/f'Assets/TheMovies/Art/{room_name}/{room_name}.fbx'))
+    expected_names={f'Seat{i+1}' for i in range(4)}|{f'Spot_{i:03d}' for i in range(4 if room_name=='Home' else 152)}
+    actual_names={o.name for o in bpy.context.scene.objects if o.name.startswith(('Seat','Spot_'))}
+    assert actual_names==expected_names,(room_name,'missing or unexpected seat markers')
+    room_heads[room_name]=audit_heads([o for o in bpy.context.scene.objects if o.type=='MESH'],bpy.context.scene.objects)
+(PREVIEW/'all-rooms-head-clearance.json').write_text(json.dumps(room_heads,indent=2)+'\n')
+with (PREVIEW/'ROOFTOP-REPORT.md').open('a') as report:
+    report.write('\n## Kopffreiheit aller Räume (importierte FBX-Geometrie)\n\n')
+    for name,check in room_heads.items():
+        summary=f"{name}: {check['marker_count']-len(check['failed_markers'])}/{check['marker_count']} Marker bestanden; Mindestfreiraum {check['minimum_clearance_lower_bound_m']*100:.2f} cm."
+        print(summary)
+        report.write('- '+summary+'\n')
+        if check['failed_markers']:
+            report.write('  Fehlgeschlagen, unverändert: '+', '.join(check['failed_markers'])+'.\n')
+    report.write('\nVollständige Einzelmessungen inkl. nominaler 1,25-m-Höhe: `all-rooms-head-clearance.json`.\n')
