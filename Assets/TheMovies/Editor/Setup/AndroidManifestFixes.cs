@@ -147,7 +147,13 @@ namespace TheMovies.EditorTools
                 Debug.LogWarning($"[TheMovies] Android SDK platform {k_MinCompileSdk}+ fehlt (höchste installierte: {sdk}). " +
                                  "Bitte im Unity Hub die Android-SDK-Module aktualisieren.");
             int compileSdk = sdk >= k_MinCompileSdk ? sdk : k_MinCompileSdk;
+            // All modules, including the Android libraries embedded in unityLibrary (e.g. the XR packages'
+            // xrmanifest.androidlib): they compile against the target API (32) as well, and newer Unity versions no
+            // longer ship that SDK platform – Gradle then fails with "platforms;android-32 … licences not accepted".
+            var modules = new List<string>(Directory.GetDirectories(root));
             foreach (string module in Directory.GetDirectories(root))
+                modules.AddRange(Directory.GetDirectories(module, "*.androidlib"));
+            foreach (string module in modules)
             {
                 string moduleGradle = Path.Combine(module, "build.gradle");
                 if (!File.Exists(moduleGradle)) continue;
@@ -155,7 +161,7 @@ namespace TheMovies.EditorTools
                 int current = GradleEdits.CompileSdk(g);
                 if (current < 0 || current >= k_MinCompileSdk) continue;
                 File.WriteAllText(moduleGradle, GradleEdits.RaiseCompileSdk(g, compileSdk));
-                Debug.Log($"[TheMovies] {Path.GetFileName(module)}: compileSdk {current} → {compileSdk} (für Media3).");
+                Debug.Log($"[TheMovies] {Path.GetFileName(module)}: compileSdk {current} → {compileSdk} (Media3, installierte SDK-Plattform).");
             }
 
             string properties = Path.Combine(root, "gradle.properties");
