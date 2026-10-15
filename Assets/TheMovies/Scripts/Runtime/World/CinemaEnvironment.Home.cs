@@ -34,28 +34,44 @@ namespace TheMovies.World
         int m_FireLight = -1;
         Color m_FireColor;
 
-        /// <summary>The room shown (built-in rooms only; a custom cinema model has just one).</summary>
+        /// <summary>The room shown.</summary>
         public Room CurrentRoom => m_Room;
 
         public bool RoomsAvailable => m_RoomsAvailable;
+
+        // Projection screen on the living room's front wall: smaller than in the cinema, bottom at sideboard height.
+        static readonly ScreenPlacement k_HomePlacement = new ScreenPlacement(new Vector3(0, 0.78f, k_HomeFrontZ - 0.08f), 0.32f, 1.85f);
+        ScreenPlacement m_HomePlacement;
 
         public void SetRoom(Room room)
         {
             if (!m_RoomsAvailable) return;
             m_Room = room;
-            if (room == Room.Home && m_HomeRoot == null) BuildHome();
+            if (room == Room.Home && m_HomeRoot == null) CreateHome();
+            var placement = room == Room.Home ? m_HomePlacement : m_HallPlacement;
             if (room == Room.Home)
-            {
                 SetLights(m_HomeLightPos, m_HomeLightColor);
-                // Projection screen on the front wall: smaller than in the cinema, bottom at sideboard height.
-                Screen.SetRoomPlacement(new Vector3(0, 0.78f, k_HomeFrontZ - 0.08f), Quaternion.identity, sizeScale: 0.32f, maxHeight: 1.85f);
-            }
             else
-            {
                 SetLights(m_HallLightPos, m_HallLightColor);
-                Screen.SetRoomPlacement(new Vector3(0, k_ScreenBottom, k_ScreenZ), Quaternion.identity, sizeScale: 1f, maxHeight: 8.2f);
-            }
+            Screen.SetRoomPlacement(placement.Position, placement.Rotation, placement.SizeScale, placement.MaxHeight);
             ApplyHall();
+        }
+
+        /// <summary>The living room: the model from Resources/TheMovies/CustomHome if there is one, else the built-in one.</summary>
+        void CreateHome()
+        {
+            m_HomeRoot = new GameObject("Living Room").transform;
+            m_HomeRoot.SetParent(transform, false);
+            var custom = Resources.Load<GameObject>(CustomHomePrefabPath);
+            if (custom != null && BuildCustom(custom, m_HomeRoot, k_HomePlacement, out m_HomePlacement))
+            {
+                m_HomeLightPos = new Vector4[0];
+                m_HomeLightColor = new Vector4[0];
+                m_FireLight = -1;
+                return;
+            }
+            m_HomePlacement = k_HomePlacement;
+            BuildHome();
         }
 
         void Update()
@@ -71,8 +87,6 @@ namespace TheMovies.World
 
         void BuildHome()
         {
-            m_HomeRoot = new GameObject("Living Room").transform;
-            m_HomeRoot.SetParent(transform, false);
 
             var floorMat = Lit("Parquet", ProceduralTextures.Wood(), uvTiling: 1f / 0.9f, specular: 0.3f);
             var rugMat = Lit("Rug", ProceduralTextures.Carpet(), uvTiling: 1f / 1.1f);

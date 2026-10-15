@@ -7,8 +7,11 @@ namespace TheMovies.World
     /// Builds the cinema hall: stadium seating with velvet seats, patterned carpet, fabric walls with wood
     /// pilasters and sconces, a starry ceiling, curtains, a stage and a slightly curved screen.
     /// Everything is generated at runtime and merged into a handful of meshes (one per material).
-    /// A custom hall can replace it: put a prefab at Resources/TheMovies/CustomCinema with child objects
-    /// "Seat1".."Seat4" (floor position, facing the screen) and "ScreenAnchor" (bottom center of the screen).
+    /// Each room can be replaced by a model: a prefab at Resources/TheMovies/CustomCinema (or CustomHome for the living
+    /// room), made with the editor menu "The Movies > Raum-Modell aufbereiten". It needs the children "Seat1".."Seat4"
+    /// (floor position, facing the screen) and "ScreenAnchor" (bottom center of the screen); "ScreenTop" (optional) marks
+    /// how high the screen may get. The model is moved so that its seats are the standard seats: the avatars of the
+    /// others sit correctly whichever room each participant has chosen.
     /// </summary>
     public sealed partial class CinemaEnvironment : MonoBehaviour
     {
@@ -17,6 +20,7 @@ namespace TheMovies.World
         public const float RowPitch = 1.65f;
         public const float StepHeight = 0.45f;
         public const string CustomPrefabPath = "TheMovies/CustomCinema";
+        public const string CustomHomePrefabPath = "TheMovies/CustomHome";
 
         public static readonly Color[] ParticipantColors =
         {
@@ -81,47 +85,105 @@ namespace TheMovies.World
         {
             var go = new GameObject("Cinema");
             var env = go.AddComponent<CinemaEnvironment>();
-
-            var custom = Resources.Load<GameObject>(CustomPrefabPath);
-            if (custom != null && env.BuildCustom(custom))
-                return env;
-
             s_Seats = DefaultSeats();
+            env.m_RoomsAvailable = true;
+
             env.m_HallRoot = new GameObject("Hall").transform;
             env.m_HallRoot.SetParent(go.transform, false);
-            env.BuildHall();
-            env.Screen = ScreenController.Create(go.transform, new Vector3(0, k_ScreenBottom, k_ScreenZ), Quaternion.identity, maxHeight: 8.2f);
+            var custom = Resources.Load<GameObject>(CustomPrefabPath);
+            if (custom == null || !env.BuildCustom(custom, env.m_HallRoot, k_HallPlacement, out env.m_HallPlacement))
+            {
+                env.m_HallPlacement = k_HallPlacement;
+                env.BuildHall();
+            }
+            else
+            {
+                env.m_HallLightPos = new Vector4[0];
+                env.m_HallLightColor = new Vector4[0];
+                SetLights(env.m_HallLightPos, env.m_HallLightColor);
+            }
+            var hall = env.m_HallPlacement;
+            env.Screen = ScreenController.Create(go.transform, hall.Position, hall.Rotation, maxHeight: hall.MaxHeight);
             env.Screen.ImmersiveChanged += _ => env.ApplyHall();
-            env.m_RoomsAvailable = true;
             return env;
         }
 
-        // ---------------- Custom environment ----------------
+        // ---------------- Custom models ----------------
 
-        bool BuildCustom(GameObject prefab)
+        /// <summary>Where the screen hangs in a room: bottom center, facing, size step scale and tallest height.</summary>
+        struct ScreenPlacement
         {
-            var instance = Instantiate(prefab, transform);
-            instance.name = "Custom Cinema";
-            var seats = DefaultSeats();
-            int found = 0;
+            public Vector3 Position;
+            public Quaternion Rotation;
+            public float SizeScale;
+            public float MaxHeight;
+
+            public ScreenPlacement(Vector3 position, float sizeScale, float maxHeight)
+            {
+                Position = position;
+                Rotation = Quaternion.identity;
+                SizeScale = sizeScale;
+                MaxHeight = maxHeight;
+            }
+        }
+
+        static readonly ScreenPlacement k_HallPlacement = new ScreenPlacement(new Vector3(0, k_ScreenBottom, k_ScreenZ), 1f, 8.2f);
+        ScreenPlacement m_HallPlacement;
+
+        /// <summary>
+        /// Puts a room model under <paramref name="root"/>, moved and turned so that the center of its seats is the
+        /// center of the standard seats and they face +Z. False (and nothing added) without seats or screen anchor.
+        /// </summary>
+        bool BuildCustom(GameObject prefab, Transform root, ScreenPlacement defaults, out ScreenPlacement placement)
+        {
+            placement = defaults;
+            var instance = Instantiate(prefab, root);
+            instance.name = prefab.name;
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+
+            var seats = new System.Collections.Generic.List<Transform>();
+            for (int i = 0; i < MaxParticipants; i++)
+            {
+                var t = FindDeep(instance.transform, "Seat" + (i + 1));
+                if (t != null) seats.Add(t);
+            }
+            var anchor = FindDeep(instance.transform, "ScreenAnchor");
+            if (seats.Count == 0 || anchor == null)
+            {
+                Debug.LogWarning($"[TheMovies] Room model '{prefab.name}' needs children 'Seat1'..'Seat4' and 'ScreenAnchor'. Using the built-in room.");
+                DestroyImmediate(instance);
+                return false;
+            }
+
+            // Seats' center → standard seats' center (origin); the direction towards the screen anchor → +Z. (Not the
+            // markers' own orientation: axis conversions on export from Blender etc. easily turn empties.)
+            Vector3 center = Vector3.zero;
+            foreach (var seat in seats) center += root.InverseTransformPoint(seat.position);
+            center /= seats.Count;
+            var forward = root.InverseTransformPoint(anchor.position) - center;
+            forward.y = 0f;
+            var turn = forward.sqrMagnitude > 1e-4f ? Quaternion.Inverse(Quaternion.LookRotation(forward.normalized, Vector3.up)) : Quaternion.identity;
+            instance.transform.localRotation = turn;
+            instance.transform.localPosition = -(turn * center);
+
             for (int i = 0; i < MaxParticipants; i++)
             {
                 var t = FindDeep(instance.transform, "Seat" + (i + 1));
                 if (t == null) continue;
-                seats[i] = new Pose(t.position, Quaternion.Euler(0, t.eulerAngles.y, 0));
-                found++;
+                float off = Vector3.Distance(root.InverseTransformPoint(t.position), s_Seats[i].position);
+                if (off > 0.15f)
+                    Debug.LogWarning($"[TheMovies] Room model '{prefab.name}': Seat{i + 1} is {off:0.00} m away from the standard seat " +
+                                     $"(seats {SeatSpacing} m apart in a row) – the avatars of others won't sit exactly on it.");
             }
-            var anchor = FindDeep(instance.transform, "ScreenAnchor");
-            if (found == 0 || anchor == null)
-            {
-                Debug.LogWarning("[TheMovies] Custom cinema needs children 'Seat1'..'Seat4' and 'ScreenAnchor'. Using the built-in hall.");
-                Destroy(instance);
-                return false;
-            }
-            s_Seats = seats;
-            SetLights(new Vector4[0], new Vector4[0]);
-            Screen = ScreenController.Create(transform, anchor.position, Quaternion.Euler(0, anchor.eulerAngles.y, 0), maxHeight: 12f);
-            Screen.ImmersiveChanged += _ => ApplyHall();
+
+            placement.Position = root.InverseTransformPoint(anchor.position);
+            var towardsScreen = new Vector3(placement.Position.x, 0f, placement.Position.z);
+            placement.Rotation = towardsScreen.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(towardsScreen.normalized, Vector3.up) : Quaternion.identity;
+            var top = FindDeep(instance.transform, "ScreenTop");
+            if (top != null)
+                placement.MaxHeight = Mathf.Max(0.5f, root.InverseTransformPoint(top.position).y - placement.Position.y);
+            Debug.Log($"[TheMovies] Room model '{prefab.name}': {seats.Count} seats, screen at {placement.Position}, up to {placement.MaxHeight:0.0} m high.");
             return true;
         }
 

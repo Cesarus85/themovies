@@ -1,5 +1,6 @@
 // Lighting for the cinema hall without real-time lights: a few point lights (wall sconces) passed as
-// global arrays, dimmable house lights, the colored glow of the movie screen and a velvet sheen.
+// global arrays, dimmable house lights, the colored glow of the movie screen and a velvet sheen. Room models from
+// Blender bring their light baked into a texture on the second UV set instead (variant _TM_BAKED).
 // Works in the Built-in and Universal pipelines and with Single Pass Instanced / Multiview.
 Shader "TheMovies/CinemaLit"
 {
@@ -12,6 +13,11 @@ Shader "TheMovies/CinemaLit"
         _RoomLightAffect ("Emission dims with house lights", Range(0, 1)) = 0
         _ScreenGlow ("Screen glow", Range(0, 3)) = 1
         _Specular ("Specular", Range(0, 1)) = 0
+        _VertexColor ("Use vertex colors", Range(0, 1)) = 1
+        // Variant _TM_BAKED: light baked in Blender, on the second UV set, stored at half (× _LightScale = 2).
+        _LightTex ("Baked light (UV2)", 2D) = "white" {}
+        _LightScale ("Baked light scale", Float) = 2
+        _BakedDim ("Baked light left with house lights off", Range(0, 1)) = 0.12
     }
     SubShader
     {
@@ -23,6 +29,7 @@ Shader "TheMovies/CinemaLit"
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 3.0
+            #pragma multi_compile_local __ _TM_BAKED
             #include "UnityCG.cginc"
 
             #define TM_MAX_LIGHTS 8
@@ -35,6 +42,10 @@ Shader "TheMovies/CinemaLit"
             float _RoomLightAffect;
             float _ScreenGlow;
             float _Specular;
+            float _VertexColor;
+            sampler2D _LightTex;
+            float _LightScale;
+            float _BakedDim;
 
             // Set globally by CinemaEnvironment / ScreenController
             float4 _TM_LightPos[TM_MAX_LIGHTS];    // xyz = position, w = range
@@ -50,6 +61,7 @@ Shader "TheMovies/CinemaLit"
                 float4 vertex : POSITION;
                 float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
+                float2 uv2 : TEXCOORD1;
                 fixed4 color : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -60,6 +72,7 @@ Shader "TheMovies/CinemaLit"
                 float2 uv : TEXCOORD0;
                 float3 worldPos : TEXCOORD1;
                 float3 worldNormal : TEXCOORD2;
+                float2 uv2 : TEXCOORD3;
                 fixed4 color : COLOR;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -75,13 +88,14 @@ Shader "TheMovies/CinemaLit"
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.color = v.color;
+                o.uv2 = v.uv2;
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-                float3 albedo = tex2D(_MainTex, i.uv).rgb * i.color.rgb * _Color.rgb;
+                float3 albedo = tex2D(_MainTex, i.uv).rgb * lerp(1.0, i.color.rgb, _VertexColor) * _Color.rgb;
                 float3 n = normalize(i.worldNormal);
                 float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
                 // Double-sided surfaces: light the side facing the viewer.
@@ -90,8 +104,13 @@ Shader "TheMovies/CinemaLit"
                 float room = saturate(_TM_RoomLight);
                 float lampLevel = lerp(0.18, 1.0, room);
 
+#if _TM_BAKED
+                // Light baked in Blender (chandeliers, sconces, ambient), dimmed with the house lights.
+                float3 light = tex2D(_LightTex, i.uv2).rgb * _LightScale * lerp(_BakedDim, 1.0, room);
+#else
                 // House lights: soft ambient, a bit brighter from above
                 float3 light = lerp(0.035, 0.30, room) * (0.75 + 0.25 * n.y) * float3(1.0, 0.95, 0.9);
+#endif
 
                 // Wall sconces
                 float3 spec = 0;
