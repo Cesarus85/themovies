@@ -18,6 +18,8 @@ import numpy as np
 from mathutils import Vector
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_cinema import Geometry,texture
+from lib_cinema_chairs import add_chairs
+from lib_cinema_validation import normal_rows
 
 ROOT=Path(__file__).resolve().parents[2]
 args=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
@@ -70,7 +72,10 @@ def preview():
     scene.render.resolution_x=1600;scene.render.resolution_y=1000;scene.render.resolution_percentage=100
     scene.render.image_settings.file_format='PNG';scene.render.image_settings.color_mode='RGB'
     data=bpy.data.cameras.new('Preview');cam=bpy.data.objects.new('Preview',data);scene.collection.objects.link(cam);scene.camera=cam
-    views=[('Seat2-house-on',(-.375,0,1.2),(0,11.9,4.25),17,1),('Seat2-house-12pct',(-.375,0,1.2),(0,11.9,4.25),17,.12),('Overview-back-top',(0,-6.7,8.25),(0,4.3,2.5),15.5,1),('Gallery-and-seating',(6.5,8,5.8),(0,-2.5,4.2),19,1)]
+    views=[('Seat2-house-on',(-.375,0,1.2),(0,11.9,4.25),17,1),('Seat2-house-12pct',(-.375,0,1.2),(0,11.9,4.25),17,.12),('Overview-back-top',(0,-6.7,8.25),(0,4.3,2.5),15.5,1),('Gallery-and-seating',(6.5,8,5.8),(0,-2.5,4.2),19,1),
+           ('Seat2-row-ahead-down',(-.375,0,1.2),(-.375,1.1,.25),24,1),
+           ('Seat2-neighbours-side',(-.375,0,1.2),(1.05,-.40,.72),25,1),
+           ('Seat-closeup',(-5.25,1.05,1.20),(-4.125,-.36,.63),32,1)]
     for name,loc,target,lens,dim in views:
         cam.location=loc;aim(cam,target);data.lens=lens;data.clip_start=.05;data.clip_end=100
         for sock in dimmers:sock.default_value=2*dim
@@ -102,6 +107,18 @@ carpet=material('Carpet_Deco',(.16,.03,.04),pattern='carpet')
 teal=material('Ceiling_Petrol',(.08,.17,.18))
 dark=material('Stage_WarmShadow',(.075,.045,.045))
 bulb=material('Bulb_emit',(.95,.67,.32),emission=.4)
+# Dedicated chair fabric: keeps the approved curtains and balcony velvet untouched.
+seat_velvet=material('Velvet_Seat',(.45,.035,.055),velour)
+seat_image=next(n.image for n in seat_velvet.node_tree.nodes if n.type=='TEX_IMAGE')
+pixels=np.empty(1024*1024*4,np.float32);seat_image.pixels.foreach_get(pixels);pixels=pixels.reshape(1024,1024,4)
+yy,xx=np.mgrid[0:1024,0:1024].astype(np.float32)/1023
+rad=(np.abs(2*xx-1)**3.25+np.abs(2*yy-1)**3.25)**(1/3.25)
+# Low-contrast woven welt and a narrow stitched shadow in the same crimson family.
+welt=np.exp(-((rad-.825)/.010)**2)
+shadow=np.exp(-((rad-.849)/.014)**2)
+pixels[:,:,:3]*=(1-.16*shadow)[:,:,None]
+pixels[:,:,:3]+=(welt*.045)[:,:,None]*np.array([1,.32,.28])
+seat_image.pixels.foreach_set(pixels.ravel());seat_image.save()
 g=Geometry()
 # Interior shell: single inward-facing surfaces, never box backs.
 g.add(damask,[(-12,-7.2,-.9),(-12,13.6,-.9),(-12,13.6,11.1),(-12,-7.2,11.1)],[(0,1,2,3)])
@@ -263,18 +280,8 @@ xs=[(i-5.5)*.75 for i in range(12)]+[s*x for s in (-1,1) for x in [6.3,7.05,7.8,
 chair_positions=[(x,-row*1.65,row*.45) for row in range(-2,4) for x in xs]
 chair_positions += [(x,-6.08,4.825) for x in xs]
 chair_positions += [(side*10.6,y+dy,3.62) for side in (-1,1) for y in [-2.7,3.15,8.2] for dy in [-.55,.55]]
-for x,y,z in chair_positions:
-    g.box(walnut,(x,y-.43,z+.22),(.37,.36,.4),.035,omit=('bottom',))
-    g.box(velvet,(x,y-.33,z+.48),(.56,.59,.17),.07,omit=('bottom',))
-    g.box(walnut,(x,y-.64,z+.79),(.6,.14,.68),.07,omit=('bottom',))
-    g.box(velvet,(x,y-.545,z+.83),(.51,.14,.58),.065,omit=('bottom',))
-    g.box(velvet,(x,y-.73,z+.82),(.50,.055,.55),.025,omit=('bottom',))
-    for dx in [-.32,.32]:
-        g.box(walnut,(x+dx,y-.35,z+.52),(.055,.38,.39),.02,omit=('bottom',))
-        g.box(walnut,(x+dx,y-.32,z+.7),(.09,.55,.09),.035,omit=('bottom',))
-        g.box(gold,(x+dx,y-.1,z+.59),(.035,.045,.15),.012)
-    # Single upholstered top welt, visible in rows without adding tiny buttons.
-    g.tube(gold,[(x-.2,y-.64,z+1.10),(x+.2,y-.64,z+1.10)],.009,5)
+chair_stats=add_chairs(g,chair_positions,seat_velvet,walnut,gold)
+log('Chair budgets: '+json.dumps(chair_stats))
 # Markers are the only empties in the exported scene.
 for name,loc in [(f'Seat{i+1}',((i-1.5)*.75,0,0)) for i in range(4)]+[('ScreenAnchor',(0,11.9,.4)),('ScreenTop',(0,11.9,8.6))]:
     o=bpy.data.objects.new(name,None);scene.collection.objects.link(o);o.location=loc;o.empty_display_type='ARROWS'
@@ -317,6 +324,10 @@ bpy.context.view_layer.objects.active=meshes[0];bpy.ops.object.join();room=bpy.c
 # Remove exact coincident vertices and degenerate faces (sphere poles), retain deliberate hard normals.
 import bmesh
 bm=bmesh.new();bm.from_mesh(room.data);bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=.00001);bmesh.ops.dissolve_degenerate(bm,edges=list(bm.edges),dist=.000001);bmesh.ops.triangulate(bm,faces=list(bm.faces));bm.to_mesh(room.data);bm.free()
+# Smooth chair surfaces use split vertex normals. Freeze evaluated corner normals
+# explicitly; architectural flat/smooth flags are preserved exactly as generated.
+room.data.update()
+room.data.normals_split_custom_set([tuple(n.vector) for n in room.data.corner_normals])
 room.data.uv_layers[0].name='UVMap'
 for uv in list(room.data.uv_layers)[1:]:room.data.uv_layers.remove(uv)
 lm=room.data.uv_layers.new(name='Lightmap');room.data.uv_layers.active=lm
@@ -373,11 +384,12 @@ objects=[o for o in scene.objects if o.type=='MESH']
 for o in objects:
     used=next(m for m in o.data.materials if m);o.name='Cinema_'+used.name
     o.data.uv_layers.active=o.data.uv_layers['UVMap']
+np.savez_compressed(PREVIEW/'normals-before-export.npz',**{o.name:normal_rows(o) for o in objects})
 bpy.ops.export_scene.fbx(filepath=str(OUT/'Cinema.fbx'),use_selection=False,object_types={'EMPTY','MESH'},apply_unit_scale=True,apply_scale_options='FBX_SCALE_ALL',axis_forward='-Z',axis_up='Y',use_space_transform=True,bake_space_transform=True,mesh_smooth_type='FACE',use_mesh_modifiers=True,add_leaf_bones=False,bake_anim=False,path_mode='AUTO')
 stats={o.name:sum(len(p.vertices)-2 for p in o.data.polygons) for o in objects}
 assert sum(stats.values())<=250000,stats
 assert len(objects)<=16
-report={'triangles':stats,'total_triangles':sum(stats.values()),'materials':sorted(materials),'markers':{o.name:list(o.location) for o in scene.objects if o.type=='EMPTY'},'lightmap':[4096,4096],'basecolors':[1024,1024],'chairs':len(chair_positions),'imported_chandelier_triangles':imported_triangles,'bake_samples':256,'atlas_denoise':'OpenImageDenoise compositor, linear irradiance','device':scene.cycles.device,'elapsed_seconds':round(time.time()-START),'blender':bpy.app.version_string}
+report={'triangles':stats,'total_triangles':sum(stats.values()),'materials':sorted(materials),'markers':{o.name:list(o.location) for o in scene.objects if o.type=='EMPTY'},'lightmap':[4096,4096],'basecolors':[1024,1024],'chairs':len(chair_positions),'chair_detail':chair_stats,'imported_chandelier_triangles':imported_triangles,'bake_samples':256,'atlas_denoise':'OpenImageDenoise compositor, linear irradiance','device':scene.cycles.device,'elapsed_seconds':round(time.time()-START),'blender':bpy.app.version_string}
 (PREVIEW/'metrics.json').write_text(json.dumps(report,indent=2)+'\n')
 # Local checkpoint supports preview iteration; not needed by Unity or committed.
 bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Cinema-baked.blend'))

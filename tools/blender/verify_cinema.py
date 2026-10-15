@@ -3,6 +3,10 @@ Run with Blender -b --factory-startup -P tools/blender/verify_cinema.py.
 """
 from pathlib import Path
 import json
+import sys
+sys.dont_write_bytecode=True
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from lib_cinema_validation import normal_rows,chair_masks,architecture_signature
 import math
 import bpy
 import numpy as np
@@ -10,6 +14,12 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/'Assets/TheMovies/Art/Cinema'
+baseline_signature=None
+if '--baseline' in sys.argv:
+    baseline=Path(sys.argv[sys.argv.index('--baseline')+1]).resolve()
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.fbx(filepath=str(baseline))
+    baseline_signature=architecture_signature([o for o in bpy.context.scene.objects if o.type=='MESH'])
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=str(OUT/'Cinema.fbx'))
 scene=bpy.context.scene
@@ -31,6 +41,29 @@ for o in objs:
     layer=mesh.uv_layers['Lightmap']
     for tri in mesh.loop_triangles:uvtri.append([list(layer.data[i].uv) for i in tri.loops])
 assert sum(stats.values())<=250000
+architecture=architecture_signature(objs)
+if baseline_signature is not None:
+    assert architecture==baseline_signature,'Non-chair architecture changed'
+normal_evidence={}
+reference_path=ROOT/'Logs/art-preview/normals-before-export.npz'
+reference=np.load(reference_path) if reference_path.exists() else None
+for o in objs:
+    mesh=o.data;mask=chair_masks(o)
+    smooth=np.array([mesh.polygons[t.polygon_index].use_smooth for t in mesh.loop_triangles])
+    count=int(mask.sum());smooth_count=int(smooth[mask].sum())
+    if count and ('Velvet' in o.name or 'Walnut' in o.name):
+        assert count==smooth_count,(o.name,count,smooth_count)
+    assert mesh.has_custom_normals,o.name+' lost explicit normals in FBX'
+    evidence={'chair_triangles':count,'smooth_chair_triangles':smooth_count,'has_custom_normals':mesh.has_custom_normals}
+    if reference is not None:
+        actual=normal_rows(o);expected_rows=reference[o.name]
+        assert actual.shape==expected_rows.shape
+        assert np.allclose(actual[:,:9],expected_rows[:,:9],atol=.00002)
+        a=actual[:,9:].reshape(-1,3);b=expected_rows[:,9:].reshape(-1,3)
+        angle=np.degrees(np.arccos(np.clip(np.sum(a*b,axis=1),-1,1)))
+        evidence['maximum_normal_error_degrees']=float(angle.max())
+        assert angle.max()<.1,(o.name,angle.max())
+    normal_evidence[o.name]=evidence
 triangles=np.array(uvtri,np.float64)
 assert triangles.min()>=-1e-5 and triangles.max()<=1.00001
 # Exact positive-area intersection audit in UV space, in addition to the texel audit.
@@ -84,6 +117,6 @@ for p in sorted((OUT/'Textures').glob('*.png')):
         # 8-bit PNG image pixels are normalized stored sRGB sample values.
         atlas_stats={'covered_texels':int((count>0).sum()),'overlapping_texels':overlap,'positive_area_triangle_overlaps':exact_overlaps,'surface_fraction':float((count>0).mean()),'covered_rgb_percentiles_srgb':np.percentile(rgb[count>0],[1,50,95,99,100],axis=0).tolist(),'covered_clipped_fraction':float(np.any(rgb[count>0]>=1.0,axis=1).mean())}
         assert atlas_stats['covered_clipped_fraction']<.01
-result={'fbx_roundtrip':'PASS','triangles':stats,'total_triangles':sum(stats.values()),'mesh_objects':len(objs),'materials':len(objs),'textures':textures,'markers':'6 exact; positions within 0.1 mm','sightlines':f'{len(sightlines)} / {len(sightlines)} clear','atlas':atlas_stats}
+result={'fbx_roundtrip':'PASS','triangles':stats,'total_triangles':sum(stats.values()),'mesh_objects':len(objs),'materials':len(objs),'textures':textures,'markers':'6 exact; positions within 0.1 mm','sightlines':f'{len(sightlines)} / {len(sightlines)} clear','atlas':atlas_stats,'normals':normal_evidence,'architecture_unchanged':architecture==baseline_signature if baseline_signature is not None else None}
 (ROOT/'Logs/art-preview/verification.json').write_text(json.dumps(result,indent=2)+'\n')
 print(json.dumps(result,indent=2))
