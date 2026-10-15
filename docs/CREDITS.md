@@ -13,7 +13,9 @@ listed with title, author, source, license and whether they were modified.
 The cinema architecture, seating, curtains, Art Deco carpet pattern, molding, capitals, balustrades, sconces and
 ceiling ornament were created procedurally for this project in `tools/blender/cinema.py`, `lib_cinema.py` and `lib_cinema_chairs.py`.
 The revised theatre chairs use original subdivision-shaped cushions, finished velvet backs, capsule-shaped wooden
-armrests and gilded C-scroll standards; no additional third-party model or texture was introduced.
+armrests on shared solid cast-bronze standards, connected hinge/back bearers and richer aisle ends.
+The bronze fan/relief base-color atlas is an original procedural Art Deco pattern. Loge chairs now form
+two-place rows; the approved upholstery geometry and fabric remain unchanged. No additional third-party asset was introduced.
 No third-party normal, roughness, metallic or opacity maps are used. Raw CC0 inputs are cached exclusively in
 `art/sources/` (git-ignored). The script retrieves assets through `api.polyhaven.com` and `dl.polyhaven.org` only,
 and verifies the downloaded files against the API checksums.

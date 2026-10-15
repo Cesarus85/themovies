@@ -64,6 +64,39 @@ for o in objs:
         evidence['maximum_normal_error_degrees']=float(angle.max())
         assert angle.max()<.1,(o.name,angle.max())
     normal_evidence[o.name]=evidence
+# Count physically separate wooden armrests in the imported mesh. Welding by
+# position handles FBX UV/normal splits without relying on exporter metadata.
+wood=next(o for o in objs if o.name=='Cinema_Walnut_Panelling')
+wood_mask=chair_masks(wood);adj={};arm_faces=[]
+for included,tri in zip(wood_mask,wood.data.loop_triangles):
+    if not included:continue
+    keys=[tuple(round(c,5) for c in wood.matrix_world@wood.data.vertices[i].co) for i in tri.vertices]
+    arm_faces.append(keys)
+    for a,b in zip(keys,keys[1:]+keys[:1]):
+        adj.setdefault(a,set()).add(b);adj.setdefault(b,set()).add(a)
+unvisited=set(adj);components=[]
+while unvisited:
+    first=unvisited.pop();pending=[first];component={first}
+    while pending:
+        for key in adj[pending.pop()]:
+            if key in unvisited:unvisited.remove(key);component.add(key);pending.append(key)
+    components.append(component)
+expected_arms=[]
+spans=[(-8.55,4),(-4.125,12),(6.3,4)]
+for y,z in [(-r*1.65,r*.45) for r in range(-2,4)]+[(-6.08,4.825)]:
+    for first,n in spans:
+        expected_arms += [(first-.375+i*.75,y-.32,z+.726) for i in range(n+1)]
+for side in (-1,1):
+    for y in [-2.7,3.15,8.2]:
+        expected_arms += [(side*10.6+dx,y+.2-.32,3.62+.726) for dx in [-.75,0,.75]]
+assert len(components)==len(expected_arms)==179,len(components)
+centers=np.array([(np.min(list(c),axis=0)+np.max(list(c),axis=0))/2 for c in components])
+for expected_arm in expected_arms:
+    assert np.sum(np.linalg.norm(centers-np.array(expected_arm),axis=1)<.003)==1,expected_arm
+arm_evidence={'continuous_rows':27,'seats':152,'shared_standards_and_armrests':179,
+              'one_armrest_per_boundary':'PASS: imported connected meshes and all 179 positions',
+              'upholstery_triangles':stats['Cinema_Velvet_Seat']}
+assert arm_evidence['upholstery_triangles']==52800
 triangles=np.array(uvtri,np.float64)
 assert triangles.min()>=-1e-5 and triangles.max()<=1.00001
 # Exact positive-area intersection audit in UV space, in addition to the texel audit.
@@ -117,6 +150,6 @@ for p in sorted((OUT/'Textures').glob('*.png')):
         # 8-bit PNG image pixels are normalized stored sRGB sample values.
         atlas_stats={'covered_texels':int((count>0).sum()),'overlapping_texels':overlap,'positive_area_triangle_overlaps':exact_overlaps,'surface_fraction':float((count>0).mean()),'covered_rgb_percentiles_srgb':np.percentile(rgb[count>0],[1,50,95,99,100],axis=0).tolist(),'covered_clipped_fraction':float(np.any(rgb[count>0]>=1.0,axis=1).mean())}
         assert atlas_stats['covered_clipped_fraction']<.01
-result={'fbx_roundtrip':'PASS','triangles':stats,'total_triangles':sum(stats.values()),'mesh_objects':len(objs),'materials':len(objs),'textures':textures,'markers':'6 exact; positions within 0.1 mm','sightlines':f'{len(sightlines)} / {len(sightlines)} clear','atlas':atlas_stats,'normals':normal_evidence,'architecture_unchanged':architecture==baseline_signature if baseline_signature is not None else None}
+result={'fbx_roundtrip':'PASS','triangles':stats,'total_triangles':sum(stats.values()),'mesh_objects':len(objs),'materials':len(objs),'textures':textures,'markers':'6 exact; positions within 0.1 mm','sightlines':f'{len(sightlines)} / {len(sightlines)} clear','atlas':atlas_stats,'normals':normal_evidence,'row_construction':arm_evidence,'architecture_triangles':sum(v['triangles'] for v in architecture.values()),'architecture_unchanged':architecture==baseline_signature if baseline_signature is not None else None}
 (ROOT/'Logs/art-preview/verification.json').write_text(json.dumps(result,indent=2)+'\n')
 print(json.dumps(result,indent=2))

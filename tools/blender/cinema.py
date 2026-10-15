@@ -119,6 +119,24 @@ shadow=np.exp(-((rad-.849)/.014)**2)
 pixels[:,:,:3]*=(1-.16*shadow)[:,:,None]
 pixels[:,:,:3]+=(welt*.045)[:,:,None]*np.array([1,.32,.28])
 seat_image.pixels.foreach_set(pixels.ravel());seat_image.save()
+# Original cast-bronze ornament atlas: left shared panels, right richer aisle faces.
+bronze=material('Bronze_Metal_SeatStandard',(.22,.145,.075))
+bronze_image=next(n.image for n in bronze.node_tree.nodes if n.type=='TEX_IMAGE')
+pixels=np.empty(1024*1024*4,np.float32);bronze_image.pixels.foreach_get(pixels);pixels=pixels.reshape(1024,1024,4)
+u=(xx*2)%1;v=yy
+# Stylized fluted fan and concentric beadwork, baked as color/cavity, no normal map.
+dx=(u-.5)*1.15;dz=v-.34
+radius=np.sqrt(dx*dx+dz*dz);angle=np.arctan2(dx,dz)
+fan=(np.abs(angle)<1.05)&(radius>.06)&(radius<.43)
+ribs=np.exp(-(np.sin(angle*8)/.15)**2)*fan
+rim=np.exp(-((radius-.43)/.006)**2)*(np.abs(angle)<1.05)
+stem=np.exp(-((u-.5)/.009)**2)*(v>.14)*(v<.36)
+bead=np.maximum(ribs,np.maximum(rim,stem))
+strength=np.where(xx>.5,1,.45)
+pixels[:,:,:3]+=(bead*strength)[:,:,None]*np.array([.24,.17,.065])
+# Recessed shadow next to each rib keeps the relief legible in the baked shader.
+pixels[:,:,:3]*=(1-.20*np.roll(bead,3,axis=1))[:,:,None]
+bronze_image.pixels.foreach_set(pixels.ravel());bronze_image.save()
 g=Geometry()
 # Interior shell: single inward-facing surfaces, never box backs.
 g.add(damask,[(-12,-7.2,-.9),(-12,13.6,-.9),(-12,13.6,11.1),(-12,-7.2,11.1)],[(0,1,2,3)])
@@ -279,9 +297,9 @@ for j in range(24):
 xs=[(i-5.5)*.75 for i in range(12)]+[s*x for s in (-1,1) for x in [6.3,7.05,7.8,8.55]]
 chair_positions=[(x,-row*1.65,row*.45) for row in range(-2,4) for x in xs]
 chair_positions += [(x,-6.08,4.825) for x in xs]
-chair_positions += [(side*10.6,y+dy,3.62) for side in (-1,1) for y in [-2.7,3.15,8.2] for dy in [-.55,.55]]
-chair_stats=add_chairs(g,chair_positions,seat_velvet,walnut,gold)
-log('Chair budgets: '+json.dumps(chair_stats))
+chair_positions += [(side*10.6+dx,y+.2,3.62) for side in (-1,1) for y in [-2.7,3.15,8.2] for dx in [-.375,.375]]
+chair_stats=add_chairs(g,chair_positions,seat_velvet,walnut,gold,bronze)
+log('Chair budgets: '+json.dumps({k:v for k,v in chair_stats.items() if k!='rows'}))
 # Markers are the only empties in the exported scene.
 for name,loc in [(f'Seat{i+1}',((i-1.5)*.75,0,0)) for i in range(4)]+[('ScreenAnchor',(0,11.9,.4)),('ScreenTop',(0,11.9,8.6))]:
     o=bpy.data.objects.new(name,None);scene.collection.objects.link(o);o.location=loc;o.empty_display_type='ARROWS'

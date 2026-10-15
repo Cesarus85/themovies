@@ -21,19 +21,24 @@ def normal_rows(obj):
 
 
 def chair_masks(obj):
-    xs=[(i-5.5)*.75 for i in range(12)]+[s*x for s in (-1,1) for x in [6.3,7.05,7.8,8.55]]
-    positions=[(x,-r*1.65,r*.45) for r in range(-2,4) for x in xs]
-    positions += [(x,-6.08,4.825) for x in xs]
-    positions += [(s*10.6,y+d,3.62) for s in (-1,1) for y in [-2.7,3.15,8.2] for d in [-.55,.55]]
+    # Shared standards cross the old per-chair bounds. Compare complete row
+    # envelopes, identical for baseline and revised export. Box bounds include
+    # both old front/back chairs and the new two-place row; no balustrades/floors.
+    spans=[(-8.55,-6.3),(-4.125,4.125),(6.3,8.55)]
+    bounds=[]
+    for y,z in [(-r*1.65,r*.45) for r in range(-2,4)]+[(-6.08,4.825)]:
+        bounds += [(lo-.46,hi+.46,y-.9,y+.055,z-.0001,z+1.24) for lo,hi in spans]
+    for side in (-1,1):
+        for y in [-2.7,3.15,8.2]:
+            bounds.append((side*10.6-.84,side*10.6+.84,y-1.45,y+.61,3.6199,4.86))
     mesh=obj.data;mesh.calc_loop_triangles()
     coords=np.array([list(obj.matrix_world@v.co) for v in mesh.vertices])
-    seat_id=np.full(len(coords),-1,np.int32)
-    for i,position in enumerate(positions):
-        v=coords-np.array(position)
-        inside=(np.abs(v[:,0])<.38)&(v[:,1]>-.9)&(v[:,1]<.055)&(v[:,2]>-.0001)&(v[:,2]<1.24)
-        seat_id[inside]=i
-    vi=np.array([tuple(t.vertices) for t in mesh.loop_triangles]);ids=seat_id[vi]
-    return (ids[:,0]>=0)&(ids[:,0]==ids[:,1])&(ids[:,0]==ids[:,2])
+    vi=np.array([tuple(t.vertices) for t in mesh.loop_triangles])
+    mask=np.zeros(len(vi),bool)
+    for x0,x1,y0,y1,z0,z1 in bounds:
+        inside=(coords[:,0]>x0)&(coords[:,0]<x1)&(coords[:,1]>y0)&(coords[:,1]<y1)&(coords[:,2]>z0)&(coords[:,2]<z1)
+        mask |= np.all(inside[vi],axis=1)
+    return mask
 
 
 def architecture_signature(objects):

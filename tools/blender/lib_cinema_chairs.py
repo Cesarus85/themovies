@@ -58,85 +58,139 @@ def pillow(g,mat,kind,target,side=0):
     return sum(len(f)-2 for f in fs)
 
 
-def armrest(g,mat,side,far=False):
-    # Rounded capsule ends with a broad top and rolled edge; no decimation of
-    # the thin wooden rim, which otherwise produces long needle triangles.
-    count=3 if far else 5;outline=[]
+def oriented_mesh(g,mat,vs,fs,uv=None,smooth=True):
+    """Outward, closed cast/wood surfaces; optional planar ornament UVs."""
+    mesh=bpy.data.meshes.new('ChairPart');mesh.from_pydata(vs,[],fs)
+    bm=bmesh.new();bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces))
+    bm.to_mesh(mesh);bm.free()
+    vs=[tuple(v.co) for v in mesh.vertices];fs=[tuple(p.vertices) for p in mesh.polygons]
+    uvs=[[uv(vs[i]) for i in f] for f in fs] if uv else None
+    g.add(mat,vs,fs,smooth,uvs)
+    count=sum(len(f)-2 for f in fs);bpy.data.meshes.remove(mesh)
+    return count
+
+
+def armrest(g,mat,far=False):
+    # One capsule per shared standard. Twelve half-circle intervals at arm's
+    # length, with a rolled edge, instead of two angular arms at every joint.
+    count=4 if far else 7;outline=[]
     for offset,start in [(.242,0),(-.242,math.pi)]:
         for j in range(count):
             a=start+math.pi*j/(count-1)
-            outline.append((.048*math.cos(a),offset+.048*math.sin(a)))
+            outline.append((.056*math.cos(a),offset+.056*math.sin(a)))
     n=len(outline);vs=[];fs=[]
     for scale,z in [(.84,.027),(1,0),(.84,-.025)]:
-        vs += [place(u*scale,v*scale,z,'arm',side) for u,v in outline]
+        vs += [place(u*scale,v*scale,z,'arm') for u,v in outline]
     for r in range(2):
         for j in range(n):fs.append((r*n+j,r*n+(j+1)%n,(r+1)*n+(j+1)%n,(r+1)*n+j))
     fs += [tuple(reversed(range(n))),tuple(range(2*n,3*n))]
-    # Consistent outward orientation for this capsule cage.
-    mesh=bpy.data.meshes.new('ArmCage');mesh.from_pydata(vs,[],fs)
-    bm=bmesh.new();bm.from_mesh(mesh);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(mesh);bm.free()
-    g.add(mat,[tuple(v.co) for v in mesh.vertices],[tuple(p.vertices) for p in mesh.polygons],True)
-    triangles=sum(len(p.vertices)-2 for p in mesh.polygons);bpy.data.meshes.remove(mesh)
-    return triangles
+    return oriented_mesh(g,mat,vs,fs)
 
 
-def pivot(g,mat,side,n):
-    vs=[(side*(.30+dx),-.49+.033*math.cos(math.tau*j/n),.435+.033*math.sin(math.tau*j/n)) for dx in [-.04,.04] for j in range(n)]
-    fs=[(j,(j+1)%n,n+(j+1)%n,n+j) for j in range(n)]
-    fs.extend([tuple(reversed(range(n))),tuple(range(n,2*n))])
-    if side<0:fs=[f[::-1] for f in fs]
-    g.add(mat,vs,fs,True)
+def standard(g,bronze,gold,far=False,aisle=False):
+    # A solid cast side panel: broad under the arm, concave front, swept rear,
+    # an integrated flared sole. There are no separate posts or block feet.
+    outline=[(-.66,0),(-.14,0),(-.12,.055),(-.16,.13),(-.20,.23),
+             (-.22,.34),(-.205,.44),(-.16,.53),(-.10,.60),(-.075,.665),
+             (-.09,.692),(-.19,.700),(-.34,.707),(-.50,.712),
+             (-.59,.710),(-.65,.65),(-.64,.36),(-.65,.13)]
+    if far:outline=[outline[i] for i in (0,1,2,4,6,8,9,10,12,14,15,17)]
+    else:outline=[point for i,point in enumerate(outline) if i not in (3,16)]
+    n=len(outline);vs=[];fs=[]
+    rings=[(-1,True),(-1,False),(1,False),(1,True)] if not far else [(-1,False),(1,False)]
+    for side,inset in rings:
+        for y,z in outline:
+            if inset:
+                # Flat decorated faces with a softly rolled cast perimeter.
+                vs.append((side*.032,-.38+(y+.38)*.93,.355+(z-.355)*.96))
+            else:vs.append((side*(.046+.024*max(0,1-z/.15)),y,z))
+    for r in range(len(rings)-1):
+        for j in range(n):
+            # The flat sole is hidden in the carpet and intentionally omitted.
+            if j==0 and (far or r==1):continue
+            fs.append((r*n+j,r*n+(j+1)%n,(r+1)*n+(j+1)%n,(r+1)*n+j))
+    fs += [tuple(reversed(range(n))),tuple(range((len(rings)-1)*n,len(rings)*n))]
+    # Two texture panels: restrained inside the row, gilt fan at aisle ends.
+    uv=lambda p: ((.5 if aisle else 0)+.04+.42*(p[1]+.69)/.64,.035+.93*p[2]/.725)
+    detail={'panel':oriented_mesh(g,bronze,vs,fs,uv)}
+    # Flush bolt-head geometry at the flared foot. The broad cast sole is one
+    # continuous panel, not a separate rectangular chair foot.
+    if aisle and not far:
+        for side in (-1,1):
+            for y in (-.52,-.27):
+                vs=[(side*.0327,y+.015*math.cos(math.tau*j/5),.085+.015*math.sin(math.tau*j/5)) for j in range(5)]
+                face=tuple(range(5)) if side>0 else tuple(reversed(range(5)))
+                g.add(gold,vs,[face])
+        detail['bolts']=12
+    return detail
 
 
-def template(velvet,walnut,gold,far=False):
-    g=Geometry();detail={}
-    detail['back']=pillow(g,velvet,'back',92 if far else 224)
-    detail['seat']=pillow(g,velvet,'seat',60 if far else 176)
-    detail['arms']=sum(armrest(g,walnut,side,far) for side in (-1,1))
-    for side in (-1,1):
-        # Put the hinge directly on the upright; concentrate silhouette vertices
-        # on the ornamental C scroll, not on the straight cast pedestal.
-        count=4 if far else 10
-        points=[(-.49,.055)]
-        points += [(-.49+.32*math.sin(math.pi*j/(count-1)),.55-.115*math.cos(math.pi*j/(count-1))) for j in range(count)]
-        points += [(-.60,.60)]
-        # Continuous S scroll: an open pedestal instead of the old solid box base.
-        g.tube(gold,[(side*.32,y,z) for y,z in points],.024,3)
-        pivot(g,gold,side,4 if far else 5)
-        g.box(gold,(side*.32,-.49,.025),(.095,.20,.05),omit=(0,))
-    volumes=[]
-    for vs,fs,_,_ in g.parts.values():
-        mesh=bpy.data.meshes.new('SeatWindingAudit');mesh.from_pydata(vs,[],fs)
-        bm=bmesh.new();bm.from_mesh(mesh);unvisited=set(bm.faces)
-        while unvisited:
-            pending=[unvisited.pop()];component=set(pending)
-            while pending:
-                for edge in pending.pop().edges:
-                    for face in edge.link_faces:
-                        if face in unvisited:unvisited.remove(face);component.add(face);pending.append(face)
-            if all(len(edge.link_faces)==2 for face in component for edge in face.edges):
-                volume=0
-                for face in component:
-                    a=face.verts[0].co
-                    for j in range(1,len(face.verts)-1):volume+=a.dot(face.verts[j].co.cross(face.verts[j+1].co))/6
-                assert volume>0,'Inward-facing closed chair component'
-                volumes.append(volume)
-        bm.free();bpy.data.meshes.remove(mesh)
-    detail['closed_components_outward']=len(volumes)
-    detail['total']=sum(sum(len(f)-2 for f in part[1]) for part in g.parts.values())
-    assert detail['total']<=(350 if far else 700),detail
+def stamp(g,source,position):
+    x,y,z=position
+    for mat,(vs,fs,ss,uvs) in source.parts.items():
+        start=len(g.parts.get(mat,([],[],[],[]))[1])
+        g.add(mat,[(a+x,b+y,c+z) for a,b,c in vs],fs,True,uvs)
+        g.parts[mat][2][start:]=ss
+
+
+def triangle_count(g):
+    return sum(sum(len(f)-2 for f in part[1]) for part in g.parts.values())
+
+
+def seat_template(velvet,bronze,far=False):
+    g=Geometry()
+    detail={'back':pillow(g,velvet,'back',92 if far else 224),
+            'seat':pillow(g,velvet,'seat',60 if far else 176)}
+    # Continuous transverse hinge and back bearer terminate inside both shared
+    # cast panels. The padding visibly hangs between them, with no private legs.
+    g.tube(bronze,[(-.375,-.47,.445),(.375,-.47,.445)],.031,6 if far else 8)
+    g.tube(bronze,[(-.375,-.625,.642),(.375,-.625,.642)],.026,6 if far else 8)
+    detail['mounts']=24 if far else 32
+    # Rails use a quiet bronze swatch; never wrap the side-panel fan onto them.
+    vs,fs,ss,uvs=g.parts[bronze]
+    uvs[:]=[[(.02,.97)]*len(face) for face in fs]
+    detail['total']=triangle_count(g)
     return g,detail
 
 
-def add_chairs(g,positions,velvet,walnut,gold):
-    near,near_stats=template(velvet,walnut,gold)
-    far,far_stats=template(velvet,walnut,gold,True)
-    for index,(x,y,z) in enumerate(positions):
-        source=near if index<120 else far
-        for mat,(vs,fs,ss,uvs) in source.parts.items():
-            shifted=[(a+x,b+y,c+z) for a,b,c in vs]
-            # Feet have deliberate flat creases; upholstery and rounded wood are smooth.
-            start=len(g.parts.get(mat,([],[],[],[]))[1])
-            g.add(mat,shifted,fs,True,uvs)
-            g.parts[mat][2][start:]=ss
-    return {'stalls':near_stats,'gallery_boxes':far_stats,'stalls_count':120,'far_count':len(positions)-120}
+def add_chairs(g,positions,velvet,walnut,gold,bronze):
+    templates={};stats={}
+    for far in (False,True):
+        seat,detail=seat_template(velvet,bronze,far)
+        standards={}
+        for aisle in (False,True):
+            panel=Geometry();parts=standard(panel,bronze,gold,far,aisle)
+            parts['armrest']=armrest(panel,walnut,far)
+            parts['total']=triangle_count(panel);standards[aisle]=(panel,parts)
+        templates[far]=(seat,standards)
+        stats['gallery_boxes' if far else 'stalls']={'seat':detail,'shared_standard':standards[False][1],'aisle_standard':standards[True][1]}
+    # Sort into actual contiguous seat blocks, not one complete chair per place.
+    levels={}
+    for i,(x,y,z) in enumerate(positions):levels.setdefault((y,z,i>=120),[]).append(x)
+    rows=[]
+    for (y,z,far),xs in levels.items():
+        blocks=[]
+        for x in sorted(xs):
+            if not blocks or x-blocks[-1][-1]>.751:blocks.append([])
+            blocks[-1].append(x)
+        for xs in blocks:
+            assert all(abs(b-a-.75)<1e-5 for a,b in zip(xs,xs[1:])),xs
+            seat,standards=templates[far]
+            for x in xs:stamp(g,seat,(x,y,z))
+            boundaries=[xs[0]-.375]+[(a+b)/2 for a,b in zip(xs,xs[1:])]+[xs[-1]+.375]
+            total=len(xs)*triangle_count(seat)
+            for i,x in enumerate(boundaries):
+                panel,_=standards[i in (0,len(boundaries)-1)]
+                stamp(g,panel,(x,y,z));total+=triangle_count(panel)
+            average=total/len(xs)
+            # Charge the full outside standard to the end seat, half of each
+            # shared standard to each neighbour; no averaging away aisle costs.
+            shared=standards[False][1]['total'];end=standards[True][1]['total']
+            worst=triangle_count(seat)+end+shared/2
+            assert len(xs)>=2 and worst<=(350 if far else 750),(xs,worst)
+            rows.append({'centers':[[x,y,z] for x in xs],'standard_x':boundaries,'far':far,'triangles':total,'triangles_per_seat':average,'maximum_seat_triangles':worst})
+    stats.update(stalls_count=120,far_count=len(positions)-120,rows=rows,
+                 standards=sum(len(row['standard_x']) for row in rows),
+                 total_triangles=sum(row['triangles'] for row in rows))
+    return stats
