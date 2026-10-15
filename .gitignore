@@ -58,3 +58,6 @@ Assets/TheMovies/Resources/TheMovies/DepthModel.onnx.meta
 # Created by the Composition Layers package (dependency of Unity OpenXR: Meta), like Assets/XR
 /Assets/CompositionLayers/
 /Assets/CompositionLayers.meta
+
+# Downloaded raw art sources (4K/8K textures, original models) – only the prepared files go into Assets/
+/art/sources/

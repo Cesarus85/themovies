@@ -143,7 +143,70 @@ bpy.ops.export_scene.fbx(
   Richtung Leinwand, einmal mit „Saallicht an“, einmal gedimmt (Bake-Licht × 0,12); dazu eine Übersicht von hinten oben.
 - **Bericht** am Ende: Dreiecke je Objekt und gesamt, Materialien, Texturen mit Größe, offene Punkte.
 
-## 8. Übernahme in Unity (macht die App-Seite)
+## 8. Quellen (Recherche Oktober 2026)
+
+Ein fertiger, freier Kinopalast existiert nicht (die freien Säle sind modern, zu schwer oder kostenpflichtig).
+Deshalb: **Raumhülle selbst modellieren**, Texturen und einzelne Requisiten aus freien Quellen.
+
+**Das Repository ist öffentlich.** Daraus folgt:
+
+- Bevorzugt **CC0** (Poly Haven, ambientCG): ohne Konto per Download/API, keine Namensnennung nötig.
+- **CC BY 4.0** (viele Sketchfab-Modelle) ist erlaubt, aber mit Eintrag in `docs/CREDITS.md` (Titel, Autor, Link,
+  Lizenz, „verändert“). Sketchfab-Downloads brauchen ein Konto → nur, wenn der Nutzer die Dateien selbst lädt.
+- **Nicht** ins Repo: Unity-Asset-Store-, Fab- und ShareTextures-Dateien (deren Lizenzen verbieten die Weitergabe
+  der Quelldateien). Nicht verwenden: CC BY-NC, CC BY-ND, „Editorial“.
+- In `Assets/` nur die **fertigen, verkleinerten** Texturen und das exportierte FBX; heruntergeladene Rohdateien
+  (4K/8K-Texturen, Original-Modelle) unter `art/sources/` – dieser Ordner ist von Git ausgeschlossen.
+
+Hinweis zu Ornamenten: Die App nutzt **keine Normal Maps**. Feine Ornamentik also als (vereinfachte) Geometrie, deren
+Plastizität das gebackene Licht zeigt, oder als in die Basisfarbe gebackene Detailschattierung (AO/Cavity aus einem
+hochaufgelösten Scan auf eine niedrige Fläche gebacken).
+
+### Kinopalast
+
+| Zweck | Quelle | Lizenz |
+| --- | --- | --- |
+| Samt (Sessel, Vorhang, Logenbrüstung) | [Poly Haven velour_velvet](https://polyhaven.com/a/velour_velvet) | CC0 |
+| Wandbespannung (Brokat) | [Poly Haven quatrefoil_jacquard_fabric](https://polyhaven.com/a/quatrefoil_jacquard_fabric), [floral_jacquard](https://polyhaven.com/a/floral_jacquard) | CC0 |
+| Gold/Messing | [ambientCG Metal048A](https://ambientcg.com/view?id=Metal048A), [Metal042A](https://ambientcg.com/view?id=Metal042A) | CC0 |
+| Teppich | [ambientCG Carpet015](https://ambientcg.com/view?id=Carpet015) (Muster gern selbst ergänzen) | CC0 |
+| Stuck/Putz, Marmor, Holz | [Poly Haven white_plaster_02](https://polyhaven.com/a/white_plaster_02), [marble_01](https://polyhaven.com/a/marble_01), [dark_wood](https://polyhaven.com/a/dark_wood), [walnut_veneer](https://polyhaven.com/a/walnut_veneer) | CC0 |
+| Zentraler Kronleuchter | [Poly Haven Chandelier_03](https://polyhaven.com/a/Chandelier_03) (29k Dreiecke → auf ~8–10k reduzieren) | CC0 |
+| Kapitell-Vorlage | [Corinthian capital, Virtual Museums of Małopolska](https://sketchfab.com/models/1b61fd199e744afa9bdb8f46cf843e31) (Scan, nur als Vorlage zum Backen) | CC0 |
+| Sessel | selbst modellieren, ~1–2k Dreiecke (Vorbild: [Theater Chair – Red Velvet](https://sketchfab.com/models/87815e72aa35450198e1cd98e888d68f), CC BY, nur als Optik-Referenz) | – |
+| Vorhang | selbst (Blender-Stoffsimulation, als statisches Mesh) | – |
+| Wandleuchte (optional) | [Art Deco Wall Light](https://sketchfab.com/models/a16f2db93e384c278153df472a5af35b), 1k Dreiecke | CC BY (Konto nötig) |
+
+Gesimse, Profile, Rosetten, Balustraden: mit Blender-Bordmitteln per Skript (Kurven-Bevel mit eigenem Profil bzw.
+den Presets „Cornice/Crown Molding“, Geometry Nodes „Curve to Mesh“, Screw/Lathe, Array/Curve-Modifier).
+
+Vorbilder: [Fox Theatre Atlanta](https://en.wikipedia.org/wiki/Fox_Theatre_(Atlanta)) (Sternenhimmel-Decke),
+[Paramount Oakland](https://en.wikipedia.org/wiki/Paramount_Theatre_(Oakland,_California)) (hinterleuchtete
+Deco-Gitterdecke), [Loew's Jersey](https://en.wikipedia.org/wiki/Loew%27s_Jersey_Theatre) (vergoldetes Portal,
+Farbpalette Gold/Blau/Elfenbein), [Grauman's Egyptian](https://en.wikipedia.org/wiki/Grauman%27s_Egyptian_Theatre)
+(Sonnen-Medaillon an der Decke), [Radio City Music Hall](https://en.wikipedia.org/wiki/Radio_City_Music_Hall)
+(konzentrische Bögen ums Portal mit verdecktem Licht – lässt sich gut prozedural bauen und backen),
+[Delphi Filmpalast](https://cinematreasures.org/theaters/3235) (Rang, großer Kronleuchter),
+[Lichtburg Essen](https://de.wikipedia.org/wiki/Lichtburg_(Essen)) (Kuppel mit indirekt beleuchteten Ringen).
+
+### Heimkino
+
+| Zweck | Quelle | Lizenz |
+| --- | --- | --- |
+| Sofa für vier | [Poly Haven sofa_03](https://polyhaven.com/a/sofa_03) (2,73 m, 8k Dreiecke) | CC0 |
+| Sessel, Hocker | [ArmChair_01](https://polyhaven.com/a/ArmChair_01), [Ottoman_01](https://polyhaven.com/a/Ottoman_01) | CC0 |
+| Tische, Kommode | [coffee_table_round_01](https://polyhaven.com/a/coffee_table_round_01), [ClassicConsole_01](https://polyhaven.com/a/ClassicConsole_01) | CC0 |
+| Regal, Bücher | [wooden_bookshelf_worn](https://polyhaven.com/a/wooden_bookshelf_worn), [book_encyclopedia_set_01](https://polyhaven.com/a/book_encyclopedia_set_01) | CC0 |
+| Deckenleuchte | [Chandelier_01](https://polyhaven.com/a/Chandelier_01) oder [Chandelier_02](https://polyhaven.com/a/Chandelier_02) | CC0 |
+| Deko | [ornate_mirror_01](https://polyhaven.com/a/ornate_mirror_01), [fancy_picture_frame_01](https://polyhaven.com/a/fancy_picture_frame_01), [vintage_grandfather_clock_01](https://polyhaven.com/a/vintage_grandfather_clock_01) | CC0 |
+| Kamin | selbst modellieren (Alternative: [Victorian Fire Place](https://sketchfab.com/models/7154a82dc7844075996c65aeb508bfd5), CC BY, Konto nötig) | – |
+| Stehlampe, Fenster | selbst modellieren | – |
+| Böden, Wände | [herringbone_parquet](https://polyhaven.com/a/herringbone_parquet), [dark_paneled_wood](https://polyhaven.com/a/dark_paneled_wood), [leather_red_02](https://polyhaven.com/a/leather_red_02) | CC0 |
+
+Poly-Haven-Modelle sind teils schwer (z. B. mantel_clock_01 mit 30k): auf das Budget reduzieren (Decimate), Texturen
+auf 1K/2K verkleinern und mehrere Möbel möglichst auf einen gemeinsamen Textur-Atlas legen.
+
+## 9. Übernahme in Unity (macht die App-Seite)
 
 Unity-Menü **The Movies → Raum-Modell aufbereiten → Kinosaal / Heimkino** (oder im Batchmode
 `-executeMethod TheMovies.EditorTools.RoomModelSetup.PrepareAllBatch`) stellt Import, Texturen und Materialien ein,
