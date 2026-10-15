@@ -41,6 +41,9 @@ namespace TheMovies.Net
         /// <summary>Set by the app: whether a voice id is currently speaking.</summary>
         public static Func<string, bool> IsSpeaking;
 
+        /// <summary>Set by the app: the room the local viewer sees (0 cinema, 1 living room, 2 mixed reality).</summary>
+        public static Func<int> LocalRoomProvider;
+
         readonly NetworkVariable<FixedString64Bytes> m_Name = new NetworkVariable<FixedString64Bytes>(
             default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
@@ -56,6 +59,9 @@ namespace TheMovies.Net
         readonly NetworkVariable<ParticipantStatus> m_Status = new NetworkVariable<ParticipantStatus>(
             default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
+        readonly NetworkVariable<SeatChoice> m_SeatChoice = new NetworkVariable<SeatChoice>(
+            default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
         AvatarView m_Avatar;
         float m_NextPoseAt;
         float m_NextStatusAt;
@@ -63,6 +69,21 @@ namespace TheMovies.Net
         public string DisplayName => m_Name.Value.Length > 0 ? m_Name.Value.ToString() : "Gast";
         public int Seat => m_Seat.Value;
         public ParticipantStatus Status => m_Status.Value;
+
+        /// <summary>Room and, if chosen, seat of this participant (see <see cref="SeatChoice"/>).</summary>
+        public SeatChoice SeatChoice => m_SeatChoice.Value;
+
+        /// <summary>Floor position this participant sits at in their room: the chosen seat or the standard seat.</summary>
+        public Vector3 SeatPosition => m_SeatChoice.Value.Chosen ? m_SeatChoice.Value.Position
+            : CinemaEnvironment.SeatPose(Mathf.Max(0, m_Seat.Value)).position;
+
+        /// <summary>Owner: tells the others which room this viewer sees and where they sit (null = standard seat).</summary>
+        public void SetSeatChoice(int room, Vector3? position)
+        {
+            if (!IsOwner || !IsSpawned) return;
+            var choice = new SeatChoice { Room = (byte)Mathf.Clamp(room, 0, 255), Chosen = position.HasValue, Position = position ?? Vector3.zero };
+            if (!choice.Equals(m_SeatChoice.Value)) m_SeatChoice.Value = choice;
+        }
         public bool IsHostPlayer => OwnerClientId == NetworkManager.ServerClientId;
         public Color Color => m_Seat.Value >= 0 ? CinemaEnvironment.ParticipantColors[m_Seat.Value % CinemaEnvironment.ParticipantColors.Length] : Color.gray;
 
@@ -184,8 +205,21 @@ namespace TheMovies.Net
             {
                 var status = m_Status.Value;
                 bool speaking = IsSpeaking != null && m_VoiceId.Value.Length > 0 && IsSpeaking(m_VoiceId.Value.ToString());
-                m_Avatar.Apply(m_Pose.Value, speaking, status.Muted);
+                m_Avatar.Apply(PoseInMyRoom(), speaking, status.Muted);
             }
+        }
+
+        /// <summary>
+        /// The avatar pose as this viewer should see it: as sent when both see the same room, otherwise moved from the
+        /// seat chosen there to the participant's standard seat (a box in the palace is outside the living room).
+        /// </summary>
+        AvatarPose PoseInMyRoom()
+        {
+            var pose = m_Pose.Value;
+            var choice = m_SeatChoice.Value;
+            int myRoom = LocalRoomProvider != null ? LocalRoomProvider() : 0;
+            if (!choice.Chosen || choice.Room == myRoom || m_Seat.Value < 0) return pose;
+            return pose.Moved(CinemaEnvironment.SeatPose(m_Seat.Value).position - choice.Position);
         }
 
         void SendPose()

@@ -29,6 +29,8 @@ namespace TheMovies.App
         const string k_Ducking = "tm.ducking";
         const string k_Room = "tm.room";
         const string k_RealHands = "tm.realHands";
+        const string k_LightMode = "tm.lightMode";
+        const string k_HouseLight = "tm.houseLight";
 
         public string Name;
         public int ScreenSize;
@@ -72,6 +74,12 @@ namespace TheMovies.App
         /// <summary>Real hands and controllers through passthrough instead of models.</summary>
         public bool RealHands;
 
+        /// <summary>House lights: Auto (dim while playing), On, Off or Manual (<see cref="HouseLight"/>), as TheMovies.Video.LightMode.</summary>
+        public int LightMode;
+
+        /// <summary>Manual house light level, 0 (dark) … 1 (fully on).</summary>
+        public float HouseLight;
+
         public static AppSettings Load()
         {
             return new AppSettings
@@ -100,6 +108,8 @@ namespace TheMovies.App
                 Ducking = PlayerPrefs.GetInt(k_Ducking, 1),
                 Room = PlayerPrefs.GetInt(k_Room, 0),
                 RealHands = PlayerPrefs.GetInt(k_RealHands, 1) == 1,
+                LightMode = PlayerPrefs.GetInt(k_LightMode, 0),
+                HouseLight = PlayerPrefs.GetFloat(k_HouseLight, 0.5f),
             };
         }
 
@@ -129,6 +139,8 @@ namespace TheMovies.App
             PlayerPrefs.SetInt(k_Ducking, Ducking);
             PlayerPrefs.SetInt(k_Room, Room);
             PlayerPrefs.SetInt(k_RealHands, RealHands ? 1 : 0);
+            PlayerPrefs.SetInt(k_LightMode, LightMode);
+            PlayerPrefs.SetFloat(k_HouseLight, HouseLight);
             PlayerPrefs.Save();
         }
     }

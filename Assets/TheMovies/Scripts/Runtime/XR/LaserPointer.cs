@@ -10,7 +10,7 @@ namespace TheMovies.XR
     /// </summary>
     public sealed class LaserPointer : MonoBehaviour
     {
-        public const float MaxDistance = 12f;
+        public const float MaxDistance = 30f; // far enough for the boxes and the balcony when choosing a seat
 
         /// <summary>Raised when the trigger is pressed while pointing at nothing.</summary>
         public static event Action PressedOnNothing;

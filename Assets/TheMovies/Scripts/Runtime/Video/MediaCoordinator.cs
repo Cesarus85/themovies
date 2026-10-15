@@ -13,6 +13,9 @@ namespace TheMovies.Video
         Auto,
         On,
         Off,
+
+        /// <summary>Fixed level chosen by the viewer (<see cref="MediaCoordinator.ManualLight"/>), also while playing.</summary>
+        Manual,
     }
 
     /// <summary>
@@ -63,6 +66,9 @@ namespace TheMovies.Video
         /// <summary>True while the movie comes from the host's stream instead of a local file.</summary>
         public bool IsStreaming { get; private set; }
         public LightMode Lights { get; set; } = LightMode.Auto;
+
+        /// <summary>House light level for <see cref="LightMode.Manual"/>: 0 = dark cinema … 1 = fully on.</summary>
+        public float ManualLight { get; set; } = 0.5f;
 
         /// <summary>Last problem worth telling the user about (missing file, decoder error, …).</summary>
         public string Problem { get; private set; } = string.Empty;
@@ -426,6 +432,7 @@ namespace TheMovies.Video
             {
                 case LightMode.On: target = 1f; break;
                 case LightMode.Off: target = 0f; break;
+                case LightMode.Manual: target = ManualLight; break;
                 default: target = playing ? 0f : 0.7f; break;
             }
             m_Screen.SetRoomLight(target);

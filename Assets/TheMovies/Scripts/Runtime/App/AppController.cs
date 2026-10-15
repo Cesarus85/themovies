@@ -23,6 +23,12 @@ namespace TheMovies.App
         public ScreenController Screen { get; private set; }
         public MenuUI Menu { get; private set; }
 
+        /// <summary>Free seat choice (any seat of the room, balcony and boxes included).</summary>
+        public SeatPicker Seats { get; private set; }
+
+        /// <summary>What this viewer sees, for the others: 0 = cinema, 1 = living room, 2 = mixed reality.</summary>
+        int RoomKey => MixedReality.Enabled ? 2 : (int)m_Cinema.CurrentRoom;
+
         XRRig m_Rig;
         CinemaEnvironment m_Cinema;
         string m_VoiceChannel;
@@ -58,6 +64,8 @@ namespace TheMovies.App
             m_Rig.RealHands = Settings.RealHands;
             var seat = CinemaEnvironment.SeatPose(1);
             m_Rig.SetSeat(seat.position, seat.rotation);
+            Seats = SeatPicker.Create(cinema, m_Rig, () => RoomKey);
+            NetworkPlayer.LocalRoomProvider = () => RoomKey;
 
             MediaLibrary.EnsureAppFolder();
             var library = new MediaLibrary();
@@ -68,6 +76,8 @@ namespace TheMovies.App
             moviePlayer.AudioDelayMs = Settings.AudioDelayMs;
             Media = playerGo.AddComponent<MediaCoordinator>();
             Media.Init(moviePlayer, Screen, library);
+            Media.Lights = (LightMode)Mathf.Clamp(Settings.LightMode, 0, (int)LightMode.Manual);
+            Media.ManualLight = Mathf.Clamp01(Settings.HouseLight);
 
             Subtitles = SubtitleService.Create(Screen, () => Media.Player.State == MovieState.Ready ? Media.Player.Time : Media.DisplayTime);
             Subtitles.Enabled = Settings.Subtitles;
@@ -104,7 +114,19 @@ namespace TheMovies.App
 
         void Start()
         {
-            m_Rig.MenuToggleRequested += Menu.Toggle;
+            m_Rig.MenuToggleRequested += () =>
+            {
+                // While choosing a seat the menu button cancels and brings the menu back.
+                if (Seats.Active)
+                {
+                    Seats.End();
+                    Menu.Show();
+                }
+                else
+                {
+                    Menu.Toggle();
+                }
+            };
             m_Rig.PlayPauseRequested += Media.TogglePlay;
             m_Rig.SeekStepRequested += delta => Playback.Current.RequestSeekRelative(delta);
             if (m_Sessions != null)
@@ -162,9 +184,12 @@ namespace TheMovies.App
 
             if (m_Sessions.State == ConnectionState.Offline)
             {
-                // Back on the default seat when alone again.
-                var seat = CinemaEnvironment.SeatPose(1);
-                m_Rig.SetSeat(seat.position, seat.rotation);
+                // Back on the default seat when alone again (a seat of one's own choosing stays).
+                if (!Seats.HasOwnSeat)
+                {
+                    var seat = CinemaEnvironment.SeatPose(1);
+                    m_Rig.SetSeat(seat.position, seat.rotation);
+                }
             }
         }
 
@@ -194,6 +219,31 @@ namespace TheMovies.App
 
         public bool RoomsAvailable => m_Cinema.RoomsAvailable;
 
+        /// <summary>House lights: automatic (dim while the movie plays) or a fixed level.</summary>
+        public void SetLightMode(LightMode mode)
+        {
+            Media.Lights = mode;
+            Settings.LightMode = (int)mode;
+            Settings.Save();
+        }
+
+        /// <summary>Dims the house lights by hand in 10 % steps (switches to the manual mode).</summary>
+        public void ChangeHouseLight(float delta)
+        {
+            float level = Media.Lights == LightMode.Manual ? Media.ManualLight : Settings.HouseLight;
+            level = Mathf.Clamp01(Mathf.Round((level + delta) * 10f) / 10f);
+            Media.ManualLight = Settings.HouseLight = level;
+            SetLightMode(LightMode.Manual);
+        }
+
+        /// <summary>Shows the free seats to choose from (not in mixed reality, where the room is your own).</summary>
+        public void BeginSeatChoice()
+        {
+            if (MixedReality.Enabled) return;
+            Menu.Hide();
+            Seats.Begin();
+        }
+
         /// <summary>Cinema or living room (only for this viewer); switches mixed reality off.</summary>
         public void SetRoom(CinemaEnvironment.Room room)
         {
@@ -201,6 +251,7 @@ namespace TheMovies.App
             m_Cinema.SetRoom(room);
             Settings.Room = (int)m_Cinema.CurrentRoom;
             Settings.Save();
+            Seats.ResetToStandardSeat(); // the seats of one room don't exist in the other
         }
 
         public void SetMixedReality(bool enabled)
@@ -208,6 +259,7 @@ namespace TheMovies.App
             MixedReality.SetEnabled(enabled, m_Cinema, m_Rig.Camera);
             Settings.MixedReality = MixedReality.Enabled;
             Settings.Save();
+            Seats?.ResetToStandardSeat();
         }
 
         /// <summary>2D→3D for 2D movies (only for this viewer): 0 = off, 1 = light, 2 = strong.</summary>

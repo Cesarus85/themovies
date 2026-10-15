@@ -236,7 +236,10 @@ verwenden, die du besitzt bzw. abspielen darfst.
 | Menü zeigen / ausblenden | **B**, **Y** oder ☰; Trigger ins Leere zeigt es | **M** oder **Tab** |
 | Klicken | Laserstrahl + **Trigger** | linke Maustaste |
 | Play / Pause | **A** oder **X** | **Leertaste** |
-| 10 s zurück / vor | Stick nach links / rechts | Pfeiltasten |
+| 10 s zurück / vor | linker Stick nach links / rechts | Pfeiltasten |
+| Umdrehen in 30°-Schritten | rechter Stick nach links / rechts; mit Händen: lockere Faust, Daumen über den Zeigefinger nach links / rechts wischen | – |
+| Platz wählen (jeder Sessel, auch Rang und Logen) | **„Platz wählen“** im Menü, dann auf eine leuchtende Scheibe zeigen und klicken; Menütaste bricht ab | dito |
+| Saallicht dimmen | *Einstellungen → Saallicht*: **Auto** (dunkel beim Film) oder mit − / + eine feste Helligkeit | dito |
 | Umschauen | Kopf | rechte Maustaste halten + ziehen |
 | Platz/Blickrichtung neu ausrichten | „Ausrichten“ im Menü oder Meta-Taste lang drücken | – |
 | Sitzhöhe anpassen | *Einstellungen → Sitzhöhe* | dito |

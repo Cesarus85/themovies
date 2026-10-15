@@ -71,13 +71,15 @@ namespace TheMovies.UI
         UIButton m_StopButton;
         float m_StopConfirmUntil;
         UIButton m_LeaveButton;
+        UIButton m_SeatButton;
 
         // Settings page
         UILabel m_SetFormat;
         UIButton m_SetFormatPrev, m_SetFormatNext;
         UIButton m_SetSwap;
         UILabel m_SetSize;
-        UIButton m_SetLightAuto, m_SetLightOn, m_SetLightOff;
+        UIButton m_SetLightAuto;
+        UILabel m_SetLightLevel;
         UILabel m_SetVolume;
         UIButton m_SetMic, m_SetPushToTalk, m_SetDucking;
         UILabel m_SetHeight;
@@ -426,6 +428,9 @@ namespace TheMovies.UI
                 rx += 0.08f;
             }
 
+            // Free seat choice: discs above every free seat, point and click (also balcony and boxes).
+            m_SeatButton = Button(p, "Platz wählen", 0.345f, -0.292f, 0.18f, 0.055f, () => m_App.BeginSeatChoice(), 0.017f, style: ButtonStyle.Subtle);
+
             m_SessionStatus = Label(p, string.Empty, 0, -0.345f, 0.014f, 100, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
         }
@@ -469,9 +474,11 @@ namespace TheMovies.UI
 
             y -= step;
             SettingRow(p, "Saallicht", y);
-            m_SetLightAuto = Button(p, "Auto", 0.05f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.Auto, 0.018f);
-            m_SetLightOn = Button(p, "An", 0.18f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.On, 0.018f);
-            m_SetLightOff = Button(p, "Aus", 0.31f, y, 0.11f, small, () => m_App.Media.Lights = LightMode.Off, 0.018f);
+            // Auto dims while the movie plays; − / + set a fixed level (also during the movie).
+            m_SetLightAuto = Button(p, "Auto", -0.07f, y, 0.11f, small, () => m_App.SetLightMode(LightMode.Auto), 0.018f);
+            Button(p, null, minusX + 0.06f, y, small, small, () => m_App.ChangeHouseLight(-0.1f), 0.02f, UIIcon.Minus);
+            m_SetLightLevel = Label(p, string.Empty, valueX + 0.03f, y, 0.02f, 10, TextAnchor.MiddleCenter);
+            Button(p, null, plusX, y, small, small, () => m_App.ChangeHouseLight(0.1f), 0.02f, UIIcon.Plus);
 
             y -= step;
             SettingRow(p, "Lautstärke Film", y);
@@ -815,8 +822,9 @@ namespace TheMovies.UI
             m_SetSize.Text = ScreenController.SizeNames[m_App.Screen.SizeIndex];
             var lights = m_App.Media.Lights;
             m_SetLightAuto.Highlighted = lights == LightMode.Auto;
-            m_SetLightOn.Highlighted = lights == LightMode.On;
-            m_SetLightOff.Highlighted = lights == LightMode.Off;
+            float level = lights == LightMode.On ? 1f : lights == LightMode.Off ? 0f : m_App.Media.ManualLight;
+            m_SetLightLevel.Text = lights == LightMode.Auto ? "–" : $"{Mathf.RoundToInt(level * 100)} %";
+            m_SetLightLevel.Color = lights == LightMode.Auto ? UIStyle.TextDim : UIStyle.Text;
             m_SetVolume.Text = $"{Mathf.RoundToInt(m_App.Settings.Volume * 100)} %";
             bool micAvailable = Playback.Current.IsNetworked && VoiceChat.Compiled;
             m_SetMic.Interactable = micAvailable;
@@ -966,6 +974,7 @@ namespace TheMovies.UI
             string sync = coordinator.LocalState == ParticipantMediaState.Ready && networked
                 ? $"Sync {cmd.Drift * 1000:+0;-0;0} ms · Ping {auth.RoundTrip * 1000:0} ms  ·  "
                 : string.Empty;
+            m_SeatButton.Interactable = !MixedReality.Enabled;
             m_SessionStatus.Text = sync + "Menü: B / Y  ·  Verschieben: Leiste unten greifen, Stick vor/zurück für Abstand";
         }
 

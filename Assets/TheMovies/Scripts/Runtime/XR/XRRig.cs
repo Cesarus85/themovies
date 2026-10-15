@@ -96,6 +96,20 @@ namespace TheMovies.XR
         float m_DesktopYaw;
         float m_DesktopPitch;
         int m_StickDirection;
+        int m_TurnDirection;
+
+        /// <summary>Degrees per turn step (right thumbstick, thumb swipe).</summary>
+        public const float TurnStep = 30f;
+
+        /// <summary>
+        /// Turns the view around the head (snap turn), e.g. to look at the others in a box. Placing on a seat or
+        /// recentering faces the screen again.
+        /// </summary>
+        public void Turn(float degrees)
+        {
+            if (!XRActive) return;
+            transform.RotateAround(Head.position, Vector3.up, degrees);
+        }
 
         public static XRRig Create()
         {
@@ -569,15 +583,26 @@ namespace TheMovies.XR
             Vector2 rightStick = m_Inputs.Thumbstick(false), leftStick = m_Inputs.Thumbstick(true);
             StickY = Mathf.Abs(rightStick.y) >= Mathf.Abs(leftStick.y) ? rightStick.y : leftStick.y;
 
-            // Thumbstick flick left/right = seek 10 s
-            float x = rightStick.x;
-            if (Mathf.Abs(x) < 0.1f) x = leftStick.x;
-            if (SuppressStickSeek) x = 0f;
+            // Left thumbstick flick left/right = seek 10 s; right thumbstick = turn in steps (like most Quest apps).
+            float x = SuppressStickSeek ? 0f : leftStick.x;
             int dir = x > 0.75f ? 1 : x < -0.75f ? -1 : 0;
             if (dir != 0 && m_StickDirection == 0)
                 SeekStepRequested?.Invoke(dir * 10.0);
             if (Mathf.Abs(x) < 0.3f) m_StickDirection = 0;
             else if (dir != 0) m_StickDirection = dir;
+
+            float t = SuppressStickSeek ? 0f : rightStick.x;
+            int turn = t > 0.75f ? 1 : t < -0.75f ? -1 : 0;
+            if (turn != 0 && m_TurnDirection == 0)
+                Turn(turn * TurnStep);
+            if (Mathf.Abs(t) < 0.3f) m_TurnDirection = 0;
+            else if (turn != 0) m_TurnDirection = turn;
+#if THEMOVIES_OPENXR
+            // Hands: loose fist, thumb swiped left/right along the index finger (Meta microgesture); not while pinching.
+            int swipes = MicrogestureFeature.TakeTurnSteps();
+            if (swipes != 0 && !leftDown && !rightDown)
+                Turn(Mathf.Clamp(swipes, -1, 1) * TurnStep);
+#endif
         }
 
         void UpdateDesktop()

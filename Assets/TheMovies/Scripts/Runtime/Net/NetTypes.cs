@@ -97,6 +97,31 @@ namespace TheMovies.Net
         public override int GetHashCode() => HashCode.Combine(Playing, AnchorMediaTime, AnchorHostTime, Revision);
     }
 
+    /// <summary>
+    /// Where a participant sits: the room they see (0 = cinema, 1 = living room, 2 = mixed reality – each person picks
+    /// their own) and, if they chose a seat themselves, its floor position. The others show the avatar there when they
+    /// are in the same room, otherwise on the participant's standard seat.
+    /// </summary>
+    public struct SeatChoice : INetworkSerializable, IEquatable<SeatChoice>
+    {
+        public byte Room;
+        public bool Chosen;
+        public Vector3 Position;
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+        {
+            serializer.SerializeValue(ref Room);
+            serializer.SerializeValue(ref Chosen);
+            serializer.SerializeValue(ref Position);
+        }
+
+        public bool Equals(SeatChoice other) => Room == other.Room && Chosen == other.Chosen && Position == other.Position;
+
+        public override bool Equals(object obj) => obj is SeatChoice other && Equals(other);
+
+        public override int GetHashCode() => HashCode.Combine(Room, Chosen, Position);
+    }
+
     /// <summary>Head and controller poses in world space.</summary>
     public struct AvatarPose : INetworkSerializable, IEquatable<AvatarPose>
     {
@@ -142,6 +167,16 @@ namespace TheMovies.Net
         public override bool Equals(object obj) => obj is AvatarPose other && Equals(other);
 
         public override int GetHashCode() => HashCode.Combine(HeadPosition, HeadRotation, LeftPosition, RightPosition, Flags);
+
+        /// <summary>The same pose moved by <paramref name="offset"/> (avatar of someone in another room on their standard seat).</summary>
+        public AvatarPose Moved(Vector3 offset)
+        {
+            var moved = this;
+            moved.HeadPosition += offset;
+            moved.LeftPosition += offset;
+            moved.RightPosition += offset;
+            return moved;
+        }
     }
 
     public enum ParticipantMediaState : byte

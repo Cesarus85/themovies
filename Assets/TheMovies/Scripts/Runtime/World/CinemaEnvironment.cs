@@ -73,6 +73,24 @@ namespace TheMovies.World
         /// <summary>Floor position and facing of a participant seat.</summary>
         public static Pose SeatPose(int index) => s_Seats[Mathf.Clamp(index, 0, MaxParticipants - 1)];
 
+        readonly System.Collections.Generic.List<Pose> m_HallSpots = new System.Collections.Generic.List<Pose>();
+        readonly System.Collections.Generic.List<Pose> m_HomeSpots = new System.Collections.Generic.List<Pose>();
+
+        /// <summary>
+        /// Every seat one can move to in the current room: floor position below the seated head, facing the screen
+        /// (free seat choice). Includes the four standard seats.
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyList<Pose> SeatSpots => m_Room == Room.Home ? m_HomeSpots : m_HallSpots;
+
+        /// <summary>Adds a seat spot facing the screen (skipped if another one is within 0.3 m).</summary>
+        static void AddSpot(System.Collections.Generic.List<Pose> spots, Vector3 floor, Vector3 screen)
+        {
+            foreach (var s in spots)
+                if ((s.position - floor).sqrMagnitude < 0.09f) return;
+            var towards = new Vector3(screen.x - floor.x, 0f, screen.z - floor.z);
+            spots.Add(new Pose(floor, towards.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(towards.normalized, Vector3.up) : Quaternion.identity));
+        }
+
         static Pose[] DefaultSeats()
         {
             var seats = new Pose[MaxParticipants];
@@ -91,10 +109,24 @@ namespace TheMovies.World
             env.m_HallRoot = new GameObject("Hall").transform;
             env.m_HallRoot.SetParent(go.transform, false);
             var custom = Resources.Load<GameObject>(CustomPrefabPath);
-            if (custom == null || !env.BuildCustom(custom, env.m_HallRoot, k_HallPlacement, out env.m_HallPlacement))
+            if (custom == null || !env.BuildCustom(custom, env.m_HallRoot, k_HallPlacement, out env.m_HallPlacement, env.m_HallSpots))
             {
                 env.m_HallPlacement = k_HallPlacement;
                 env.BuildHall();
+                // Seats of the built-in hall: rows of a center block and two side blocks (see BuildSeating).
+                var screen = k_HallPlacement.Position;
+                foreach (var seat in s_Seats) AddSpot(env.m_HallSpots, seat.position, screen);
+                foreach (int row in k_Rows)
+                {
+                    var origin = new Vector3(0, RowY(row), RowZ(row));
+                    for (int i = 0; i < 14; i++) AddSpot(env.m_HallSpots, origin + new Vector3((i - 6.5f) * SeatSpacing, 0, 0), screen);
+                    for (int j = 0; j < 4; j++)
+                    {
+                        float x = 6.65f + j * SeatSpacing;
+                        AddSpot(env.m_HallSpots, origin + new Vector3(x, 0, 0), screen);
+                        AddSpot(env.m_HallSpots, origin + new Vector3(-x, 0, 0), screen);
+                    }
+                }
             }
             else
             {
@@ -134,7 +166,8 @@ namespace TheMovies.World
         /// Puts a room model under <paramref name="root"/>, moved and turned so that the center of its seats is the
         /// center of the standard seats and they face +Z. False (and nothing added) without seats or screen anchor.
         /// </summary>
-        bool BuildCustom(GameObject prefab, Transform root, ScreenPlacement defaults, out ScreenPlacement placement)
+        bool BuildCustom(GameObject prefab, Transform root, ScreenPlacement defaults, out ScreenPlacement placement,
+            System.Collections.Generic.List<Pose> spots)
         {
             placement = defaults;
             var instance = Instantiate(prefab, root);
@@ -183,7 +216,13 @@ namespace TheMovies.World
             var top = FindDeep(instance.transform, "ScreenTop");
             if (top != null)
                 placement.MaxHeight = Mathf.Max(0.5f, root.InverseTransformPoint(top.position).y - placement.Position.y);
-            Debug.Log($"[TheMovies] Room model '{prefab.name}': {seats.Count} seats, screen at {placement.Position}, up to {placement.MaxHeight:0.0} m high.");
+            // Free seat choice: the standard seats first, then every "Spot_###" marker of the model.
+            foreach (var seat in s_Seats) AddSpot(spots, seat.position, placement.Position);
+            foreach (var t in instance.GetComponentsInChildren<Transform>(true))
+                if (t.name.StartsWith("Spot_", System.StringComparison.OrdinalIgnoreCase))
+                    AddSpot(spots, root.InverseTransformPoint(t.position), placement.Position);
+            Debug.Log($"[TheMovies] Room model '{prefab.name}': {seats.Count} seats, {spots.Count} places to sit, screen at {placement.Position}, " +
+                      $"up to {placement.MaxHeight:0.0} m high.");
             return true;
         }
 

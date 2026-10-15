@@ -63,7 +63,7 @@ namespace TheMovies.World
             m_HomeRoot = new GameObject("Living Room").transform;
             m_HomeRoot.SetParent(transform, false);
             var custom = Resources.Load<GameObject>(CustomHomePrefabPath);
-            if (custom != null && BuildCustom(custom, m_HomeRoot, k_HomePlacement, out m_HomePlacement))
+            if (custom != null && BuildCustom(custom, m_HomeRoot, k_HomePlacement, out m_HomePlacement, m_HomeSpots))
             {
                 m_HomeLightPos = new Vector4[0];
                 m_HomeLightColor = new Vector4[0];
@@ -72,6 +72,7 @@ namespace TheMovies.World
             }
             m_HomePlacement = k_HomePlacement;
             BuildHome();
+            foreach (var seat in s_Seats) AddSpot(m_HomeSpots, seat.position, k_HomePlacement.Position); // the sofa
         }
 
         void Update()

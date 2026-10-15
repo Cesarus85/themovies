@@ -227,6 +227,7 @@ namespace TheMovies.XR
                 ok &= tracking;
                 text += " · Erweiterungen: " + Flag("Gelenke", tracking) + ", " + Flag("Aim", aim) + ", " +
                         Flag("Interaction", interaction) + ", " + Flag("Mesh", mesh);
+                text += " · Mikrogesten: " + MicrogestureFeature.Status;
             }
             catch (System.Exception)
             {
