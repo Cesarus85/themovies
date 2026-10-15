@@ -243,3 +243,51 @@ Unity-Menü **The Movies → Raum-Modell aufbereiten → Kinosaal / Heimkino** (
 `-executeMethod TheMovies.EditorTools.RoomModelSetup.PrepareAllBatch`) stellt Import, Texturen und Materialien ein,
 prüft Marker und Budget und erzeugt `Resources/TheMovies/CustomCinema.prefab` bzw. `CustomHome.prefab`. Fehlt ein
 Prefab, nutzt die App den eingebauten Raum.
+
+
+## 10. Dachterrasse – dritter Raum
+
+**Stil:** Mediterranes Freiluftkino über einer Stadt zwischen Hügeln zur blauen Stunde/frühen Nacht.
+Teakdeck, gekalkte Brüstung mit Kalksteinabdeckung, zwei cremefarbene Loveseats, indigoblaue
+Kissen und gestreifte Decken, gewebter Außenteppich, Terrakotta, Oliven, Lavendel und kleine
+Fächerpalmen. Pflanzen bestehen aus opaker Geometrie; keine Alpha-Karten oder Glasscheiben.
+Warmweiße Festons an schlanken Metallpfosten, Kerzenlaternen, Beistelltische, eine kleine Bar
+mit niedrigen Rückenlehnen-Hockern und ein rollbarer Servierwagen.
+
+**Maße und Sitze:** Deck 13,6 × 14 m (X ±6,8; Y −4,8 bis +9,2), Oberkante Z=0.
+Brüstungsabdeckung maximal 0,79 m. Die vier Standardmarker bleiben exakt bei
+X −1,125 / −0,375 / +0,375 / +1,125, Y=Z=0 und entsprechen Spot_000–003.
+Weitere Plätze: zwei Lounge-Sessel (−3,15 / −4,35; Y=0,10), zwei Bankplätze
+(X ±0,70; Y=−2,80) und zwei niedrige Barhocker (X 3,15 / 4,25; Y=−2,65),
+alle auf Z=0, alle nach +Y. Spot_000–009 stehen unter den angelehnten Köpfen;
+bei Schulterhöhe Z=0,85 liegt die fertige Rückenpolsterfront jeweils 0,12 m dahinter.
+Sitzende Augenhöhe ist 1,25 m; jeder Platz muss das vollständige Projektionsraster sehen.
+
+**Leinwand:** ScreenAnchor=(0; 8,50; 1,10), ScreenTop=(0; 8,50; 5,10).
+Freie Fläche 9,5 × 4 m für die App-Bildbreiten 3,5–9,5 m. Stabiler Teakrahmen und
+dunkle bauliche Nachbarwand dahinter, keine modellierte Leinwandfläche.
+
+**Tiefe und Himmel:** Zwölf echte Nachbardächer mit Kaminen, Gesimsen, Tanks und Antennen
+im Abstand von ungefähr 10–40 m. Dahinter vollständiges CC0-Panorama „Clarens Night 02“,
+Dimitrios Savva (Fotografie), Jarod Guest (Verarbeitung) / Poly Haven, 4096 × 2048, ohne Winkelstreckung auf einer Kugel mit Radius 150 m.
+Material und Textur heißen Rooftop_Panorama_unlit bzw. Rooftop_Panorama_unlit_BaseColor.png.
+Das vollständige equirektangulare Foto bleibt erhalten, nur Belichtung und weiche HDR-Schulter
+werden angepasst. Tiefblauer Himmel und begrenzte Stadtlichter lassen dem Filmbild Vorrang.
+
+**Budget und Pipeline:** ≤120.000 Dreiecke, ≤14 Materialien und Material-Meshes,
+Basisfarben 1024² (maximal 2048²), ein 2048² Lichtatlas, ein 4096×2048 Panorama.
+Cycles Diffuse Direct+Indirect ohne Color, mindestens 256 Samples, Denoising, 8 px Bake-Rand,
+≥4 px UV-Inselabstand. Standard/None, Exposure −1, RGB8. Vorschauen multiplizieren ausschließlich
+Basisfarbe × gespeicherten Lichtatlas ×2; bei Filmlicht ×0,04. Unlit-Panorama und ferne Fenster
+bleiben unverändert. Keine Echtzeitlampen im Export.
+
+Aufruf: `Blender -b --factory-startup -P tools/blender/rooftop.py -- Assets/TheMovies/Art/Rooftop`.
+Prüfung: `Blender -b --factory-startup -P tools/blender/verify_rooftop.py`.
+Lieferung: `Rooftop.fbx`, `Textures/`, Sitz-/Leinwandmarker; Bake-Checkpoint nur unter
+`art/blender/`. Reimport-, UV-, Kopfpositions- und Sichtlinienprüfungen sowie gebackene Ansichten
+unter `Logs/art-preview/`; Bericht `ROOFTOP-REPORT.md`. Keine Änderungen an Kino/Heimkino,
+App-Code oder Unity-Konfiguration. Rohquellen ausschließlich CC0 von Poly Haven, unter
+`art/sources/`; Herkunft und Bearbeitung in `docs/CREDITS.md` und `art/rooftop-sources.json`.
+
+Aktueller Dachterrassen-Export: **95.056 Dreiecke, 14 Materialien/Material-Meshes, zehn Plätze**.
+Die Oliventöpfe enthalten abgeschirmte warme Uplights; die Blätter sind räumliche Low-Poly-Meshes.

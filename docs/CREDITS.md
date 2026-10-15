@@ -40,3 +40,21 @@ accepted cinema pipeline. The cinema scripts and assets were not modified.
 No third-party models, normal maps, roughness maps, metallic maps or restricted marketplace files are included.
 `art/home-sources.json` pins the two used CC0 diffuse inputs and the night HDRI and their MD5 checksums. The build downloads only from
 `dl.polyhaven.org` into the git-ignored `art/sources/` cache; only prepared PNGs and `Home.fbx` go into `Assets/`.
+
+
+## Rooftop terrace / Dachterrasse
+
+| Asset | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| Clarens Night 02 | Dimitrios Savva (photography), Jarod Guest (processing) | [Poly Haven asset](https://polyhaven.com/a/clarens_night_02); [metadata](https://api.polyhaven.com/info/clarens_night_02); [license](https://polyhaven.com/license) | CC0-1.0, checked 2026-10-15 | 4K EXR, full 360° equirectangular photograph preserved at 4096×2048. Linear exposure factor 0.025 and soft per-channel shoulder 0.68*x/(1+x), then sRGB RGB8. No synthetic city or sky substitution. |
+
+The terrace, all furniture and cushions, draped throws, lamps, opaque modeled olive/lavender/palm
+foliage, neighboring buildings, chimneys, tanks and antennae are original procedural geometry.
+Teak grain, plaster, fabric weave, stripes and outdoor rug are deterministic original surface
+textures in `lib_rooftop_textures.py`. No third-party models or AI-generated photographs are used.
+Rooftop primitives, UV audit and bake/export structure are independent adaptations of this project's
+accepted Home pipeline; the accepted Home and Cinema files remain unchanged.
+
+`art/rooftop-sources.json` pins the downloaded Poly Haven EXR by MD5. Raw files and API metadata
+remain under git-ignored `art/sources/`. Only the prepared RGB PNGs and exported FBX are distributed.
+No normal maps, opacity maps or restricted marketplace assets are included.
