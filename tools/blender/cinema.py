@@ -3,6 +3,7 @@
 Blender -b --factory-startup -P tools/blender/cinema.py -- Assets/TheMovies/Art/Cinema
 Optional --preview-only rebuilds previews from art/blender/Cinema-baked.blend.
 Optional --reanchor-only reuses that baked checkpoint, measures head markers and re-exports.
+Optional --geometry-only saves a local sightline draft without baking or replacing the export.
 Raw CC0 downloads are restricted to Poly Haven and verified against their API MD5.
 """
 import os
@@ -19,9 +20,10 @@ import numpy as np
 from mathutils import Vector
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_cinema import Geometry,texture
-from lib_cinema_chairs import add_chairs
+from lib_cinema_chairs import add_chairs,stamp
 from lib_cinema_validation import normal_rows
-from lib_cinema_markers import chair_layout,anchor_seated_heads
+from lib_cinema_markers import chair_layout,anchor_seated_heads,EYE_HEIGHT,BOX_FLOORS
+from lib_cinema_uvs import uv_overlaps
 
 ROOT=Path(__file__).resolve().parents[2]
 args=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
@@ -74,10 +76,15 @@ def preview():
     scene.render.resolution_x=1600;scene.render.resolution_y=1000;scene.render.resolution_percentage=100
     scene.render.image_settings.file_format='PNG';scene.render.image_settings.color_mode='RGB'
     data=bpy.data.cameras.new('Preview');cam=bpy.data.objects.new('Preview',data);scene.collection.objects.link(cam);scene.camera=cam
-    views=[('Seat2-house-on',(-.375,0,1.2),(0,11.9,4.25),17,1),('Seat2-house-12pct',(-.375,0,1.2),(0,11.9,4.25),17,.12),('Overview-back-top',(0,-6.7,8.25),(0,4.3,2.5),15.5,1),('Gallery-and-seating',(6.5,8,5.8),(0,-2.5,4.2),19,1),
-           ('Seat2-row-ahead-down',(-.375,0,1.2),(-.375,1.1,.25),24,1),
-           ('Seat2-neighbours-side',(-.375,0,1.2),(1.05,-.40,.72),25,1),
-           ('Seat-closeup',(-5.25,1.05,1.20),(-4.125,-.36,.63),32,1)]
+    views=[('Seat2-house-on',(-.375,0,EYE_HEIGHT),(0,11.9,4.25),17,1),('Seat2-house-12pct',(-.375,0,EYE_HEIGHT),(0,11.9,4.25),17,.12),('Overview-back-top',(0,-6.7,8.25),(0,4.3,2.5),15.5,1),('Gallery-and-seating',(6.5,8,5.8),(0,-2.5,4.2),19,1),
+           ('Seat2-row-ahead-down',(-.375,0,EYE_HEIGHT),(-.375,1.1,.25),24,1),
+           ('Seat2-neighbours-side',(-.375,0,EYE_HEIGHT),(1.05,-.40,.72),25,1),
+           ('Seat-closeup',(-5.25,1.05,EYE_HEIGHT),(-4.125,-.36,.63),32,1)]
+    # These views use the actual exported head markers and the current row floor.
+    shift=Vector((0,float(scene.get('hall_shift_y',0)),0))
+    for name,spot in [('Box-Spot_147-house-on','Spot_147'),('Gallery-Spot_125-house-on','Spot_125')]:
+        eye=scene.objects[spot].location-shift+Vector((0,0,EYE_HEIGHT))
+        views.append((name,eye,(0,11.9,4.5),20,1))
     for name,loc,target,lens,dim in views:
         shift=Vector((0,float(scene.get('hall_shift_y',0)),0))
         cam.location=Vector(loc)+(Vector((0,0,0)) if name.startswith('Seat2-') else shift)
@@ -262,23 +269,36 @@ for side in (-1,1):
         light('Sconce',(side*10.6,y,5.65),165,size=.5)
         light('Sconce wall wash',(side*10.8,y,6.1),110,size=1.5,target=(side*12,y,7.3))
 # Side opera boxes with turned balusters, scalloped panels and top rails.
-def baluster(x,y,z):g.lathe(ivory,(x,y,z),[(.09,0),(.09,.08),(.055,.13),(.1,.28),(.065,.43),(.035,.62),(.07,.72),(.07,.77)],8)
+def baluster(x,y,z,geometry=g):geometry.lathe(ivory,(x,y,z),[(.09,0),(.09,.08),(.055,.13),(.1,.28),(.065,.43),(.035,.62),(.07,.72),(.07,.77)],8)
 for side in (-1,1):
     for y in [-2.7,3.15,8.2]:
-        g.box(ivory,(side*10.82,y,3.4),(2.25,3.2,.3),.065)
-        g.box(walnut,(side*10.82,y,3.58),(2.1,3.05,.08))
-        g.box(velvet,(side*9.69,y,3.85),(.1,3.12,.5))
-        for yy in np.linspace(y-1.45,y+1.45,11):baluster(side*9.62,yy,4.06)
-        g.box(gold,(side*9.61,y,4.88),(.21,3.3,.1),.035)
+        box_floor=BOX_FLOORS[y]
+        box_base=Geometry()
+        box_base.box(ivory,(side*10.82,y,3.4),(2.25,3.2,.3),.065)
+        box_base.box(walnut,(side*10.82,y,3.58),(2.1,3.05,.08))
+        stamp(g,box_base,(0,0,box_floor-3.62))
+        box_front=Geometry()
+        box_front.box(velvet,(side*9.69,y,3.85),(.1,3.12,.5))
+        for yy in np.linspace(y-1.45,y+1.45,11):baluster(side*9.62,yy,4.06,box_front)
+        box_front.box(gold,(side*9.61,y,4.88),(.21,3.3,.1),.035)
         for yy in [y-1.57,y+1.57]:
-            for xx in np.linspace(9.65,11.75,7):baluster(side*xx,yy,4.06)
-            g.box(gold,(side*10.7,yy,4.88),(2.2,.19,.1),.025)
-        for yy in [y-1,y,y+1]:g.sphere(gold,(side*9.58,yy,3.85),(.055,.17,.14),10,6)
+            for xx in np.linspace(9.65,11.75,7):baluster(side*xx,yy,4.06,box_front)
+            box_front.box(gold,(side*10.7,yy,4.88),(2.2,.19,.1),.025)
+        for yy in [y-1,y,y+1]:box_front.sphere(gold,(side*9.58,yy,3.85),(.055,.17,.14),10,6)
+        for mat,(vs,fs,smooth,uvs) in box_front.parts.items():
+            start=len(g.parts.get(mat,([],[],[],[]))[1])
+            g.add(mat,[(x,y,box_floor+(z-3.62)*(.75/1.31)) for x,y,z in vs],fs,False,uvs)
+            g.parts[mat][2][start:]=smooth
 # Rear gallery behind the six ground rows, open undercroft.
 g.box(ivory,(0,-6.45,4.65),(23.6,1.5,.35),.07)
-g.box(velvet,(0,-5.66,4.97),(23.6,.12,.48))
-for x in np.linspace(-11.6,11.6,71):baluster(x,-5.6,5.18)
-g.box(gold,(0,-5.6,5.99),(23.7,.22,.12),.035)
+gallery_front=Geometry()
+gallery_front.box(velvet,(0,-5.66,4.97),(23.6,.12,.48))
+for x in np.linspace(-11.6,11.6,71):baluster(x,-5.6,5.18,gallery_front)
+gallery_front.box(gold,(0,-5.6,5.99),(23.7,.22,.12),.035)
+for mat,(vs,fs,smooth,uvs) in gallery_front.parts.items():
+    start=len(g.parts.get(mat,([],[],[],[]))[1])
+    g.add(mat,[(x,y,4.825+(z-4.825)*(.80/1.225)) for x,y,z in vs],fs,False,uvs)
+    g.parts[mat][2][start:]=smooth
 for x in [-9,-6,6,9]:
     g.box(ivory,(x,-6.2,2.9),(.32,.38,3.2),.04)
 # Rear gallery wall: repeated gilded panels, pilasters and a sunburst cartouche.
@@ -368,6 +388,13 @@ bm=bmesh.new();bm.from_mesh(room.data);bmesh.ops.remove_doubles(bm,verts=list(bm
 # explicitly; architectural flat/smooth flags are preserved exactly as generated.
 room.data.update()
 room.data.normals_split_custom_set([tuple(n.vector) for n in room.data.corner_normals])
+if '--geometry-only' in args:
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
+    for o in scene.objects:
+        if o.type=='MESH':o.name='Cinema_'+next(m.name for m in o.data.materials if m)
+    anchor_seated_heads(scene)
+    bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Cinema-sightline-draft.blend'))
+    log('Geometry-only sightline checkpoint complete');sys.exit(0)
 room.data.uv_layers[0].name='UVMap'
 for uv in list(room.data.uv_layers)[1:]:room.data.uv_layers.remove(uv)
 lm=room.data.uv_layers.new(name='Lightmap');room.data.uv_layers.active=lm
@@ -376,6 +403,25 @@ bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.uv.smart_project(angle_limit=1.25,island_margin=0,area_weight=.5,scale_to_bounds=True)
 bpy.ops.uv.pack_islands(rotate=True,margin_method='FRACTION',margin=6/4096,shape_method='CONVEX')
 bpy.ops.object.mode_set(mode='OBJECT')
+# Smart projection can fold tiny imported ornament triangles onto neighbouring
+# triangles at a shared UV vertex. Isolate only those faces and repack the same
+# global atlas; geometry and UVMap stay untouched.
+lightmap_repair_faces=0
+for repair_pass in range(4):
+    room.data.calc_loop_triangles();layer=room.data.uv_layers['Lightmap']
+    uvtris=np.array([[tuple(layer.data[i].uv) for i in t.loops] for t in room.data.loop_triangles])
+    overlaps=uv_overlaps(uvtris)
+    if not overlaps:break
+    assert repair_pass<3,('Unresolved UV intersections',len(overlaps))
+    split=sorted({room.data.loop_triangles[j].polygon_index for i,j in overlaps})
+    for index,face_index in enumerate(split):
+        for li in room.data.polygons[face_index].loop_indices:
+            layer.data[li].uv.x+=2+index*2
+    lightmap_repair_faces+=len(split)
+    log(f'Isolated {len(split)} folded ornament UV faces; repacking atlas')
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.pack_islands(rotate=True,margin_method='FRACTION',margin=6/4096,shape_method='CONVEX')
+    bpy.ops.object.mode_set(mode='OBJECT')
 # One atlas, 256 sample Cycles diffuse direct+indirect, no albedo.
 image=bpy.data.images.new('Cinema_Light',4096,4096,float_buffer=True)
 for m in room.data.materials:
@@ -429,4 +475,6 @@ assert sum(stats.values())<=250000,stats
 assert len(objects)<=16
 report={'triangles':stats,'total_triangles':sum(stats.values()),'materials':sorted(materials),'markers':{o.name:list(o.location) for o in scene.objects if o.type=='EMPTY'},'lightmap':[4096,4096],'basecolors':[1024,1024],'chairs':len(chair_positions),'chair_detail':chair_stats,'imported_chandelier_triangles':imported_triangles,'bake_samples':256,'atlas_denoise':'OpenImageDenoise compositor, linear irradiance','device':scene.cycles.device,'elapsed_seconds':round(time.time()-START),'blender':bpy.app.version_string}
 report['bake_reused']=False
+report['lightmap_repair_faces']=lightmap_repair_faces
+report['balconies']={'eye_height':EYE_HEIGHT,'gallery_front_height':.80,'box_front_height':.75,'box_floors':BOX_FLOORS,'previous_gallery_front_height':1.225,'previous_box_front_height':1.31,'previous_box_floor':3.62}
 export_anchored(report)

@@ -1,5 +1,6 @@
 """Geometry/normal evidence shared by the exporter and independent FBX audit."""
 import numpy as np
+from lib_cinema_markers import BOX_FLOORS
 
 
 def normal_rows(obj):
@@ -30,7 +31,7 @@ def chair_masks(obj,shift_y=0):
         bounds += [(lo-.46,hi+.46,y-.9,y+.055,z-.0001,z+1.24) for lo,hi in spans]
     for side in (-1,1):
         for y in [-2.7,3.15,8.2]:
-            bounds.append((side*10.6-.84,side*10.6+.84,y-1.45,y+.61,3.6199,4.86))
+            bounds.append((side*10.6-.84,side*10.6+.84,y-1.45,y+.61,BOX_FLOORS[y]-.0001,BOX_FLOORS[y]+1.24))
     mesh=obj.data;mesh.calc_loop_triangles()
     coords=np.array([list(obj.matrix_world@v.co) for v in mesh.vertices])
     coords[:,1]-=shift_y
@@ -54,4 +55,33 @@ def architecture_signature(objects,shift_y=0):
             p=sorted(tuple(round(c-(shift_y if axis==1 else 0),5) for axis,c in enumerate(o.matrix_world@mesh.vertices[i].co)) for i in t.vertices)
             rows.append((tuple(p),mesh.polygons[t.polygon_index].use_smooth))
         if rows:result[o.name]={'triangles':len(rows),'sha256':hashlib.sha256(repr(sorted(rows)).encode()).hexdigest()}
+    return result
+
+
+def protected_surface_signature(objects,shift_y):
+    """Geometry, UV0 and shading outside the gallery front and stepped side boxes.
+
+    UV2 changes globally on a rebake. Bounds cover old/new box floors and fronts;
+    all stalls geometry, rear gallery seats and the remaining hall are compared.
+    """
+    import hashlib
+    result={}
+    for obj in objects:
+        mesh=obj.data;mesh.calc_loop_triangles()
+        coords=np.array([list(obj.matrix_world@v.co) for v in mesh.vertices])
+        coords[:,1]-=shift_y
+        vi=np.array([tuple(t.vertices) for t in mesh.loop_triangles]);pts=coords[vi]
+        x,y,z=pts[:,:,0],pts[:,:,1],pts[:,:,2]
+        changed=np.all((np.abs(x)<11.91)&(y> -5.731)&(y< -5.479)&(z>4.729)&(z<6.051),axis=1)
+        for side in (-1,1):
+            for yc in [-2.7,3.15,8.2]:
+                xx=x*side;yy=y-yc
+                box=np.all((xx>9.49)&(xx<11.97)&(np.abs(yy)<1.691)&(z>BOX_FLOORS[yc]-.421)&(z<4.931),axis=1)
+                changed |= box
+        rows=[];uv=mesh.uv_layers['UVMap']
+        for skip,t,points in zip(changed,mesh.loop_triangles,pts):
+            if skip:continue
+            corners=sorted(tuple(round(float(c),4) for c in point)+tuple(round(float(c),5) for c in uv.data[li].uv) for point,li in zip(points,t.loops))
+            rows.append((tuple(corners),mesh.polygons[t.polygon_index].use_smooth))
+        if rows:result[obj.name]={'triangles':len(rows),'sha256':hashlib.sha256(repr(sorted(rows)).encode()).hexdigest()}
     return result

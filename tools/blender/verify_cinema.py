@@ -6,8 +6,10 @@ import json
 import sys
 sys.dont_write_bytecode=True
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from lib_cinema_validation import normal_rows,chair_masks,architecture_signature
-from lib_cinema_markers import chair_layout,mesh_bvh
+from lib_cinema_validation import normal_rows,chair_masks,architecture_signature,protected_surface_signature
+from lib_cinema_markers import chair_layout,mesh_bvh,EYE_HEIGHT,BOX_FLOORS
+from lib_cinema_sightlines import elevated_sightlines
+from lib_cinema_uvs import uv_overlaps
 import math
 import bpy
 import numpy as np
@@ -27,12 +29,19 @@ def mesh_evidence(obj):
 
 baseline_evidence=None
 baseline_shift=0
-if '--baseline' in sys.argv:
-    baseline=Path(sys.argv[sys.argv.index('--baseline')+1]).resolve()
+front_baseline=None
+baseline_markers=None
+if '--baseline' in sys.argv or '--balcony-baseline' in sys.argv:
+    mode='--balcony-baseline' if '--balcony-baseline' in sys.argv else '--baseline'
+    baseline=Path(sys.argv[sys.argv.index(mode)+1]).resolve()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.fbx(filepath=str(baseline))
     baseline_evidence={o.name:mesh_evidence(o) for o in bpy.context.scene.objects if o.type=='MESH'}
     baseline_shift=bpy.context.scene.objects['ScreenAnchor'].matrix_world.translation.y-11.9
+    if mode=='--balcony-baseline':
+        front_baseline=protected_surface_signature([o for o in bpy.context.scene.objects if o.type=='MESH'],baseline_shift)
+        baseline_markers={o.name:tuple(o.matrix_world.translation) for o in bpy.context.scene.objects if o.type=='EMPTY'}
+        baseline_evidence=None
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=str(OUT/'Cinema.fbx'))
 scene=bpy.context.scene
@@ -76,6 +85,17 @@ if baseline_evidence is not None:
             assert np.array_equal(uv,after['uvs'][name]),(o.name,name,'UVs changed')
     rigid_evidence={'pass':True,'translation':list(shift),'maximum_vertex_error_m':maximum_error,
                     'all_triangles_materials_normals_uvs_unchanged':True}
+front_scope_evidence=None
+if front_baseline is not None:
+    protected=protected_surface_signature(objs,hall_shift)
+    assert protected==front_baseline,'Geometry/UV0/shading outside gallery front and side boxes changed'
+    for name,position in baseline_markers.items():
+        target=Vector(position)
+        if name.startswith('Spot_') and int(name[-3:])>=140:
+            target.z+=list(BOX_FLOORS.values())[((int(name[-3:])-140)//2)%3]-3.62
+        assert (scene.objects[name].matrix_world.translation-target).length<.00001,(name,'unexpected marker change')
+    front_scope_evidence={'pass':True,'protected_triangles':sum(v['triangles'] for v in protected.values()),
+                          'stalls_gallery_screen_markers_unchanged':True,'box_markers_follow_their_floors':True}
 normal_evidence={}
 reference_path=ROOT/'Logs/art-preview/normals-before-export.npz'
 reference=np.load(reference_path) if reference_path.exists() else None
@@ -120,7 +140,7 @@ for y,z in [(-r*1.65,r*.45) for r in range(-2,4)]+[(-6.08,4.825)]:
         expected_arms += [(first-.375+i*.75,y-.32,z+.726) for i in range(n+1)]
 for side in (-1,1):
     for y in [-2.7,3.15,8.2]:
-        expected_arms += [(side*10.6+dx,y+.2-.32,3.62+.726) for dx in [-.75,0,.75]]
+        expected_arms += [(side*10.6+dx,y+.2-.32,BOX_FLOORS[y]+.726) for dx in [-.75,0,.75]]
 assert len(components)==len(expected_arms)==179,len(components)
 centers=np.array([(np.min(list(c),axis=0)+np.max(list(c),axis=0))/2 for c in components])
 for expected_arm in expected_arms:
@@ -132,21 +152,8 @@ arm_evidence={'continuous_rows':27,'seats':152,'shared_standards_and_armrests':1
 assert arm_evidence['upholstery_triangles']==52800
 triangles=np.array(uvtri,np.float64)
 assert triangles.min()>=-1e-5 and triangles.max()<=1.00001
-# Exact positive-area intersection audit in UV space, in addition to the texel audit.
-# SAT tests all six triangle edge normals; touching edges/vertices remain legal.
-uvverts=[(float(u),float(v),0.0) for u,v in triangles.reshape(-1,2)]
-uvfaces=[(3*i,3*i+1,3*i+2) for i in range(len(triangles))]
-uvtree=BVHTree.FromPolygons(uvverts,uvfaces,all_triangles=True,epsilon=1e-10)
-pairs=np.array([(i,j) for i,j in uvtree.overlap(uvtree) if i<j],dtype=np.int32)
-exact_overlaps=0
-for start in range(0,len(pairs),20000):
-    batch=pairs[start:start+20000];a=triangles[batch[:,0]];b=triangles[batch[:,1]]
-    edges=np.concatenate((np.roll(a,-1,axis=1)-a,np.roll(b,-1,axis=1)-b),axis=1)
-    axes=np.stack((-edges[:,:,1],edges[:,:,0]),axis=2)
-    lens=np.linalg.norm(axes,axis=2);axes/=np.maximum(lens[:,:,None],1e-20)
-    pa=np.einsum('bvi,bai->bva',a,axes);pb=np.einsum('bvi,bai->bva',b,axes)
-    widths=np.minimum(pa.max(axis=1),pb.max(axis=1))-np.maximum(pa.min(axis=1),pb.min(axis=1))
-    exact_overlaps+=int(np.all(widths>1e-7,axis=1).sum())
+# Audit real 2D overlap, including containment missed by coplanar BVH tests.
+exact_overlaps=len(uv_overlaps(triangles))
 assert exact_overlaps==0,f'{exact_overlaps} positive-area UV triangle intersections'
 # Interior samples, strictly away from triangle edges. Shared UV edges are legal.
 # Full atlas resolution catches overlaps with area at least one texel.
@@ -191,13 +198,15 @@ marker_evidence={'standard_seats':'4 exact, also Spot_044..Spot_047',
 # 4 seats x 9 screen samples, including every maximum-size edge and corner.
 sightlines=[]
 for name in ['Seat1','Seat2','Seat3','Seat4']:
-    origin=Vector(expected[name])+Vector((0,0,1.2))
+    origin=Vector(expected[name])+Vector((0,0,EYE_HEIGHT))
     for x in [-9.5,0,9.5]:
         for z in [.4,4.5,8.6]:
             target=Vector((x,expected['ScreenAnchor'][1],z));delta=target-origin
             hit=bvh.ray_cast(origin,delta.normalized(),delta.length-.001)
             assert hit[0] is None,(name,x,z,tuple(hit[0]))
             sightlines.append([name,x,z,'clear'])
+elevated=elevated_sightlines(scene)
+(ROOT/'Logs/art-preview/elevated-sightlines.json').write_text(json.dumps(elevated,indent=2)+'\n')
 textures={}
 for p in sorted((OUT/'Textures').glob('*.png')):
     im=bpy.data.images.load(str(p));size=list(im.size)
@@ -208,6 +217,9 @@ for p in sorted((OUT/'Textures').glob('*.png')):
         # 8-bit PNG image pixels are normalized stored sRGB sample values.
         atlas_stats={'covered_texels':int((count>0).sum()),'overlapping_texels':overlap,'positive_area_triangle_overlaps':exact_overlaps,'surface_fraction':float((count>0).mean()),'covered_rgb_percentiles_srgb':np.percentile(rgb[count>0],[1,50,95,99,100],axis=0).tolist(),'covered_clipped_fraction':float(np.any(rgb[count>0]>=1.0,axis=1).mean())}
         assert atlas_stats['covered_clipped_fraction']<.01
-result={'fbx_roundtrip':'PASS','triangles':stats,'total_triangles':sum(stats.values()),'mesh_objects':len(objs),'materials':len(objs),'textures':textures,'markers':marker_evidence,'sightlines':f'{len(sightlines)} / {len(sightlines)} clear','atlas':atlas_stats,'normals':normal_evidence,'row_construction':arm_evidence,'architecture_triangles':sum(v['triangles'] for v in architecture.values()),'architecture_unchanged':rigid_evidence['pass'] if rigid_evidence else None,'rigid_shift':rigid_evidence}
+result={'fbx_roundtrip':'PASS','triangles':stats,'total_triangles':sum(stats.values()),'mesh_objects':len(objs),'materials':len(objs),'textures':textures,'markers':marker_evidence,'sightlines':f'{len(sightlines)} / {len(sightlines)} clear','elevated_sightlines':elevated,'atlas':atlas_stats,'normals':normal_evidence,'row_construction':arm_evidence,'architecture_triangles':sum(v['triangles'] for v in architecture.values()),'architecture_unchanged':rigid_evidence['pass'] if rigid_evidence else None,'rigid_shift':rigid_evidence,'balcony_front_scope':front_scope_evidence}
+result['validation']='PASS' if elevated['blocked']==0 else 'FAIL_ELEVATED_SIGHTLINES'
 (ROOT/'Logs/art-preview/verification.json').write_text(json.dumps(result,indent=2)+'\n')
 print(json.dumps(result,indent=2))
+
+assert elevated['blocked']==0,('Elevated sightlines blocked',elevated['blocked'],elevated['failures'][:8])

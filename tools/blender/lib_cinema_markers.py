@@ -3,6 +3,9 @@ import bpy
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
+EYE_HEIGHT=1.30
+# Side boxes step down toward the screen so their floors/seats cannot mask it.
+BOX_FLOORS={-2.7:2.90,3.15:1.30,8.2:0.00}
 SHOULDER_HEIGHT=.85
 HEAD_CLEARANCE=.12
 
@@ -12,7 +15,7 @@ def chair_layout():
     xs=[(i-5.5)*.75 for i in range(12)]+[s*x for s in (-1,1) for x in [6.3,7.05,7.8,8.55]]
     return ([(x,-row*1.65,row*.45) for row in range(-2,4) for x in xs]
             +[(x,-6.08,4.825) for x in xs]
-            +[(side*10.6+dx,y+.2,3.62) for side in (-1,1) for y in [-2.7,3.15,8.2] for dx in [-.375,.375]])
+            +[(side*10.6+dx,y+.2,BOX_FLOORS[y]) for side in (-1,1) for y in [-2.7,3.15,8.2] for dx in [-.375,.375]])
 
 
 def mesh_bvh(objects):
