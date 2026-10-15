@@ -64,8 +64,8 @@ namespace TheMovies.World
             foreach (Transform child in transform)
             {
                 if (Screen != null && child == Screen.transform) continue;
-                bool isRoom = child == m_HallRoot || child == m_HomeRoot;
-                bool roomActive = !isRoom || (child == m_HallRoot ? m_Room == Room.Cinema : m_Room == Room.Home);
+                bool isRoom = IsRoomRoot(child);
+                bool roomActive = !isRoom || child == RootOf(m_Room);
                 child.gameObject.SetActive(visible && roomActive);
             }
         }
@@ -80,7 +80,9 @@ namespace TheMovies.World
         /// Every seat one can move to in the current room: floor position below the seated head, facing the screen
         /// (free seat choice). Includes the four standard seats.
         /// </summary>
-        public System.Collections.Generic.IReadOnlyList<Pose> SeatSpots => m_Room == Room.Home ? m_HomeSpots : m_HallSpots;
+        public System.Collections.Generic.IReadOnlyList<Pose> SeatSpots =>
+            m_Room == Room.Home ? m_HomeSpots : m_Room == Room.Cinema ? m_HallSpots
+            : m_ModelRooms.TryGetValue(m_Room, out var model) ? model.Spots : (System.Collections.Generic.IReadOnlyList<Pose>)m_HallSpots;
 
         /// <summary>Adds a seat spot facing the screen (skipped if another one is within 0.3 m).</summary>
         static void AddSpot(System.Collections.Generic.List<Pose> spots, Vector3 floor, Vector3 screen)

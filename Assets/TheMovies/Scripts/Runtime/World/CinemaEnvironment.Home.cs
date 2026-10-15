@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TheMovies.UI;
 using UnityEngine;
 
@@ -15,9 +16,71 @@ namespace TheMovies.World
         {
             Cinema = 0,
             Home = 1,
+            Rooftop = 2,
         }
 
-        public static readonly string[] RoomNames = { "Kino", "Heimkino" };
+        public static readonly string[] RoomNames = { "Kino", "Heimkino", "Dachterrasse" };
+
+        /// <summary>
+        /// Rooms that exist only as a model (no built-in version): prefab under Resources and where the screen hangs if the
+        /// model has no ScreenTop marker. A room is offered once its prefab is in the build.
+        /// </summary>
+        static readonly Dictionary<Room, (string prefab, ScreenPlacement defaults)> k_ModelRooms =
+            new Dictionary<Room, (string, ScreenPlacement)>
+            {
+                // Open air: screen on a wall 7–10 m away, picture 3.5–9.5 m wide.
+                { Room.Rooftop, ("TheMovies/CustomRooftop", new ScreenPlacement(new Vector3(0, 1f, 9f), 0.5f, 4f)) },
+            };
+
+        sealed class ModelRoom
+        {
+            public Transform Root;
+            public ScreenPlacement Placement;
+            public readonly List<Pose> Spots = new List<Pose>();
+        }
+
+        readonly Dictionary<Room, ModelRoom> m_ModelRooms = new Dictionary<Room, ModelRoom>();
+        static readonly Dictionary<Room, bool> s_Available = new Dictionary<Room, bool>();
+
+        /// <summary>Whether a room can be chosen: the cinema and the living room always, the others if their model is in the build.</summary>
+        public static bool IsAvailable(Room room)
+        {
+            if (room == Room.Cinema || room == Room.Home) return true;
+            if (!k_ModelRooms.TryGetValue(room, out var definition)) return false;
+            if (!s_Available.TryGetValue(room, out bool available))
+                s_Available[room] = available = Resources.Load<GameObject>(definition.prefab) != null;
+            return available;
+        }
+
+        /// <summary>Builds a model-only room on first use; null if its model is missing or unusable.</summary>
+        ModelRoom GetModelRoom(Room room)
+        {
+            if (m_ModelRooms.TryGetValue(room, out var built)) return built;
+            if (!k_ModelRooms.TryGetValue(room, out var definition)) return null;
+            var prefab = Resources.Load<GameObject>(definition.prefab);
+            if (prefab == null) return null;
+            var model = new ModelRoom { Root = new GameObject(RoomNames[(int)room]).transform };
+            model.Root.SetParent(transform, false);
+            if (!BuildCustom(prefab, model.Root, definition.defaults, out model.Placement, model.Spots))
+            {
+                Destroy(model.Root.gameObject);
+                s_Available[room] = false;
+                return null;
+            }
+            m_ModelRooms[room] = model;
+            return model;
+        }
+
+        Transform RootOf(Room room) =>
+            room == Room.Cinema ? m_HallRoot : room == Room.Home ? m_HomeRoot : m_ModelRooms.TryGetValue(room, out var m) ? m.Root : null;
+
+        bool IsRoomRoot(Transform t)
+        {
+            if (t == m_HallRoot || t == m_HomeRoot) return true;
+            foreach (var m in m_ModelRooms.Values)
+                if (t == m.Root) return true;
+            return false;
+        }
 
         // Living room (floor y = 0 at the sofa, the sofa faces +Z like the cinema seats)
         const float k_HomeHalfWidth = 4.2f;
@@ -45,14 +108,27 @@ namespace TheMovies.World
 
         public void SetRoom(Room room)
         {
-            if (!m_RoomsAvailable) return;
-            m_Room = room;
-            if (room == Room.Home && m_HomeRoot == null) CreateHome();
-            var placement = room == Room.Home ? m_HomePlacement : m_HallPlacement;
+            if (!m_RoomsAvailable || !IsAvailable(room)) return;
+            ScreenPlacement placement;
             if (room == Room.Home)
+            {
+                if (m_HomeRoot == null) CreateHome();
                 SetLights(m_HomeLightPos, m_HomeLightColor);
-            else
+                placement = m_HomePlacement;
+            }
+            else if (room == Room.Cinema)
+            {
                 SetLights(m_HallLightPos, m_HallLightColor);
+                placement = m_HallPlacement;
+            }
+            else
+            {
+                var model = GetModelRoom(room);
+                if (model == null) return;
+                SetLights(new Vector4[0], new Vector4[0]); // the light is baked into the model
+                placement = model.Placement;
+            }
+            m_Room = room;
             Screen.SetRoomPlacement(placement.Position, placement.Rotation, placement.SizeScale, placement.MaxHeight);
             ApplyHall();
         }

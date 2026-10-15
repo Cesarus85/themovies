@@ -26,8 +26,8 @@ namespace TheMovies.App
         /// <summary>Free seat choice (any seat of the room, balcony and boxes included).</summary>
         public SeatPicker Seats { get; private set; }
 
-        /// <summary>What this viewer sees, for the others: 0 = cinema, 1 = living room, 2 = mixed reality.</summary>
-        int RoomKey => MixedReality.Enabled ? 2 : (int)m_Cinema.CurrentRoom;
+        /// <summary>What this viewer sees, for the others: the room number, or 100 for mixed reality (one's own room).</summary>
+        int RoomKey => MixedReality.Enabled ? 100 : (int)m_Cinema.CurrentRoom;
 
         XRRig m_Rig;
         CinemaEnvironment m_Cinema;
@@ -52,7 +52,8 @@ namespace TheMovies.App
             Screen = cinema.Screen;
             Screen.SetSize(Settings.ScreenSize);
             Screen.SetRoomLight(0.7f, immediate: true);
-            if (Settings.Room == (int)CinemaEnvironment.Room.Home) cinema.SetRoom(CinemaEnvironment.Room.Home);
+            var savedRoom = (CinemaEnvironment.Room)Settings.Room;
+            if (savedRoom != CinemaEnvironment.Room.Cinema && CinemaEnvironment.IsAvailable(savedRoom)) cinema.SetRoom(savedRoom);
             Screen.Convert3D = Settings.Convert3D;
             Screen.GlowLevel = Settings.ScreenGlow;
             Screen.UseAiDepth = Settings.DepthAi;
@@ -234,6 +235,20 @@ namespace TheMovies.App
             level = Mathf.Clamp01(Mathf.Round((level + delta) * 10f) / 10f);
             Media.ManualLight = Settings.HouseLight = level;
             SetLightMode(LightMode.Manual);
+        }
+
+        /// <summary>Next / previous room that is in the build (the menu's room switch); also leaves mixed reality.</summary>
+        public void CycleRoom(int direction)
+        {
+            int count = CinemaEnvironment.RoomNames.Length;
+            int current = (int)m_Cinema.CurrentRoom;
+            for (int i = 1; i <= count; i++)
+            {
+                var candidate = (CinemaEnvironment.Room)(((current + direction * i) % count + count) % count);
+                if (!CinemaEnvironment.IsAvailable(candidate)) continue;
+                SetRoom(candidate);
+                return;
+            }
         }
 
         /// <summary>Shows the free seats to choose from (not in mixed reality, where the room is your own).</summary>

@@ -17,6 +17,7 @@ namespace TheMovies.EditorTools
     /// <list type="bullet">
     /// <item>Assets/TheMovies/Art/Cinema/Cinema.fbx → Resources/TheMovies/CustomCinema.prefab</item>
     /// <item>Assets/TheMovies/Art/Home/Home.fbx → Resources/TheMovies/CustomHome.prefab</item>
+    /// <item>Assets/TheMovies/Art/Rooftop/Rooftop.fbx → Resources/TheMovies/CustomRooftop.prefab</item>
     /// </list>
     /// Import settings for the model (keeps the second UV set from Blender) and its textures, one CinemaLit material
     /// per Blender material (texture <c>Textures/&lt;Material&gt;_BaseColor.png</c>, baked light
@@ -38,6 +39,8 @@ namespace TheMovies.EditorTools
 
         static readonly RoomKind k_Cinema = new RoomKind { Folder = "Cinema", Model = "Cinema", Prefab = "CustomCinema", Title = "Kinosaal" };
         static readonly RoomKind k_Home = new RoomKind { Folder = "Home", Model = "Home", Prefab = "CustomHome", Title = "Heimkino" };
+        static readonly RoomKind k_Rooftop = new RoomKind { Folder = "Rooftop", Model = "Rooftop", Prefab = "CustomRooftop", Title = "Dachterrasse" };
+        static readonly RoomKind[] k_All = { k_Cinema, k_Home, k_Rooftop };
 
         [MenuItem("The Movies/Raum-Modell aufbereiten/Kinosaal (Art/Cinema)", priority = 50)]
         static void PrepareCinemaMenu() => Report(Prepare(k_Cinema));
@@ -45,13 +48,16 @@ namespace TheMovies.EditorTools
         [MenuItem("The Movies/Raum-Modell aufbereiten/Heimkino (Art/Home)", priority = 51)]
         static void PrepareHomeMenu() => Report(Prepare(k_Home));
 
+        [MenuItem("The Movies/Raum-Modell aufbereiten/Dachterrasse (Art/Rooftop)", priority = 52)]
+        static void PrepareRooftopMenu() => Report(Prepare(k_Rooftop));
+
         [MenuItem("The Movies/Raum-Modell aufbereiten/Eigene Räume entfernen (eingebaute verwenden)", priority = 60)]
         static void RemoveMenu()
         {
             if (!EditorUtility.DisplayDialog("The Movies", "Die aufbereiteten Raum-Prefabs löschen? Die App nutzt dann wieder die eingebauten Räume. " +
                                                            "Die Modelle unter " + ArtFolder + " bleiben.", "Löschen", "Abbrechen"))
                 return;
-            foreach (var kind in new[] { k_Cinema, k_Home })
+            foreach (var kind in k_All)
                 AssetDatabase.DeleteAsset(PrefabPath(kind));
         }
 
@@ -62,7 +68,7 @@ namespace TheMovies.EditorTools
         public static void PrepareAllBatch()
         {
             int exitCode = 0;
-            foreach (var kind in new[] { k_Cinema, k_Home })
+            foreach (var kind in k_All)
             {
                 if (FindModel(kind) == null) continue;
                 var result = Prepare(kind);
@@ -295,12 +301,15 @@ namespace TheMovies.EditorTools
                 if (AssetImporter.GetAtPath(path) is TextureImporter importer)
                 {
                     bool light = name.EndsWith("_Light", StringComparison.OrdinalIgnoreCase);
+                    // Surrounding panoramas (sky, far city) cover up to 360°: 2048 would be blurry (~6 px per degree).
+                    bool panorama = name.IndexOf("Panorama", StringComparison.OrdinalIgnoreCase) >= 0;
                     importer.textureType = TextureImporterType.Default;
                     importer.sRGBTexture = true; // base color and baked light (saved with Blender's "Standard" view) are sRGB
                     importer.mipmapEnabled = true;
                     importer.anisoLevel = light ? 1 : 4;
                     importer.wrapMode = light ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
-                    importer.maxTextureSize = light ? 4096 : 2048;
+                    importer.maxTextureSize = light || panorama ? 4096 : 2048;
+                    importer.anisoLevel = panorama ? 1 : importer.anisoLevel;
                     importer.textureCompression = TextureImporterCompression.CompressedHQ;
                     var android = importer.GetPlatformTextureSettings("Android");
                     android.overridden = true;

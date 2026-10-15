@@ -84,7 +84,8 @@ namespace TheMovies.UI
         UIButton m_SetMic, m_SetPushToTalk, m_SetDucking;
         UILabel m_SetHeight;
         UIButton m_SetSubtitles;
-        UIButton m_SetCinema, m_SetHome, m_SetMixed;
+        UIButton m_SetMixed;
+        UILabel m_SetRoomName;
         UILabel m_SetMixedStatus;
         UIButton m_SetMixedTest;
         GameObject m_SettingsReturn;
@@ -467,9 +468,11 @@ namespace TheMovies.UI
 
             y -= step;
             SettingRow(p, "Umgebung", y);
-            m_SetCinema = Button(p, "Kino", -0.04f, y, 0.11f, small, () => m_App.SetRoom(CinemaEnvironment.Room.Cinema), 0.017f);
-            m_SetHome = Button(p, "Heimkino", 0.09f, y, 0.14f, small, () => m_App.SetRoom(CinemaEnvironment.Room.Home), 0.017f);
-            m_SetMixed = Button(p, "Mixed Reality", 0.255f, y, 0.18f, small, () => m_App.SetMixedReality(true), 0.017f);
+            // Room switch: Kino, Heimkino, Dachterrasse … (only rooms whose model is in the build).
+            Button(p, null, -0.075f, y, small, small, () => m_App.CycleRoom(-1), 0.02f, UIIcon.ChevronLeft);
+            m_SetRoomName = Label(p, string.Empty, 0.04f, y, 0.018f, 14, TextAnchor.MiddleCenter);
+            Button(p, null, 0.155f, y, small, small, () => m_App.CycleRoom(1), 0.02f, UIIcon.ChevronRight);
+            m_SetMixed = Button(p, "Mixed Reality", 0.272f, y, 0.16f, small, () => m_App.SetMixedReality(true), 0.017f);
             m_SetMixedTest = Button(p, "Test", 0.395f, y, 0.08f, small, MixedReality.CycleTestMode, 0.014f, style: ButtonStyle.Subtle);
 
             y -= step;
@@ -852,9 +855,8 @@ namespace TheMovies.UI
             m_SetSubtitles.Highlighted = subtitles.Enabled && subtitles.HasTrack;
             m_SetSubtitles.Label = !subtitles.Enabled ? "Aus" : subtitles.HasTrack ? "An" : "An (keine Datei)";
 
-            m_SetCinema.Highlighted = !MixedReality.Enabled && m_App.Room == CinemaEnvironment.Room.Cinema;
-            m_SetHome.Highlighted = !MixedReality.Enabled && m_App.Room == CinemaEnvironment.Room.Home;
-            m_SetHome.Interactable = m_App.RoomsAvailable;
+            m_SetRoomName.Text = CinemaEnvironment.RoomNames[(int)m_App.Room];
+            m_SetRoomName.Color = MixedReality.Enabled ? UIStyle.TextDim : UIStyle.Text;
             m_SetMixed.Highlighted = MixedReality.Enabled;
             m_SetMixed.Interactable = MixedReality.Available;
             m_SetMixed.Label = MixedReality.Available ? "Mixed Reality" : "MR: Paket fehlt";
