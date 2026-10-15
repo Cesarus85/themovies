@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Cinema.unity
+    guid: 3d8e47c9d9dfa47468d0e92fb161dab0
+  m_configObjects:
+    com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
+    com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 52f684b0a00e341b981f0e3d96f626f1, type: 2}
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 495463d5bdc06496d921bfebb864e7b6, type: 2}
+    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 87621be15ecb941d6b99a5e8750f8958, type: 2}
+  m_UseUCBPForAssetBundles: 0

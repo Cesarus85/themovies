@@ -19,7 +19,7 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🧪 umgesetzt, Test auf der
 | 🧪 | **Sprachchat-Komfort** | Push-to-Talk (Grip/Faust, PC: V), Film leiser während andere sprechen (Ducking). |
 | 🧪 | **Zugangsdaten verschlüsselt** | AES-256-GCM mit Schlüssel im Android-Keystore; alte Einträge werden beim Start umgestellt. |
 | 🧪 | **Handtracking** | OpenXR Hand Interaction Profile: Pinch = Klick, Strahl aus der Hand, Hand statt Controller-Modell. |
-| ✅ | **Echte Hände & Controller** | Passthrough-Loch in Hand- bzw. Controller-Form (Metas „Masking“), auf der Quest 3 bestätigt. Offen: Loch aus dem echten Hand-Mesh der Laufzeit (`XR_FB_hand_tracking_mesh`) mit weichem Rand. |
+| ✅ | **Echte Hände & Controller** | Passthrough-Loch aus dem echten Hand-Mesh der Laufzeit (`XR_FB_hand_tracking_mesh`, GPU-Skinning auf die 26 Gelenke) bzw. dem Controller-Modell, 6 mm größer, weicher Rand (Metas „Masking“) – auf der Quest 3 bestätigt. Die virtuelle Hand nutzt dasselbe Mesh. |
 | ✅ | **Controller-Modell der Brille** | Touch Plus über `XR_FB_render_model`, richtig ausgerichtet (OpenXR-Griffraum), mit Metas Texturen (KTX2/UASTC über *KTX for Unity*) – auf der Quest 3 bestätigt. Offen: Tasten/Stick animieren. |
 | 🧪 | **Heimkino** | Wohnzimmer mit Sofa (gleiche Sitzplätze wie im Kino), Kamin mit flackerndem Licht, Regal, Lampen, Fenster; Raum pro Person wählbar. |
 | 🧪 | **180°/360°-Videos** | Halb-/Vollkugel um den Kopf, mono/SBS/OU, Erkennung über den Dateinamen, Saal wird ausgeblendet, für alle synchron. |

@@ -49,3 +49,12 @@ crashlytics-build.properties
 # 2D→3D depth model (downloaded by "The Movies > 2D→3D mit KI einrichten", ~100 MB)
 Assets/TheMovies/Resources/TheMovies/DepthModel.onnx
 Assets/TheMovies/Resources/TheMovies/DepthModel.onnx.meta
+
+# Unity: crash recovery of scenes, temp files of the build tools
+/Assets/_Recovery/
+/Assets/_Recovery.meta
+/.utmp/
+
+# Created by the Composition Layers package (dependency of Unity OpenXR: Meta), like Assets/XR
+/Assets/CompositionLayers/
+/Assets/CompositionLayers.meta
