@@ -1,0 +1,25 @@
+{
+  "herringbone_parquet": {
+    "size": 3482793,
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/herringbone_parquet/herringbone_parquet_diff_2k.jpg",
+    "md5": "db8d7a22c17c38b62e536839f52ba037",
+    "authors": {
+      "Sergej Majboroda": "Photography",
+      "Jenelle van Heerden": "Processing"
+    },
+    "license": "CC0-1.0",
+    "metadata": "https://api.polyhaven.com/info/herringbone_parquet"
+  },
+  "dark_wood": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dark_wood/dark_wood_diff_2k.jpg",
+    "md5": "f6e205a05ff7f1b45c675795b18ea0f5",
+    "bytes": 2894186,
+    "authors": {
+      "Dario Barresi": "Baking",
+      "Dimitrios Savva": "Photography",
+      "Rico Cilliers": "Tiling"
+    },
+    "license": "CC0-1.0",
+    "metadata": "https://api.polyhaven.com/info/dark_wood"
+  }
+}

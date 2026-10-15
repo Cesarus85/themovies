@@ -19,3 +19,22 @@ two-place rows; the approved upholstery geometry and fabric remain unchanged. No
 No third-party normal, roughness, metallic or opacity maps are used. Raw CC0 inputs are cached exclusively in
 `art/sources/` (git-ignored). The script retrieves assets through `api.polyhaven.com` and `dl.polyhaven.org` only,
 and verifies the downloaded files against the API checksums.
+
+## Home cinema / Heimkino
+
+| Asset | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| Home: Herringbone Parquet | Sergej Majboroda (photography), Jenelle van Heerden (processing) | [Poly Haven](https://polyhaven.com/a/herringbone_parquet); [asset metadata](https://api.polyhaven.com/info/herringbone_parquet) | CC0-1.0 | Only the 2K diffuse downloaded; reduced to 1024² and subtly tinted warm. UV scale retains the source's 3.4 m repeat. |
+| Home: dark_wood | Dario Barresi (baking), Dimitrios Savva (photography), Rico Cilliers (tiling) | [Poly Haven](https://polyhaven.com/a/dark_wood); [asset metadata](https://api.polyhaven.com/info/dark_wood) | CC0-1.0 | Only the 2K diffuse used; luminance normalized, tinted walnut and reduced to 1024² for paneling, library, frames and tables. |
+
+The Home architecture, four-place Chesterfield-inspired sofa, fireplace and embers, bookcases and books, clock,
+lamps, window and curtains, furniture, speakers and decorative objects are original procedural geometry in
+`tools/blender/home.py` and `lib_home_room.py`. The Persian-inspired rug, woven fabrics, book-binding/decor atlas,
+landscape illustration and night-city illustration are original deterministic procedural artwork in
+`lib_home_textures.py`; they do not reproduce a third-party rug, painting, photograph or book cover.
+The mesh primitives and UV intersection algorithm were adapted into independent Home helpers from this project's
+accepted cinema pipeline. The cinema scripts and assets were not modified.
+
+No third-party models, normal maps, roughness maps, metallic maps or restricted marketplace files are included.
+`art/home-sources.json` pins the two used CC0 diffuse inputs and their MD5 checksums. The build downloads only from
+`dl.polyhaven.org` into the git-ignored `art/sources/` cache; only prepared PNGs and `Home.fbx` go into `Assets/`.
