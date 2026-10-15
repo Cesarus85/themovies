@@ -184,9 +184,8 @@ def build(materials, light):
         bookshelf(g,wood,books,brass,wallpart,wall,center,width)
     # Rear central landscape and a paneled door (not an extra seat).
     picture(g,books,wood,brass,wallpart,'back',0,1.74,1.75,.94)
-    # Window with dark city skyline, true recess, mullions and heavy side drapery.
+    # Accepted window frame, mullions and drapery; the layered exterior is built separately.
     wall='right';center=1.25
-    wallpart(wall,'add',night,[(-.15,-.025,1.04),(2.65,-.025,1.04),(2.65,-.025,2.35),(-.15,-.025,2.35)],[(0,3,2,1)],False,[[(0,0),(0,1),(1,1),(1,0)]])
     for z in [1.02,2.37]:wb(wall,wood,(center,.07,z),(2.96,.15,.12),.015)
     for x in [-.19,2.69,.75,1.75]:wb(wall,wood,(x,.065,1.70),(.075,.14,1.35),.009)
     wb(wall,wood,(center,.07,1.67),(2.83,.10,.045),.006)

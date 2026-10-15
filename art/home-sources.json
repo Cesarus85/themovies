@@ -21,5 +21,16 @@
     },
     "license": "CC0-1.0",
     "metadata": "https://api.polyhaven.com/info/dark_wood"
+  },
+  "solitude_night": {
+    "size": 28089103,
+    "md5": "ea3b9c28a76b574e7ec64c1c42fefa2d",
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/4k/solitude_night_4k.exr",
+    "authors": {
+      "Andreas Mischok": "Photography"
+    },
+    "license": "CC0-1.0",
+    "asset_page": "https://polyhaven.com/a/solitude_night",
+    "license_checked": "2026-10-15"
   }
 }

@@ -18,6 +18,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_home_textures import fetch,make_texture
 from lib_home_room import build
 from lib_home_uvs import uv_overlaps
+from lib_home_window import panorama,build_window
 
 ROOT=Path(__file__).resolve().parents[2]
 ARGS=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
@@ -61,8 +62,11 @@ def preview():
         uv2=nt.nodes.new('ShaderNodeUVMap');uv2.uv_map='Lightmap';nt.links.new(uv2.outputs['UV'],lm.inputs['Vector'])
         mul=nt.nodes.new('ShaderNodeMixRGB');mul.blend_type='MULTIPLY';mul.inputs[0].default_value=1
         nt.links.new(base.outputs['Color'],mul.inputs[1]);nt.links.new(lm.outputs['Color'],mul.inputs[2])
-        nt.links.new(mul.outputs[0],em.inputs['Color']);em.inputs['Strength'].default_value=2
-        nt.links.new(em.outputs[0],out.inputs['Surface']);dimmers.append(em.inputs['Strength'])
+        unlit='unlit' in m.name.lower()
+        nt.links.new(base.outputs['Color'] if unlit else mul.outputs[0],em.inputs['Color'])
+        em.inputs['Strength'].default_value=1 if unlit else 2
+        nt.links.new(em.outputs[0],out.inputs['Surface'])
+        if not unlit:dimmers.append(em.inputs['Strength'])
     for o in list(scene.objects):
         if o.type in ('LIGHT','CAMERA'):bpy.data.objects.remove(o,do_unlink=True)
     scene.world.color=(0,0,0);scene.world.use_nodes=True
@@ -80,13 +84,17 @@ def preview():
            ('home-library',(-.375,0,1.25),(0,-2.15,1.48),18,1),
            ('home-sofa',(2.8,2.75,1.85),(0,-.10,.75),27,1),
            ('home-window',(-.375,0,1.25),(4.0,2.72,1.50),21,1),
-           ('home-entry',(-.375,0,1.25),(4.1,-1.15,1.35),23,1)]
+           ('home-entry',(-.375,0,1.25),(4.1,-1.15,1.35),23,1),
+           ('home-window-seat1',(-1.125,0,1.25),(4.2,2.8,1.65),35,1),
+           ('home-window-seat4',(1.125,0,1.25),(4.2,2.8,1.65),28,1),
+           ('home-window-near',(3.2,2.8,1.25),(8.2,2.8,1.65),19,1),
+           ('home-window-near-offset',(3.2,3.1,1.25),(8.2,3.1,1.65),19,1)]
     for name,loc,target,lens,dim in views:
-        cam.location=loc;aim(cam,target);data.lens=lens;data.clip_start=.04;data.clip_end=30
+        cam.location=loc;aim(cam,target);data.lens=lens;data.clip_start=.04;data.clip_end=150
         for sock in dimmers:sock.default_value=2*dim
         scene.render.filepath=str(PREVIEW/f'{name}.png');bpy.ops.render.render(write_still=True)
     bpy.data.objects.remove(cam,do_unlink=True)
-    log('Eight baked-only previews complete (including 4% light; no added screen fill)')
+    log('Baked-only room and window parallax previews complete; unlit panorama bypasses dimmer')
 
 if '--preview-only' in ARGS:
     bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Home-baked.blend'));preview();sys.exit(0)
@@ -97,7 +105,7 @@ materials={}
 def material(key,name,color,kind='',source=None,emission=0):
     m=bpy.data.materials.new(name);m.use_nodes=True;m['home']=True;m.diffuse_color=(*color,1)
     bs=m.node_tree.nodes.get('Principled BSDF');bs.inputs['Roughness'].default_value=.85
-    img=make_texture(name,TEX/f'{name}_BaseColor.png',color,kind,source)
+    img=panorama(fetch(ROOT,'solitude_night'),TEX/f'{name}_BaseColor.png') if kind=='panorama' else make_texture(name,TEX/f'{name}_BaseColor.png',color,kind,source)
     tex=m.node_tree.nodes.new('ShaderNodeTexImage');tex.image=img
     uv=m.node_tree.nodes.new('ShaderNodeUVMap');uv.uv_map='UVMap'
     m.node_tree.links.new(uv.outputs['UV'],tex.inputs['Vector']);m.node_tree.links.new(tex.outputs['Color'],bs.inputs['Base Color'])
@@ -115,8 +123,9 @@ material('Charcoal','Home_Charcoal',(.060,.047,.039))
 material('Books','Home_Books_Decor',(.3,.2,.1),'books')
 material('Linen','Home_Linen_emit',(.92,.77,.50),'linen',emission=.22)
 material('Embers','Home_Embers_glow',(.8,.12,.01),'embers',emission=2.2)
-material('Night','Home_Night_unlit',(.03,.05,.1),'night',emission=.25)
-meshes=build(materials,light)
+material('Night','Home_Night_unlit',(.03,.05,.1),'panorama',emission=0)
+material('Garden','Home_Garden_Night',(.12,.15,.18),'stone')
+meshes=build(materials,light)+build_window(materials,light)
 for i,x in enumerate([-1.125,-.375,.375,1.125]):
     for name in [f'Seat{i+1}',f'Spot_{i:03d}']:
         o=bpy.data.objects.new(name,None);scene.collection.objects.link(o);o.location=(x,0,0);o.empty_display_type='ARROWS'
@@ -131,17 +140,27 @@ bpy.context.view_layer.objects.active=meshes[0];bpy.ops.object.join();room=bpy.c
 bm=bmesh.new();bm.from_mesh(room.data)
 bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=.000001)
 bmesh.ops.dissolve_degenerate(bm,edges=list(bm.edges),dist=.000001)
-bmesh.ops.triangulate(bm,faces=list(bm.faces));bm.to_mesh(room.data);bm.free()
+bmesh.ops.triangulate(bm,faces=list(bm.faces))
+bmesh.ops.delete(bm,geom=[v for v in bm.verts if not v.link_faces],context='VERTS')
+bm.to_mesh(room.data);bm.free()
 room.data.update();room.data.normals_split_custom_set([tuple(n.vector) for n in room.data.corner_normals])
 assert len(room.data.polygons)<=120000,len(room.data.polygons)
 log(f'Built {len(room.data.polygons)} triangles, {len(materials)} materials')
 if '--geometry-only' in ARGS:
     bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Home-draft.blend'));sys.exit(0)
 room.data.uv_layers[0].name='UVMap';lm=room.data.uv_layers.new(name='Lightmap');room.data.uv_layers.active=lm
+# The unlit sphere needs UV2 compatibility, but must not consume room texel density.
+# Scale only during UV area weighting; restore exact world coordinates before baking.
+far_vertices={v for p in room.data.polygons if 'unlit' in room.data.materials[p.material_index].name for v in p.vertices}
+far_original={v:room.data.vertices[v].co.copy() for v in far_vertices}
+for v in far_vertices:room.data.vertices[v].co*=.003
+room.data.update()
 bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.uv.smart_project(angle_limit=1.25,island_margin=0,area_weight=.5,scale_to_bounds=True)
 bpy.ops.uv.pack_islands(rotate=True,margin_method='FRACTION',margin=4.1/2048,shape_method='CONVEX')
 bpy.ops.object.mode_set(mode='OBJECT')
+for v,co in far_original.items():room.data.vertices[v].co=co
+room.data.update()
 repaired=0
 for repair in range(5):
     room.data.calc_loop_triangles();layer=room.data.uv_layers['Lightmap']
@@ -199,7 +218,7 @@ report={'triangles':stats,'total_triangles':sum(stats.values()),'materials':sort
         'atlas_denoise':'OpenImageDenoise compositor, linear irradiance','view':'Standard / None / exposure -1',
         'device':scene.cycles.device,'blender':bpy.app.version_string,'repaired_uv_faces':repaired,
         'elapsed_seconds':round(time.time()-START)}
-assert report['total_triangles']<=120000 and len(objects)<=12
+assert report['total_triangles']<=120000 and len(objects)<=14
 bpy.ops.export_scene.fbx(filepath=str(OUT/'Home.fbx'),use_selection=False,object_types={'EMPTY','MESH'},apply_unit_scale=True,apply_scale_options='FBX_SCALE_ALL',axis_forward='-Z',axis_up='Y',use_space_transform=True,bake_space_transform=True,mesh_smooth_type='FACE',use_mesh_modifiers=True,add_leaf_bones=False,bake_anim=False,path_mode='AUTO')
 scene['home_build_metrics']=json.dumps(report)
 (PREVIEW/'home-metrics.json').write_text(json.dumps(report,indent=2)+'\n')

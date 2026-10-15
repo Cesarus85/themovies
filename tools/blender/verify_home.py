@@ -1,5 +1,6 @@
 """Independent audit of the delivered FBX, textures and actual seated-head surfaces.
 Blender -b --factory-startup -P tools/blender/verify_home.py
+Optional: -- --baseline Logs/art-preview/window-baseline (Home.fbx + textures.json).
 Reports only under ignored Logs/art-preview. Fails on any broken requirement.
 """
 import sys
@@ -16,12 +17,19 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_home_uvs import uv_overlaps,audit_padding
 ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'Assets/TheMovies/Art/Home';PREVIEW=ROOT/'Logs/art-preview'
 PREVIEW.mkdir(parents=True,exist_ok=True)
+baseline=None
+if '--baseline' in sys.argv:
+    from lib_home_preservation import capture,compare
+    baseline_path=Path(sys.argv[sys.argv.index('--baseline')+1]).resolve()
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.fbx(filepath=str(baseline_path/'Home.fbx'))
+    baseline=capture()
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=str(OUT/'Home.fbx'))
 scene=bpy.context.scene
 objects=[o for o in scene.objects if o.type=='MESH']
 assert set(o.type for o in scene.objects)<={'MESH','EMPTY'},'Export contains helpers'
-assert len(objects)<=12 and all(len(o.data.materials)==1 for o in objects)
+assert len(objects)<=14 and all(len(o.data.materials)==1 for o in objects)
 materials={o.data.materials[0].name for o in objects};assert len(materials)==len(objects)
 required={'Home_Velvet_Forest','Home_Brass','Home_Linen_emit','Home_Embers_glow','Home_Night_unlit'}
 assert required<=materials
@@ -99,8 +107,15 @@ for path in sorted((OUT/'Textures').glob('*.png')):
     width,height,depth,mode=struct.unpack('>IIBB',header[16:26]);assert depth==8 and mode in (2,6),(path.name,'not RGB/RGBA8')
     assert width<=2048 and height<=2048
     if path.name=='Home_Light.png':assert (width,height,mode)==(2048,2048,2)
-    if path.name not in ('Home_Light.png','Home_Persian_Rug_BaseColor.png'):assert (width,height)==(1024,1024)
+    if path.name not in ('Home_Light.png','Home_Persian_Rug_BaseColor.png','Home_Night_unlit_BaseColor.png'):assert (width,height)==(1024,1024)
+    if path.name=='Home_Night_unlit_BaseColor.png':assert width<=2048 and height<=1024 and mode==2
     textures[path.name]={'size':[width,height],'bits':depth,'bytes':path.stat().st_size}
+    if path.name=='Home_Night_unlit_BaseColor.png':
+        im=bpy.data.images.load(str(path));p=np.empty(width*height*4,np.float32);im.pixels.foreach_get(p)
+        sky=p.reshape(height,width,4)[:,:,:3]
+        assert float(sky.max())<.99,'Panorama has clipped highlights'
+        textures[path.name]['peak_srgb']=float(sky.max())
+        textures[path.name]['clipped_pixels']=int(np.any(sky>=1,axis=2).sum())
     if path.name=='Home_Light.png':
         im=bpy.data.images.load(str(path));p=np.empty(N*N*4,np.float32);im.pixels.foreach_get(p);rgb=p.reshape(N,N,4)[:,:,:3]
         covered=rgb[count>0]
@@ -112,8 +127,9 @@ for path in sorted((OUT/'Textures').glob('*.png')):
         # Hidden contacts can have black irradiance; visible surfaces are checked below.
 # Sample first-hit surfaces over a full sphere from each actual seated eye.
 # This distinguishes visible black bake failures from occluded furniture contacts.
-world_tris=[]
+world_tris=[];unlit_triangles=[]
 for o in objects:
+    unlit_triangles.extend(['unlit' in o.data.materials[0].name.lower()]*len(o.data.loop_triangles))
     world_tris.extend([[tuple(o.matrix_world@o.data.vertices[i].co) for i in t.vertices] for t in o.data.loop_triangles])
 world_tris=np.asarray(world_tris)
 image=bpy.data.images.load(str(OUT/'Textures/Home_Light.png'),check_existing=True)
@@ -124,8 +140,9 @@ for i in range(4):
     for elevation in np.linspace(-1.45,1.45,25):
         for azimuth in np.linspace(0,2*np.pi,120,endpoint=False):
             direction=Vector((np.cos(elevation)*np.cos(azimuth),np.cos(elevation)*np.sin(azimuth),np.sin(elevation)))
-            hit,normal,index,distance=bvh.ray_cast(origin,direction,30)
+            hit,normal,index,distance=bvh.ray_cast(origin,direction,150)
             if hit is None:missing.append([i,float(elevation),float(azimuth)]);continue
+            if unlit_triangles[index]:visible.append(np.ones(3)*.5);continue
             a,b,c=world_tris[index];e=b-a;f=c-a;p=np.asarray(hit)-a
             ee=e@e;ff=f@f;ef=e@f;pe=p@e;pf=p@f;det=ee*ff-ef*ef
             v=(ff*pe-ef*pf)/det;w=(ee*pf-ef*pe)/det
@@ -150,7 +167,57 @@ for m in bpy.data.materials:
     assert all(Path(n.image.filepath).name==f'{m.name}_BaseColor.png' for n in m.node_tree.nodes if n.type=='TEX_IMAGE' and n.image)
     image=bs.inputs['Base Color'].links[0].from_node.image
     assert Path(image.filepath).name==f'{m.name}_BaseColor.png'
-result={'validation':'PASS','fbx_reimport':'PASS','fbx_sha256':hashlib.sha256((OUT/'Home.fbx').read_bytes()).hexdigest(),'triangles':stats,'total_triangles':sum(stats.values()),
+# Exterior audit uses the RE-IMPORTED FBX, not the construction inputs.
+from lib_home_window import CENTER,RADIUS,AZIMUTH,ELEVATION
+panorama_object=next(o for o in objects if o.data.materials[0].name=='Home_Night_unlit')
+garden_object=next(o for o in objects if o.data.materials[0].name=='Home_Garden_Night')
+exterior={}
+for o in (panorama_object,garden_object):
+    points=np.array([tuple(o.matrix_world@v.co) for v in o.data.vertices])
+    assert np.all(points[:,0]>4.2+.001),(o.name,'inside room box')
+    exterior[o.name]={'minimum':points.min(axis=0).tolist(),'maximum':points.max(axis=0).tolist()}
+    bs=next(n for n in o.data.materials[0].node_tree.nodes if n.type=='BSDF_PRINCIPLED')
+    assert not bs.inputs['Alpha'].is_linked and bs.inputs['Alpha'].default_value==1,'Alpha geometry forbidden'
+    if o==panorama_object:
+        distance=np.linalg.norm(points-np.asarray(CENTER),axis=1)
+        assert np.max(np.abs(distance-RADIUS))<.0001 and 30<=distance.min()<=distance.max()<=80
+        # Every UV0 corner must agree with the spherical projection: no stretching.
+        for poly in o.data.polygons:
+            for li in poly.loop_indices:
+                pt=o.matrix_world@o.data.vertices[o.data.loops[li].vertex_index].co-Vector(CENTER)
+                theta=np.degrees(np.arctan2(pt.y,pt.x));phi=np.degrees(np.arcsin(pt.z/pt.length))
+                wanted=np.array([(theta-AZIMUTH[0])/(AZIMUTH[1]-AZIMUTH[0]),(phi-ELEVATION[0])/(ELEVATION[1]-ELEVATION[0])])
+                assert np.max(np.abs(np.array(o.data.uv_layers['UVMap'].data[li].uv)-wanted))<1e-5
+        exterior[o.name]['radius_m']=[float(distance.min()),float(distance.max())]
+# No invisible or opaque pane remains in any of the six open window lights.
+for y in (1.8,2.8,3.8):
+    for z in (1.3,2.05):
+        assert bvh.ray_cast(Vector((4.,y,z)),Vector((1,0,0)),.7)[0] is None,'Window aperture obstructed'
+# Angular coverage through all aperture points, seats and near-view head envelope.
+far_bvh=bvh_for([panorama_object]);coverage=0
+for eye in [Vector((x,0,1.25)) for x in (-1.125,-.375,.375,1.125)]+[Vector((3.2,2.8,1.25))]:
+    for dx in (-.3,0,.3):
+        for dy in (-.3,0,.3):
+            for dz in (-.15,0,.15):
+                origin=eye+Vector((dx,dy,dz))
+                for y in np.linspace(1.4,4.2,7):
+                    for z in np.linspace(1.04,2.35,5):
+                        target=Vector((4.2,float(y),float(z)));direction=(target-origin).normalized()
+                        assert far_bvh.ray_cast(origin,direction,150)[0] is not None,('panorama crop misses head envelope',list(origin),list(target))
+                        coverage+=1
+# Parallax is measured as a change in relative bearing between near and far features.
+near_point=Vector((6.74,3.2,1.03));far_point=Vector((54.2,3.2,1.03))
+angles=[]
+for y in (2.8,3.1):
+    eye=Vector((3.2,y,1.25));a=near_point-eye;b=far_point-eye
+    angles.append(float(np.degrees(np.arctan2(a.y,a.x)-np.arctan2(b.y,b.x))))
+parallax=abs(angles[1]-angles[0]);assert parallax>3
+exterior.update(coverage_rays=coverage,head_margin_m=[.3,.3,.15],relative_parallax_30cm_deg=parallax,
+                panorama_unlit=True,opaque_geometry=True,glass_panes=0)
+
+preservation=compare(baseline,capture(),baseline_path,OUT/'Textures') if baseline is not None else None
+if preservation:(PREVIEW/'home-interior-preservation.json').write_text(json.dumps(preservation,indent=2)+'\n')
+result={'accepted_interior_comparison':preservation,'window_exterior':exterior,'validation':'PASS','fbx_reimport':'PASS','fbx_sha256':hashlib.sha256((OUT/'Home.fbx').read_bytes()).hexdigest(),'triangles':stats,'total_triangles':sum(stats.values()),
         'materials':len(materials),'mesh_objects':len(objects),'markers':expected,'seated_head_surface_checks':spots,
         'sightlines':{'eye_height_m':1.25,'screen_size_m':[6,1.85],'grid':[39,17],'clear':len(sightlines),'blocked':0},
         'atlas':atlas_stats,'visible_surface_light':visible_evidence,'atlas_padding':padding,'textures':textures,'custom_normals':normal_evidence}
