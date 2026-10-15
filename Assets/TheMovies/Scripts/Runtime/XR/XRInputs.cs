@@ -211,30 +211,35 @@ namespace TheMovies.XR
             return device;
         }
 
-        /// <summary>For the settings page: what each hand is and which hand tracking extensions run.</summary>
-        public string SourceStatus
+        /// <summary>
+        /// For the settings page: whether hand tracking runs (XR Hands subsystem) and which OpenXR hand extensions are on.
+        /// <paramref name="ok"/> is false if something hand tracking needs is missing.
+        /// </summary>
+        public string HandTrackingStatus(out bool ok)
         {
-            get
-            {
-                string Name(Source s) => s == Source.Controller ? "Controller" : s == Source.HandJoints ? "Hand (Gelenke)" : s == Source.HandAim ? "Hand (Aim)" : "–";
-                string text = $"Links: {Name(m_Sources[0])} · Rechts: {Name(m_Sources[1])}";
-                text += " · Hände: " + (m_Joints != null ? m_Joints.Status : "XR Hands nicht im Build");
+            ok = m_Joints != null && m_Joints.Running;
+            string text = "Handtracking: " + (m_Joints != null ? m_Joints.Status : "XR Hands nicht im Build");
 #if THEMOVIES_OPENXR
-                try
-                {
-                    text += " · Ext: " + Ext("XR_EXT_hand_tracking", "hand_tracking") + ", " + Ext("XR_FB_hand_tracking_aim", "aim") + ", " +
-                            Ext("XR_EXT_hand_interaction", "interaction");
-                }
-                catch (System.Exception)
-                {
-                }
-#endif
-                return text;
+            try
+            {
+                bool tracking = Ext("XR_EXT_hand_tracking"), aim = Ext("XR_FB_hand_tracking_aim"),
+                    interaction = Ext("XR_EXT_hand_interaction"), mesh = Ext("XR_FB_hand_tracking_mesh");
+                ok &= tracking;
+                text += " · Erweiterungen: " + Flag("Gelenke", tracking) + ", " + Flag("Aim", aim) + ", " +
+                        Flag("Interaction", interaction) + ", " + Flag("Mesh", mesh);
             }
+            catch (System.Exception)
+            {
+                // OpenXR not running (PC without headset)
+            }
+#endif
+            return text;
         }
 
+        static string Flag(string label, bool on) => label + (on ? " an" : " aus");
+
 #if THEMOVIES_OPENXR
-        static string Ext(string name, string label) => label + (UnityEngine.XR.OpenXR.OpenXRRuntime.IsExtensionEnabled(name) ? " an" : " aus");
+        static bool Ext(string name) => UnityEngine.XR.OpenXR.OpenXRRuntime.IsExtensionEnabled(name);
 #endif
 
         const float k_TriggerPress = 0.35f;

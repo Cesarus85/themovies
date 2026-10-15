@@ -390,7 +390,7 @@ namespace TheMovies.XR
             m_HandMeshTries[i]++;
             m_NextHandMeshTry[i] = Time.unscaledTime + 2f;
             var mesh = m_Inputs.TryCreateHandMesh(left, out string status);
-            m_HandMeshStatus[i] = (mesh != null ? "Mesh " : "Kapseln, ") + status;
+            m_HandMeshStatus[i] = status;
             if (mesh != null)
             {
                 view.SetMesh(mesh);
@@ -442,9 +442,62 @@ namespace TheMovies.XR
         /// <summary>The hand is tracked as a hand (hand tracking) rather than holding a controller.</summary>
         public bool IsHandTracked(bool left) => XRActive && m_Inputs.IsHand(left);
 
-        /// <summary>What the hands are (controller / hand) and which hand tracking runs, for the settings page.</summary>
-        public string InputStatus => XRActive ? m_Inputs.SourceStatus + " · Controller: " + ControllerModelStatus +
-            " · Hand-Mesh L: " + m_HandMeshStatus[0] + ", R: " + m_HandMeshStatus[1] : "Ohne Brille (Maus/Tastatur)";
+        /// <summary>
+        /// Settings page, first status line: what each hand is right now and how it is drawn, e.g.
+        /// "Links: Hand (Meta-Mesh) · Rechts: Controller (Meta-Modell) · echte Hände & Controller".
+        /// </summary>
+        public string InputSummary
+        {
+            get
+            {
+                if (!XRActive) return "Ohne Brille (Maus/Tastatur)";
+                string text = "Links: " + Describe(true) + " · Rechts: " + Describe(false);
+                return m_Masking ? text + " · echte Hände & Controller" : text;
+            }
+        }
+
+        /// <summary>Settings page, second status line: hand tracking and why a fallback is drawn, if one is.</summary>
+        public string InputDetails(out bool ok)
+        {
+            if (!XRActive)
+            {
+                ok = true;
+                return string.Empty;
+            }
+            string text = m_Inputs.HandTrackingStatus(out ok);
+            for (int i = 0; i < 2; i++)
+            {
+                bool left = i == 0;
+                var source = m_Inputs.SourceOf(left);
+                if (source == XRInputs.Source.HandJoints && !(left ? m_LeftHandView : m_RightHandView).HasMesh && m_HandMeshTries[i] > 0)
+                {
+                    text += " · Hand-Mesh " + (left ? "L" : "R") + ": " + m_HandMeshStatus[i];
+                    ok = false;
+                }
+                if (source == XRInputs.Source.Controller && !m_OfficialModel[i] && m_ModelTries[i] > 0)
+                {
+                    text += " · Controller-Modell: " + ControllerModelStatus;
+                    ok = false;
+                }
+            }
+            return text;
+        }
+
+        string Describe(bool left)
+        {
+            int i = left ? 0 : 1;
+            switch (m_Inputs.SourceOf(left))
+            {
+                case XRInputs.Source.Controller:
+                    return "Controller (" + (m_OfficialModel[i] ? ControllerModelStatus : "Ersatzmodell") + ")";
+                case XRInputs.Source.HandJoints:
+                    return "Hand (" + ((left ? m_LeftHandView : m_RightHandView).HasMesh ? "Meta-Mesh" : "Kapseln") + ")";
+                case XRInputs.Source.HandAim:
+                    return "Hand (nur Strahl, keine Gelenke)";
+                default:
+                    return "–";
+            }
+        }
 
         bool ReadHand(bool left, Transform grip, Transform aim)
         {

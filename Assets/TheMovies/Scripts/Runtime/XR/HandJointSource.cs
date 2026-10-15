@@ -24,6 +24,9 @@ namespace TheMovies.XR
         /// </summary>
         Mesh TryCreateMesh(bool left, out string status);
 
+        /// <summary>Hand tracking is running (the XR Hands subsystem).</summary>
+        bool Running { get; }
+
         string Status { get; }
     }
 
@@ -67,6 +70,8 @@ namespace TheMovies.XR
         readonly List<XRHandSubsystem> m_Subsystems = new List<XRHandSubsystem>();
         XRHandSubsystem m_Subsystem;
         float m_NextSearch;
+
+        public bool Running => Subsystem() != null;
 
         public string Status => m_Subsystem == null ? "kein Hand-Subsystem (Feature „Hand Tracking Subsystem“ an?)"
             : m_Subsystem.running ? "Hand-Subsystem läuft" : "Hand-Subsystem gestoppt";

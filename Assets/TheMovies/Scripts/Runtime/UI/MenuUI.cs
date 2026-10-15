@@ -436,7 +436,7 @@ namespace TheMovies.UI
             Label(p, "Einstellungen", k_Left, 0.305f, 0.026f, 0, TextAnchor.MiddleLeft, UIStyle.Accent);
             Button(p, "Zurück", 0.35f, 0.305f, 0.16f, 0.045f, () => ShowPage(m_SettingsReturn ?? m_SessionPage), 0.018f, UIIcon.ChevronLeft, ButtonStyle.Subtle);
             Divider(p, 0.272f);
-            m_SetMixedStatus = Label(p, string.Empty, 0, 0.247f, 0.0135f, 110, TextAnchor.MiddleCenter, UIStyle.Warning);
+            m_SetMixedStatus = Label(p, string.Empty, 0, 0.247f, 0.0135f, 100, TextAnchor.MiddleCenter, UIStyle.TextDim);
 
             const float minusX = 0.0f, valueX = 0.18f, plusX = 0.36f, small = 0.05f, step = 0.062f;
             float y = 0.2f;
@@ -839,12 +839,17 @@ namespace TheMovies.UI
             m_SetMixed.Highlighted = MixedReality.Enabled;
             m_SetMixed.Interactable = MixedReality.Available;
             m_SetMixed.Label = MixedReality.Available ? "Mixed Reality" : "MR: Paket fehlt";
-            // Mixed reality status, otherwise what the hands are (controller / hand tracking) – for diagnosis.
-            m_SetMixedStatus.Text = MixedReality.Enabled ? TwoLines(MixedReality.Status)
-                : XRRig.Instance != null ? TwoLines(XRRig.Instance.InputStatus) : string.Empty;
+            // Diagnosis: first line what the hands are and how they are drawn, second line mixed reality (when on) or
+            // hand tracking. Orange as soon as something doesn't work.
+            var rig = XRRig.Instance;
+            bool inputOk = true;
+            string details = rig != null ? rig.InputDetails(out inputOk) : string.Empty;
+            bool mixedOk = !MixedReality.Enabled || MixedReality.Problem.Length == 0;
+            if (MixedReality.Enabled) details = MixedReality.Status;
+            m_SetMixedStatus.Text = (rig != null ? rig.InputSummary : string.Empty) + "\n" + details;
             m_SetMixedTest.gameObject.SetActive(MixedReality.Enabled);
             m_SetMixedTest.Label = $"Test {MixedReality.TestMode + 1}/{MixedReality.TestModes}";
-            m_SetMixedStatus.Color = MixedReality.Problem.Length > 0 ? UIStyle.Warning : UIStyle.TextDim;
+            m_SetMixedStatus.Color = inputOk && mixedOk ? UIStyle.TextDim : UIStyle.Warning;
         }
 
         void RefreshMain()
