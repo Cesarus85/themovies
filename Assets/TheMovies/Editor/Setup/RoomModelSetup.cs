@@ -242,6 +242,7 @@ namespace TheMovies.EditorTools
 
             bool useBaked = baked && !emissive;
             material.SetTexture("_LightTex", useBaked ? lightTexture : null);
+            material.SetFloat("_BakedDim", 0.04f); // house lights off (0 % / during the movie): nearly dark, the screen lights the room
             if (useBaked) material.EnableKeyword("_TM_BAKED");
             else material.DisableKeyword("_TM_BAKED");
             EditorUtility.SetDirty(material);

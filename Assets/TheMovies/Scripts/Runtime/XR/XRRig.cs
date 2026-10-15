@@ -105,10 +105,18 @@ namespace TheMovies.XR
         /// Turns the view around the head (snap turn), e.g. to look at the others in a box. Placing on a seat or
         /// recentering faces the screen again.
         /// </summary>
-        public void Turn(float degrees)
+        public void Turn(float degrees, string source = null)
         {
             if (!XRActive) return;
             transform.RotateAround(Head.position, Vector3.up, degrees);
+            LogTurn($"{degrees:+0;-0}° ({source})");
+        }
+
+        int m_TurnLogs;
+
+        void LogTurn(string what)
+        {
+            if (m_TurnLogs++ < 8) Debug.Log("[TheMovies] Turn: " + what);
         }
 
         public static XRRig Create()
@@ -594,14 +602,16 @@ namespace TheMovies.XR
             float t = SuppressStickSeek ? 0f : rightStick.x;
             int turn = t > 0.75f ? 1 : t < -0.75f ? -1 : 0;
             if (turn != 0 && m_TurnDirection == 0)
-                Turn(turn * TurnStep);
+                Turn(turn * TurnStep, "Stick");
             if (Mathf.Abs(t) < 0.3f) m_TurnDirection = 0;
             else if (turn != 0) m_TurnDirection = turn;
 #if THEMOVIES_OPENXR
             // Hands: loose fist, thumb swiped left/right along the index finger (Meta microgesture); not while pinching.
             int swipes = MicrogestureFeature.TakeTurnSteps();
             if (swipes != 0 && !leftDown && !rightDown)
-                Turn(Mathf.Clamp(swipes, -1, 1) * TurnStep);
+                Turn(Mathf.Clamp(swipes, -1, 1) * TurnStep, "Daumen-Geste");
+            else if (swipes != 0)
+                LogTurn("Daumen-Geste ignoriert (Pinch gehalten)");
 #endif
         }
 

@@ -429,7 +429,7 @@ namespace TheMovies.UI
             }
 
             // Free seat choice: discs above every free seat, point and click (also balcony and boxes).
-            m_SeatButton = Button(p, "Platz wählen", 0.345f, -0.292f, 0.18f, 0.055f, () => m_App.BeginSeatChoice(), 0.017f, style: ButtonStyle.Subtle);
+            m_SeatButton = Button(p, "Platz wählen", 0.345f, -0.292f, 0.19f, 0.062f, () => m_App.BeginSeatChoice(), 0.019f, style: ButtonStyle.Primary);
 
             m_SessionStatus = Label(p, string.Empty, 0, -0.345f, 0.014f, 100, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
@@ -498,11 +498,22 @@ namespace TheMovies.UI
             m_SetHeight = Label(p, string.Empty, valueX, y, 0.02f, 10, TextAnchor.MiddleCenter);
             Button(p, null, plusX, y, small, small, () => m_App.ChangeHeight(0.05f), 0.02f, UIIcon.Plus);
 
-            Button(p, "Bild & 3D", -0.352f, -0.322f, 0.166f, 0.042f, () => ShowPage(m_PicturePage), 0.015f, style: ButtonStyle.Subtle);
-            Button(p, "Ton & Untertitel", -0.176f, -0.322f, 0.166f, 0.042f, () => ShowPage(m_TracksPage), 0.015f, style: ButtonStyle.Subtle);
-            Button(p, "Protokoll", 0f, -0.322f, 0.166f, 0.042f, OpenLog, 0.015f, style: ButtonStyle.Subtle);
-            Button(p, "Platz ausrichten", 0.176f, -0.322f, 0.166f, 0.042f, () => XRRig.Instance?.RequestAlign(), 0.015f, style: ButtonStyle.Subtle);
-            Button(p, "Menü herholen", 0.352f, -0.322f, 0.166f, 0.042f, PlaceInFrontOfUser, 0.015f, style: ButtonStyle.Subtle);
+            var bottom = new (string label, float width, Action action)[]
+            {
+                ("Bild & 3D", 0.13f, () => ShowPage(m_PicturePage)),
+                ("Ton & Untertitel", 0.165f, () => ShowPage(m_TracksPage)),
+                ("Protokoll", 0.12f, OpenLog),
+                ("Platz wählen", 0.145f, () => m_App.BeginSeatChoice()),
+                ("Ausrichten", 0.13f, () => XRRig.Instance?.RequestAlign()),
+                ("Menü herholen", 0.15f, PlaceInFrontOfUser),
+            };
+            float bx = -0.005f * (bottom.Length - 1) * 0.5f;
+            foreach (var b in bottom) bx -= b.width * 0.5f;
+            foreach (var b in bottom)
+            {
+                Button(p, b.label, bx + b.width * 0.5f, -0.322f, b.width, 0.042f, b.action, 0.015f, style: ButtonStyle.Subtle);
+                bx += b.width + 0.005f;
+            }
             return p;
         }
 

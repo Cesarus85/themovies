@@ -223,6 +223,7 @@ namespace TheMovies.XR
                 }
                 // The runtime rejected the combination: keep Unity's bindings working without ours.
                 Status = "Bindung abgelehnt (" + result + ")";
+                Debug.LogWarning("[TheMovies] Microgestures: " + Status);
                 return s_NextSuggest(instance, suggested);
             }
             finally
@@ -290,9 +291,11 @@ namespace TheMovies.XR
                 {
                     s_Attached = true;
                     Status = "aktiv";
+                    Debug.Log("[TheMovies] Microgestures: action set attached (thumb swipes turn the view).");
                     return result;
                 }
                 Status = "Anhängen abgelehnt (" + result + ")";
+                Debug.LogWarning("[TheMovies] Microgestures: " + Status);
                 return s_NextAttach(session, info);
             }
             finally
@@ -354,7 +357,10 @@ namespace TheMovies.XR
             if (s_GetState(session, s_GetInfo, s_State) < 0) return false;
             bool pressed = Marshal.ReadInt32(s_State, 16) != 0 && Marshal.ReadInt32(s_State, 20) != 0;
             if (pressed && Interlocked.Exchange(ref s_Detected, 1) == 0)
+            {
                 Status = "aktiv, erkannt";
+                Debug.Log("[TheMovies] Microgestures: first thumb swipe recognized.");
+            }
             return pressed;
         }
 

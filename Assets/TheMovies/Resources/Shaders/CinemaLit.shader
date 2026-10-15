@@ -17,7 +17,7 @@ Shader "TheMovies/CinemaLit"
         // Variant _TM_BAKED: light baked in Blender, on the second UV set, stored at half (× _LightScale = 2).
         _LightTex ("Baked light (UV2)", 2D) = "white" {}
         _LightScale ("Baked light scale", Float) = 2
-        _BakedDim ("Baked light left with house lights off", Range(0, 1)) = 0.12
+        _BakedDim ("Baked light left with house lights off", Range(0, 1)) = 0.04
     }
     SubShader
     {
