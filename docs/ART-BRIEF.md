@@ -41,14 +41,14 @@ Sitzplätze der Teilnehmerreihe (im Heimkino entsprechende Sofaplätze):
 - stehen **auf dem Boden bei z = 0**, in einer Reihe entlang **X**, **0,75 m** Abstand, mittig um den Ursprung:
   x = −1,125 / −0,375 / +0,375 / +1,125, y = 0;
 - blicken nach **+Y**; die Leinwand liegt auf **+Y**;
-- Augenhöhe sitzend: **1,3 m** über diesem Boden.
+- Augenhöhe sitzend: **1,25 m** über diesem Boden.
 
 **Definition der Sitzmarker (Kinosaal und später auch Heimkino-Sofa):** Ein Sitzmarker liegt am Bodenpunkt
 senkrecht unter den Augen eines angelehnten, sitzenden Erwachsenen, auf der **Bodenhöhe der jeweiligen Reihe**.
 Er liegt horizontal **0,12 m vor der gepolsterten Vorderfläche der Rückenlehne**, gemessen auf der Mittellinie des
 Sitzplatzes in **0,85 m Höhe über dem Reihenboden** (Schulterhöhe). Die Fläche ist am tatsächlichen fertigen
 Polstermesh zu messen, bei unterschiedlichen Detailstufen jeweils separat. Der Marker liegt damit unter der
-sitzenden Kopfposition, nicht vor der Sitzvorderkante; die App addiert die Augenhöhe von 1,3 m.
+sitzenden Kopfposition, nicht vor der Sitzvorderkante; die App addiert die Augenhöhe von 1,25 m.
 
 `Seat1` … `Seat4` bleiben exakt an den oben festgelegten Standardkoordinaten. Falls zur Korrektur nötig, wird der
 **gesamte Saal einschließlich aller Sitze, Architektur, Lichtquellen und Leinwandmarker starr verschoben**.
@@ -84,10 +84,10 @@ Shader). Bitte **keine Leinwandfläche modellieren**, nur Rahmen/Portal/Vorhäng
   **7,2 m** hinter der Reihe, Stirnwand ~**13,6 m** davor, Decke ~**10,5 m** hoch.
   Abweichungen sind ok, wenn es dem Raum gut tut.
 - Stadion-Bestuhlung: Reihenabstand **1,65 m**, Stufenhöhe **0,45 m**; die Zuschauerreihe ist eine mittlere Reihe
-  (2 Reihen davor tiefer, 3 dahinter höher), Sessel ~0,55–0,6 m breit. Vordere Reihen dürfen die Sicht aus 1,3 m
+  (2 Reihen davor tiefer, 3 dahinter höher), Sessel ~0,55–0,6 m breit. Vordere Reihen dürfen die Sicht aus 1,25 m
   Augenhöhe auf die Leinwand-Unterkante nicht verdecken.
 
-- Erhöhte Plätze: Von jedem Galerie-/Logen-Spot muss bei **1,3 m Augenhöhe** die volle 19 × 8,2 m große
+- Erhöhte Plätze: Von jedem Galerie-/Logen-Spot muss bei **1,25 m Augenhöhe** die volle 19 × 8,2 m große
   Leinwand einschließlich unterer Ecken sichtbar sein. Prüfraster 39 × 17 Punkte; zusätzliche Reserveprobe
   bei 1,25 m Augenhöhe. Die Galeriefront ist **0,80 m**, die Logenfronten sind **0,75 m** über ihrem Boden hoch.
   Damit nachfolgende Logen nicht selbst die Leinwand verdecken, liegen ihre Böden von hinten zur Bühne hin
@@ -170,7 +170,7 @@ bpy.ops.export_scene.fbx(
 - **Fremde Assets** nur mit passender Lizenz (CC0, CC-BY mit Namensnennung, Unity Asset Store, Fab Standard License);
   nicht: ND, „Editorial“, „keine Weitergabe in Apps“. Jede Quelle mit Lizenz in `docs/CREDITS.md` eintragen.
   Fremde Modelle auf das Budget reduzieren und neu auf die Lightmap-UV abwickeln.
-- **Vorschau zur Abnahme**: Cycles-Renderings nach `Logs/art-preview/` – aus Sicht von `Seat2` in 1,3 m Augenhöhe
+- **Vorschau zur Abnahme**: Cycles-Renderings nach `Logs/art-preview/` – aus Sicht von `Seat2` in 1,25 m Augenhöhe
   Richtung Leinwand, einmal mit „Saallicht an“, einmal gedimmt (Bake-Licht × 0,12); dazu eine Übersicht von hinten oben.
 - **Bericht** am Ende: Dreiecke je Objekt und gesamt, Materialien, Texturen mit Größe, offene Punkte.
 
