@@ -10,11 +10,16 @@ Shader "TheMovies/Unlit"
         _Shading ("Fake light amount", Range(0, 1)) = 0
         _ScreenGlow ("Screen glow amount", Range(0, 2)) = 0
         _RoomLightAffect ("Affected by room light", Range(0, 1)) = 0
+        // Markers that must stay visible behind walls and balustrades (seat choice): ZTest Always, ZWrite off.
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("Depth test", Float) = 4
+        [Enum(Off, 0, On, 1)] _ZWrite ("Depth write", Float) = 1
     }
     SubShader
     {
         Tags { "RenderType" = "Opaque" "Queue" = "Geometry" }
         Cull Off
+        ZTest [_ZTest]
+        ZWrite [_ZWrite]
         Pass
         {
             CGPROGRAM

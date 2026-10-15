@@ -140,6 +140,10 @@ namespace TheMovies.App
             m.SetFloat("_Shading", 0.25f);
             m.SetFloat("_RoomLightAffect", 0f);
             m.SetFloat("_ScreenGlow", 0f);
+            // Visible through balustrades, box fronts and seat backs: the balcony and box seats are hidden from below.
+            m.SetFloat("_ZTest", (float)UnityEngine.Rendering.CompareFunction.Always);
+            m.SetFloat("_ZWrite", 0f);
+            m.renderQueue = 3100;
             return m;
         }
 
@@ -148,6 +152,9 @@ namespace TheMovies.App
             var go = new GameObject("Seat Marker");
             go.transform.SetParent(transform, false);
             go.transform.position = m_Cinema.transform.TransformPoint(spot.position + Vector3.up * k_MarkerHeight);
+            // Far seats get bigger discs (and colliders), so they can still be hit from the other end of the hall.
+            float distance = Vector3.Distance(go.transform.position, m_Rig.Head.position);
+            go.transform.localScale = Vector3.one * Mathf.Max(1f, distance / 6f);
             var disc = Shapes.Create(PrimitiveType.Sphere, go.transform, "Disc", Vector3.zero, new Vector3(0.3f, 0.05f, 0.3f), Color.white, m_Free);
             var collider = go.AddComponent<SphereCollider>();
             collider.isTrigger = true;
