@@ -14,7 +14,7 @@ namespace TheMovies.XR
     public sealed class XRRig : MonoBehaviour
     {
         /// <summary>Eye height used when there is no headset or no floor tracking.</summary>
-        public const float SeatedEyeHeight = 1.2f;
+        public const float SeatedEyeHeight = 1.3f;
 
         /// <summary>Extra eye height chosen by the user (menu "Sitzhöhe"), in meters.</summary>
         public float HeightOffset { get; private set; }
