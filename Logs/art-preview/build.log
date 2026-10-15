@@ -1,0 +1,25 @@
+/Users/stefanmaier/Unity-Projekte/themovies-art/tools/blender/cinema.py:89: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  m=bpy.data.materials.new(name);m.use_nodes=True;m['cinema']=True
+[Cinema] Procedural geometry built
+/Users/stefanmaier/Unity-Projekte/themovies-art/tools/blender/cinema.py:311: DeprecationWarning: 'World.use_nodes' is expected to be removed in Blender 6.0
+  scene.world=bpy.data.worlds.new('Warm ambient');scene.world.use_nodes=True
+[Cinema] Unwrapping 179305 faces
+[Cinema] Starting 4096 / 256 sample Cycles bake
+00:41.343  render           | Saved: '/Users/stefanmaier/Unity-Projekte/themovies-art/Assets/TheMovies/Art/Cinema/Textures/Cinema_Light.png'
+Info: Baking map saved to internal image, save it externally or pack it
+[Cinema] Lightmap saved
+/Users/stefanmaier/Unity-Projekte/themovies-art/tools/blender/cinema.py:55: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  if not m.use_nodes or not m.get('cinema'):continue
+00:49.991  render           | Saved: '/Users/stefanmaier/Unity-Projekte/themovies-art/Logs/art-preview/Seat2-house-on.png'
+00:55.587  render           | Saved: '/Users/stefanmaier/Unity-Projekte/themovies-art/Logs/art-preview/Seat2-house-12pct.png'
+01:01.258  render           | Saved: '/Users/stefanmaier/Unity-Projekte/themovies-art/Logs/art-preview/Overview-back-top.png'
+01:06.787  render           | Saved: '/Users/stefanmaier/Unity-Projekte/themovies-art/Logs/art-preview/Gallery-and-seating.png'
+
+FBX export starting... '/Users/stefanmaier/Unity-Projekte/themovies-art/Assets/TheMovies/Art/Cinema/Cinema.fbx'
+export finished in 0.2639 sec.
+Info: Saved as "Cinema-baked.blend"
+[Cinema] Baked previews complete
+[Cinema] Complete: 179305 triangles; 9 materials
+Blender 5.2.0 LTS (hash fbe6228777e7 built 2026-07-14 01:31:22)
+
+Blender quit

@@ -1,0 +1,3 @@
+# Reproducible local bake checkpoint, never needed by Unity.
+*.blend
+*.blend1

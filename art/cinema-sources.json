@@ -1,0 +1,46 @@
+{
+  "Chandelier_03": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/blend/2k/Chandelier_03/Chandelier_03_2k.blend",
+    "md5": "3a8360adca5cd22bdb611a17c70a7d51",
+    "bytes": 1242288,
+    "authors": {
+      "Kirill Sannikov": "All"
+    },
+    "license": "CC0-1.0",
+    "metadata": "https://api.polyhaven.com/info/Chandelier_03"
+  },
+  "velour_velvet": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/velour_velvet/velour_velvet_diff_2k.jpg",
+    "md5": "8a177e9b50140fda3a46e1349b65473a",
+    "bytes": 3195339,
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "license": "CC0-1.0",
+    "metadata": "https://api.polyhaven.com/info/velour_velvet"
+  },
+  "quatrefoil_jacquard_fabric": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/quatrefoil_jacquard_fabric/quatrefoil_jacquard_fabric_diff_2k.jpg",
+    "md5": "1e3d6ff60bdf57bf4f8b92e17a287d62",
+    "bytes": 2631567,
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "license": "CC0-1.0",
+    "metadata": "https://api.polyhaven.com/info/quatrefoil_jacquard_fabric"
+  },
+  "dark_wood": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dark_wood/dark_wood_diff_2k.jpg",
+    "md5": "f6e205a05ff7f1b45c675795b18ea0f5",
+    "bytes": 2894186,
+    "authors": {
+      "Dario Barresi": "Baking",
+      "Dimitrios Savva": "Photography",
+      "Rico Cilliers": "Tiling"
+    },
+    "license": "CC0-1.0",
+    "metadata": "https://api.polyhaven.com/info/dark_wood"
+  }
+}

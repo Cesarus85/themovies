@@ -1,0 +1,89 @@
+"""Independent FBX roundtrip / budget / marker / sightline / atlas raster audit.
+Run with Blender -b --factory-startup -P tools/blender/verify_cinema.py.
+"""
+from pathlib import Path
+import json
+import math
+import bpy
+import numpy as np
+from mathutils import Vector
+from mathutils.bvhtree import BVHTree
+ROOT=Path(__file__).resolve().parents[2]
+OUT=ROOT/'Assets/TheMovies/Art/Cinema'
+bpy.ops.wm.read_factory_settings(use_empty=True)
+bpy.ops.import_scene.fbx(filepath=str(OUT/'Cinema.fbx'))
+scene=bpy.context.scene
+objs=[o for o in scene.objects if o.type=='MESH']
+assert len(objs)<=16
+assert all(len(o.data.materials)==1 for o in objs)
+assert len({o.data.materials[0].name for o in objs})==len(objs)
+expected={f'Seat{i+1}':((i-1.5)*.75,0,0) for i in range(4)}
+expected.update(ScreenAnchor=(0,11.9,.4),ScreenTop=(0,11.9,8.6))
+assert set(o.name for o in scene.objects if o.type=='EMPTY')==set(expected)
+for name,loc in expected.items():assert (scene.objects[name].matrix_world.translation-Vector(loc)).length<.0001,(name,list(scene.objects[name].location))
+vertices=[];faces=[];stats={};uvtri=[]
+for o in objs:
+    mesh=o.data;mesh.calc_loop_triangles()
+    assert [u.name for u in mesh.uv_layers]==['UVMap','Lightmap']
+    stats[o.name]=len(mesh.loop_triangles)
+    offset=len(vertices);vertices.extend(o.matrix_world@v.co for v in mesh.vertices)
+    faces.extend(tuple(offset+i for i in t.vertices) for t in mesh.loop_triangles)
+    layer=mesh.uv_layers['Lightmap']
+    for tri in mesh.loop_triangles:uvtri.append([list(layer.data[i].uv) for i in tri.loops])
+assert sum(stats.values())<=250000
+triangles=np.array(uvtri,np.float64)
+assert triangles.min()>=-1e-5 and triangles.max()<=1.00001
+# Exact positive-area intersection audit in UV space, in addition to the texel audit.
+# SAT tests all six triangle edge normals; touching edges/vertices remain legal.
+uvverts=[(float(u),float(v),0.0) for u,v in triangles.reshape(-1,2)]
+uvfaces=[(3*i,3*i+1,3*i+2) for i in range(len(triangles))]
+uvtree=BVHTree.FromPolygons(uvverts,uvfaces,all_triangles=True,epsilon=1e-10)
+pairs=np.array([(i,j) for i,j in uvtree.overlap(uvtree) if i<j],dtype=np.int32)
+exact_overlaps=0
+for start in range(0,len(pairs),20000):
+    batch=pairs[start:start+20000];a=triangles[batch[:,0]];b=triangles[batch[:,1]]
+    edges=np.concatenate((np.roll(a,-1,axis=1)-a,np.roll(b,-1,axis=1)-b),axis=1)
+    axes=np.stack((-edges[:,:,1],edges[:,:,0]),axis=2)
+    lens=np.linalg.norm(axes,axis=2);axes/=np.maximum(lens[:,:,None],1e-20)
+    pa=np.einsum('bvi,bai->bva',a,axes);pb=np.einsum('bvi,bai->bva',b,axes)
+    widths=np.minimum(pa.max(axis=1),pb.max(axis=1))-np.maximum(pa.min(axis=1),pb.min(axis=1))
+    exact_overlaps+=int(np.all(widths>1e-7,axis=1).sum())
+assert exact_overlaps==0,f'{exact_overlaps} positive-area UV triangle intersections'
+# Interior samples, strictly away from triangle edges. Shared UV edges are legal.
+# Full atlas resolution catches overlaps with area at least one texel.
+N=4096;count=np.zeros((N,N),np.uint16)
+for pts in triangles*N:
+    mn=np.maximum(np.floor(pts.min(axis=0)-.5).astype(int),0)
+    mx=np.minimum(np.ceil(pts.max(axis=0)-.5).astype(int),N-1)
+    if np.any(mx<mn):continue
+    a,b,c=pts;ab=b-a;ac=c-a;det=ab[0]*ac[1]-ab[1]*ac[0]
+    if abs(det)<1e-10:continue
+    yy,xx=np.mgrid[mn[1]:mx[1]+1,mn[0]:mx[0]+1];px=xx+.5-a[0];py=yy+.5-a[1]
+    u=(px*ac[1]-py*ac[0])/det;v=(ab[0]*py-ab[1]*px)/det
+    inside=(u>1e-6)&(v>1e-6)&(u+v<1-1e-6)
+    count[mn[1]:mx[1]+1,mn[0]:mx[0]+1]+=inside.astype(np.uint16)
+overlap=int((count>1).sum());assert overlap==0,f'{overlap} overlapping lightmap pixels'
+bvh=BVHTree.FromPolygons(vertices,faces,all_triangles=True)
+# 4 seats x 9 screen samples, including every maximum-size edge and corner.
+sightlines=[]
+for name in ['Seat1','Seat2','Seat3','Seat4']:
+    origin=Vector(expected[name])+Vector((0,0,1.2))
+    for x in [-9.5,0,9.5]:
+        for z in [.4,4.5,8.6]:
+            target=Vector((x,11.9,z));delta=target-origin
+            hit=bvh.ray_cast(origin,delta.normalized(),delta.length-.001)
+            assert hit[0] is None,(name,x,z,tuple(hit[0]))
+            sightlines.append([name,x,z,'clear'])
+textures={}
+for p in sorted((OUT/'Textures').glob('*.png')):
+    im=bpy.data.images.load(str(p));size=list(im.size)
+    assert size==([4096,4096] if p.name=='Cinema_Light.png' else [1024,1024])
+    textures[p.name]={'size':size,'bytes':p.stat().st_size}
+    if p.name=='Cinema_Light.png':
+        pix=np.empty(N*N*4,np.float32);im.pixels.foreach_get(pix);rgb=pix.reshape(N,N,4)[:,:,:3]
+        # 8-bit PNG image pixels are normalized stored sRGB sample values.
+        atlas_stats={'covered_texels':int((count>0).sum()),'overlapping_texels':overlap,'positive_area_triangle_overlaps':exact_overlaps,'surface_fraction':float((count>0).mean()),'covered_rgb_percentiles_srgb':np.percentile(rgb[count>0],[1,50,95,99,100],axis=0).tolist(),'covered_clipped_fraction':float(np.any(rgb[count>0]>=1.0,axis=1).mean())}
+        assert atlas_stats['covered_clipped_fraction']<.01
+result={'fbx_roundtrip':'PASS','triangles':stats,'total_triangles':sum(stats.values()),'mesh_objects':len(objs),'materials':len(objs),'textures':textures,'markers':'6 exact; positions within 0.1 mm','sightlines':f'{len(sightlines)} / {len(sightlines)} clear','atlas':atlas_stats}
+(ROOT/'Logs/art-preview/verification.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result,indent=2))
