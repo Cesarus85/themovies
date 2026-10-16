@@ -79,3 +79,29 @@ no NASA logo or endorsement is implied.
 under ignored `art/sources/`; only prepared RGB8 PNGs and Space.fbx are distributed. Mesh
 primitives, UV checks and baking structure were adapted from this repository's accepted pipeline;
 the accepted Cinema, Home and Rooftop scripts and assets remain unchanged.
+
+## Orient-Express salon / Aster Vale
+
+| Asset | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| Clarens Night 02 | Dimitrios Savva (photography), Jarod Guest (processing) | [Poly Haven asset](https://polyhaven.com/a/clarens_night_02); [metadata](https://api.polyhaven.com/info/clarens_night_02); [license](https://polyhaven.com/license) | CC0-1.0, checked 2026-10-16 | Checksum-pinned 4K EXR. Full 360° longitude retained; cylindrical elevation reprojection for the 60 m scenery band, exposure/soft HDR shoulder, restrained blue-hour grade, 32-column periodic edge treatment. RGB8 4096×2048. |
+
+The salon architecture, furniture, floral marquetry, etched opaque glass artwork, carpet,
+silk texture, recolored velvet/wood surfaces, curtain folds and tie-backs, fringed lamps, luggage racks, cups,
+and AV monogram are original procedural work in `tools/blender/orient_express.py` and
+`lib_orient_express_*.py`. “Aster Vale / AV” is an invented salon identity; no real railway
+company logo, official seal, insignia or third-party ornament is reproduced.
+The wood grain and velvet nap derive from the CC0 photographs listed below; the botanical inlay drawing is original.
+The near ground panorama (ballast, grass, hedge, fence) is original deterministic opaque RGB
+artwork; no alpha, normal maps, marketplace assets or third-party models are used.
+
+Mesh primitives, global UV packing/auditing, baking and preview construction are independent
+adaptations of the accepted room pipeline. The shared read-only seated-head auditor is reused.
+Accepted Cinema, Home, Rooftop and Space scripts/assets are unchanged.
+`art/orient-express-sources.json` pins the CC0 HDRI and two diffuse inputs by their Poly Haven MD5; raw files remain
+in ignored `art/sources/`. Only prepared RGB8 PNGs and the FBX are distributed.
+
+| Surface | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| Dark Wood | Dario Barresi (baking), Dimitrios Savva (photography), Rico Cilliers (tiling) | [Poly Haven](https://polyhaven.com/a/dark_wood) | CC0-1.0, checked 2026-10-16 | 2K diffuse reduced to 1024², luminance-normalized and walnut/ebony tinted. Original floral inlays composited over the prepared grain. |
+| Velour Velvet | colormass (photography), Rico Cilliers (processing) | [Poly Haven](https://polyhaven.com/a/velour_velvet) | CC0-1.0, checked 2026-10-16 | 2K diffuse reduced to 1024², normalized nap luminance tinted petrol for upholstery and champagne for curtains. No other maps used. |

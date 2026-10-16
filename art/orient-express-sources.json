@@ -1,0 +1,37 @@
+{
+  "clarens_night_02": {
+    "size": 86354494,
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/4k/clarens_night_02_4k.exr",
+    "md5": "ef1aa6861978504caa37545886dff998",
+    "asset": "clarens_night_02",
+    "license": "CC0-1.0",
+    "author": {
+      "Dimitrios Savva": "Photography",
+      "Jarod Guest": "Processing"
+    },
+    "source": "https://polyhaven.com/a/clarens_night_02"
+  },
+  "dark_wood": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dark_wood/dark_wood_diff_2k.jpg",
+    "md5": "f6e205a05ff7f1b45c675795b18ea0f5",
+    "bytes": 2894186,
+    "authors": {
+      "Dario Barresi": "Baking",
+      "Dimitrios Savva": "Photography",
+      "Rico Cilliers": "Tiling"
+    },
+    "license": "CC0-1.0",
+    "metadata": "https://api.polyhaven.com/info/dark_wood"
+  },
+  "velour_velvet": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/velour_velvet/velour_velvet_diff_2k.jpg",
+    "md5": "8a177e9b50140fda3a46e1349b65473a",
+    "bytes": 3195339,
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "license": "CC0-1.0",
+    "metadata": "https://api.polyhaven.com/info/velour_velvet"
+  }
+}

@@ -387,3 +387,63 @@ Aktueller Weltraum-Export: **102.189 Dreiecke, zwölf Materialien/Material-Meshe
 Die Atlas-Packung trennt 23 hohle UV-Inseln in kompakte Sektoren. Reimport: 5.304 freie
 Leinwandstrahlen; garantierter Kopf-Freiraum ≥14,82 cm; Erde höchstens 2.850,34 m und Sterne
 2.504,14 m von den Sitzaugen entfernt. Die Rotationsgrenze gilt für sämtliche Drehphasen.
+
+## 12. Orient-Express – fünfter Raum
+
+**Gestaltung:** Erfundenes Art-déco-Salonabteil „Aster Vale / AV“, ohne reale Bahnlogos,
+Hoheitszeichen oder Siegel. Innenbreite 2,90 m, Länge 16,10 m (Y −9,25 bis +6,85),
+flach gewölbte Elfenbeindecke bis Z 2,56 m. Walnussvertäfelung mit originalen floralen
+Intarsien, petrolfarbene Samtpolster, champagnerfarbene geraffte Vorhänge mit Pelmets,
+Messing-Gepäckablagen, gemusterter Teppich, opake geätzte Leuchtglasfelder,
+Deckenleuchten und kleine Tische mit gefransten Seidenschirmen. Türen an beiden Enden.
+Die vordere Tür liegt hinter dem Projektionsportal und ist bei eingefahrener App-Leinwand sichtbar.
+
+**Sitze und Leinwand:** Seat1–4 unverändert X −1,125 / −0,375 / +0,375 / +1,125,
+Y=Z=0, deckungsgleich mit Spot_000–003; vier schmale einzelne Sessel nach +Y.
+Zwei Bankplätze X ±0,38, Y −3,10; zwei Essplätze X ±0,83, Y −6,20,
+Spot_004–007; zwei zusätzliche Sessel X ±0,83, Y +2,65, Spot_008–009, alle Z=0. Niedrige gepolsterte Lehnen erhalten die Sicht aus 1,25 m Augenhöhe.
+Alle Marker müssen die vollständige kontinuierliche Kopfhülle aus Abschnitt 2 bestehen,
+einschließlich freier Kopfprojektion über dem Polster. ScreenAnchor=(0; 6,65; 0,90),
+ScreenTop=(0; 6,65; 2,40), freier Bildbereich 2,60 × 1,50 m an der Stirnwand.
+Keine Leinwandfläche im FBX. Die App begrenzt die Bildhöhe anhand ScreenTop;
+breitere/extreme Seitenverhältnisse müssen die App-seitige Wagenbreite respektieren.
+
+**Vorbeiziehende Landschaft:** Zwölf echte Fensteröffnungen ohne Glasscheiben.
+Fernband bei X ±60 m, CC0-HDRI „Clarens Night 02“ von Poly Haven mit vollständigem
+360°-Längenumfang, zylindrischer Reprojektion, zurückhaltender Blaustunden-Farbkorrektur
+und weicher HDR-Schulter. `OE_Far_Panorama_unlit_scroll4`, RGB8 4096×2048.
+Opakes originales Nahband bei X ±5 m, gestalteter Streifen Z −2,5 bis +1,0
+mit durchgehender opaker Bodenschürze darunter, mit Schotter, Gras,
+Hecken und Zaun als Teil der RGB-Textur. `OE_Near_Panorama_unlit_scroll90`, 4096×1024.
+Keine Alpha-Silhouetten. Beide Texturen sind horizontal periodisch; erste und letzte
+Pixelspalte stimmen überein. Bei beiden Seiten wächst UV-U nach +Y: Ein positiver
+UV-Abtastoffset bewegt sichtbare Merkmale nach −Y zum Heck. Wiederholungen 180 m
+fern / 24 m nah. Die Annahme des positiven Shader-Abtastoffsets wird dokumentiert;
+die tatsächliche App-Laufzeitbewegung ist ein eigener Abnahmepunkt.
+
+**Pipeline und Lieferung:** `Assets/TheMovies/Art/OrientExpress/OrientExpress.fbx`
+(Art-Unterordner `Art/OrientExpress`), Textures daneben; App-Prefabname
+`CustomOrientExpress` (Erzeugung durch die App-Seite, kein Unity-Aufruf hier).
+≤120.000 Dreiecke, ≤14 Materialien; Zusammenfassung nach Material.
+Basisfarben 1024², ausschließlich Panorama-Dateien größer; globaler Lichtatlas
+`OrientExpress_Light.png` 2048², zwei UV-Sätze, global keine Überschneidungen,
+≥4 px Abstand. Cycles Diffuse Direct+Indirect ohne Color, 256 Samples,
+Denoising, 8 px Bake-Margin, Standard/None/−1 EV/RGB8. Warme Innenbeleuchtung
+und kühles Fensterlicht im Bake; Fern- und Nahband unlit und ungedimmt.
+Vorschauen Basisfarbe × Atlas ×2, dimmbar auf 4 %, Glow ebenfalls dimmbar.
+
+Build: `Blender -b --factory-startup -P tools/blender/orient_express.py -- Assets/TheMovies/Art/OrientExpress`.
+Prüfung: `Blender -b --factory-startup -P tools/blender/verify_orient_express.py`.
+`--geometry-only` erstellt einen lokalen Entwurf; Prüfer `-- --draft` testet dessen Sichtlinien.
+`--preview-only` wiederholt die gebackenen Vorschauen aus dem ignorierten Checkpoint.
+Vorschauen und Bericht: `Logs/art-preview/orient-express-*.png`,
+`Logs/art-preview/ORIENT-EXPRESS-REPORT.md`; Logs nicht versioniert.
+Walnussmaserung und Samtflor aus den CC0-Diffusfotos dark_wood / velour_velvet
+von Poly Haven, auf 1024² reduziert und eingefärbt. Rohdaten ausschließlich unter
+ignoriertem `art/sources/`, Quellenmanifest `art/orient-express-sources.json`, Credits in `docs/CREDITS.md`.
+Die vier akzeptierten Räume, App-Code, ProjectSettings und Packages bleiben unverändert.
+Commit auf dem aktuellen Branch, kein Push. Menschliche Abnahme und Quest-Laufzeittest offen.
+
+Aktueller Orient-Express-Export: **55.336 Dreiecke, zwölf Materialien/Material-Meshes, zehn Plätze**.
+FBX-Reimport: 6.630 freie Leinwandstrahlen; garantierte Luft um die kontinuierlich geprüfte
+Kopfhülle mindestens 17,70 cm. Globale UV-Prüfung ohne Überschneidungen, ≥4 px Inselabstand.
