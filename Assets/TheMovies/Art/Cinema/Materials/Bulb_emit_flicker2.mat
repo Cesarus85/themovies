@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Rooftop_City_Windows_unlit
+  m_Name: Bulb_emit_flicker2
   m_Shader: {fileID: 4800000, guid: 9f6889c322fb44cf7968ff8f24ef05fc, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -28,19 +28,23 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: e840fbed6e6f44222b7ca1c9f47acfae, type: 3}
+        m_Texture: {fileID: 2800000, guid: 65a8f9b05b04b4994887019db6425644, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BakedDim: 0.04
+    - _Blink: 0
     - _Emission: 1.2
+    - _Flicker: 0.02
     - _LightScale: 2
-    - _RoomLightAffect: 0
+    - _RoomLightAffect: 1
     - _ScreenGlow: 0
     - _Scroll: 0
+    - _ScrollV: 0
     - _Sheen: 0
     - _Specular: 0
+    - _Twinkle: 0
     - _VertexColor: 0
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}

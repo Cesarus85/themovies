@@ -7,12 +7,11 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Rooftop_Olive_Leaves
+  m_Name: Rooftop_Festoon_bulb_flicker4
   m_Shader: {fileID: 4800000, guid: 9f6889c322fb44cf7968ff8f24ef05fc, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
-  - _TM_BAKED
+  m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -25,23 +24,27 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _LightTex:
-        m_Texture: {fileID: 2800000, guid: bb381b4007869444c9e2835c1f6eb588, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: a983290d1d2724dd099c38c323decbf0, type: 3}
+        m_Texture: {fileID: 2800000, guid: 78127e856810449ee9c321e48ee16a5d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BakedDim: 0.04
-    - _Emission: 0
+    - _Blink: 0
+    - _Emission: 1.2
+    - _Flicker: 0.04
     - _LightScale: 2
-    - _RoomLightAffect: 0
-    - _ScreenGlow: 1
+    - _RoomLightAffect: 1
+    - _ScreenGlow: 0
     - _Scroll: 0
+    - _ScrollV: 0
     - _Sheen: 0
     - _Specular: 0
+    - _Twinkle: 0
     - _VertexColor: 0
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}

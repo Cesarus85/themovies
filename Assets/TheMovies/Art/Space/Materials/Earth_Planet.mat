@@ -39,15 +39,19 @@ Material:
     m_Floats:
     - _AtmosphereStrength: 1.3
     - _BakedDim: 0.04
+    - _Blink: 0
     - _DayStrength: 1
     - _Emission: 0
+    - _Flicker: 0
     - _LightScale: 2
     - _NightStrength: 1.6
     - _RoomLightAffect: 0
     - _ScreenGlow: 1
     - _Scroll: 0
+    - _ScrollV: 0
     - _Sheen: 0
     - _Specular: 0
+    - _Twinkle: 0
     - _VertexColor: 0
     m_Colors:
     - _AtmosphereColor: {r: 0.34999996, g: 0.62, b: 1, a: 1}

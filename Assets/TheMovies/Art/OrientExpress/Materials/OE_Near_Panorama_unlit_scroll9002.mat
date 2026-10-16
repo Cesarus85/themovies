@@ -34,13 +34,17 @@ Material:
     m_Ints: []
     m_Floats:
     - _BakedDim: 0.04
+    - _Blink: 0
     - _Emission: 1.2
+    - _Flicker: 0
     - _LightScale: 2
     - _RoomLightAffect: 0
     - _ScreenGlow: 0
     - _Scroll: 0.9002
+    - _ScrollV: 0
     - _Sheen: 0
     - _Specular: 0
+    - _Twinkle: 0
     - _VertexColor: 0
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
