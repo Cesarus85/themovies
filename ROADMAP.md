@@ -51,11 +51,12 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🚧 in Arbeit · 🧪 umges
 | --- | --- | --- | --- | --- |
 | ✅ | 5a | Kinopalast | Kinosaal der 1920er/30er aus Blender (Codex): Goldportal, Samtvorhang, Logen, Rang, Kassettendecke, Kronleuchter, 152 Sessel in Reihen; Licht gebacken; freie Platzwahl; auf der Quest 3 bestätigt | groß |
 | ✅ | 5b | Heimkino (neu) | Wohnzimmer aus Blender: Bücherwände, Kamin, Chesterfield-Sofa, Perserteppich, Fensterblick mit CC0-Nachtpanorama in Tiefenebenen; auf der Quest 3 bestätigt | groß |
-| 🚧 | 5c | Dachterrasse über der Stadt | Open-Air-Kino zur blauen Stunde: Lounge-Sofas, Lichterketten, Pflanzen, Holzdeck, Rundum-Panorama (CC0-HDRI), Leinwand an einer Hauswand | mittel |
+| ✅ | 5c | Dachterrasse über der Stadt | Open-Air-Kino bei Nacht: Lounge-Sofas, Lichterketten, Olivenbäume, Holzdeck, Nachbardächer, Rundum-Panorama (CC0-HDRI, Stadt im Tal mit Bergen); auf der Quest 3 bestätigt | mittel |
 | 📋 | 5d | Autokino der 50er | Zwei Cabrios nebeneinander (je zwei Plätze = unsere Sitzreihe), Freiluftleinwand, Neon-Diner, Lautsprechersäulen, Sternenhimmel | mittel–groß |
-| 📋 | 5e | Weltraum-Lounge | Aussichtsdeck einer Raumstation: Panoramafenster auf Planet und Nebel, Lounge-Sessel, schwebende Leinwand | mittel |
-| 📋 | 5f | Salonwagen im Orient-Express | Holzintarsien, Messing, Samtsessel; Fenster mit Landschaft – „vorbeiziehend“ braucht Bewegung im Raum (siehe 5g) | groß |
-| 💡 | 5g | Bewegung in gebackenen Räumen | Dezente Shader-Effekte: ziehende Wolken, flackernde Lichterketten/Kaminfeuer, Funkeln, vorbeiziehende Landschaft | mittel |
+| ✅ | 5e | Weltraum-Lounge | Aussichtsdeck einer Raumstation: Panoramafenster auf die Erde (NASA Blue/Black Marble, eigener Planeten-Shader mit fester Sonne, Stadtlichter), Erde zieht langsam vorbei (Umlauf 92 min); auf der Quest 3 bestätigt | mittel |
+| 🚧 | 5f | Salonwagen im Orient-Express | Holzintarsien, Messing, Samtsessel; vorbeiziehende Abendlandschaft in zwei Ebenen (fern langsam, nah schnell) | groß |
+| 🚧 | 5h | Präsidentenjet | Konferenz-/Lounge-Kabine im Stil der „Air Force One“ (ohne offizielle Hoheitszeichen): Holz, Leder, Ledersessel; über den Wolken bei Sonnenuntergang, Wolkendecke zieht vorbei | groß |
+| 🧪 | 5g | Bewegung in gebackenen Räumen | Umgesetzt: drehende Objekte (`_rotate<s>`), vorbeiziehende Texturen (`scroll<N>`). Offen: flackernde Lichterketten/Kaminfeuer, Funkeln | mittel |
 | 🧪 | 6 | 180°/360°-Videos | Innen texturierte Kugel/Halbkugel statt Leinwand, Formate mono/SBS/OU, Erkennung über Dateiname (`_180`, `_360`, `LR`, `TB`) | mittel |
 | 🧪 | 7 | Handtracking | Pinch = Klick, Strahl aus der Hand. Offen: Finger-Gelenke an den Avataren (XR Hands) | mittel |
 | ✅ | – | Eigener Video-Player | ExoPlayer/Media3 über Java-Plugin, GL-Textur-Übergabe, FFmpeg-Ton, eingebettete Untertitel – auf der Quest bestätigt | groß |
