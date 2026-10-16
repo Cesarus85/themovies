@@ -421,13 +421,13 @@ ScreenTop; die bauliche Öffnung ist auf diese 3,40-m-Projektion ausgelegt.
 **Vorbeiziehende Kulisse:** Originaler in Blender gerenderter Multiple-Scattering-Abendhimmel,
 `Jet_Sky_Panorama_unlit_scroll2`, auf opaken seitlichen Bändern in 900 m
 Entfernung. Die separat in Cycles als Volumen gerenderte, opake Wolkendecke liegt
-45 m unter dem Kabinenboden: `Jet_Clouds_Panorama_unlit_scroll600`. Keine Alpha-
+45 m unter dem Kabinenboden: `Jet_Clouds_Panorama_unlit_scroll390`. Keine Alpha-
 Karten. UV-U steigt auf **beiden** Seiten mit Welt-Y: Ein positiver U-Texturversatz
 verschiebt Motive nach −Y, also zum Flugzeugheck. Beide Texturen sind horizontal
 nahtlos einschließlich des Nahtgradienten; die unterschiedlichen Geschwindigkeiten
 und geometrischen Entfernungen liefern Parallaxe. Die App übernimmt die Animation.
 
-**Bewegung nach Quest-3-Abnahme des Looks (16.10.2026):** Wolken nach erneutem Quest-Feedback auf etwa 2°/s reduziert,
+**Bewegung nach Quest-3-Abnahme des Looks (16.10.2026):** Wolken nach erneutem Quest-Feedback auf etwa 1,3°/s reduziert,
 Himmel unverändert. Keine zusätzliche Wolkenebene; die akzeptierte Gestaltung,
 alle Textur-Pixel und der Lichtatlas bleiben unverändert. Re-Export ohne neuen Bake.
 
@@ -443,19 +443,19 @@ nur Strahlen, die zuerst Wolken treffen, gehen ein. Die Tabelle zeigt Mediane.
 Die endliche Winkelspanne zwischen r±(0,L/2,0) ist zusätzlich aufgeführt; für die
 momentane Geschwindigkeit ist die lokale Winkelbreite maßgebend.
 
-| Sitz | Lokale Winkelbreite A | Endliche Texturspanne | Wolken bei scroll600 |
+| Sitz | Lokale Winkelbreite A | Endliche Texturspanne | Wolken bei scroll390 |
 | --- | ---: | ---: | ---: |
-| Seat1 / Seat4 | 36,233°/U | 36,030° | 2,174°/s |
-| Seat2 / Seat3 | 30,601°/U | 30,210° | 1,836°/s |
+| Seat1 / Seat4 | 36,233°/U | 36,030° | 1,413°/s |
+| Seat2 / Seat3 | 30,601°/U | 30,210° | 1,193°/s |
 
-Für ungefähr 2°/s ergeben sich N≈552–654; **scroll600** liegt dazwischen:
-0,06 U/s, eine Wiederholung in 16,667 s, Motive bewegen sich mit 30,667 m/s nach
-−Y. Der Prüfbereich für die Mediane von Seat1–4 beträgt **1,8–2,2°/s**.
-Die vorige Einstellung scroll1500 (4,59–5,43°/s) wurde auf Quest 3 als zu schnell
-beurteilt; scroll600 entspricht 40 % dieser Geschwindigkeit.
+Für ungefähr 1,3°/s ergeben sich N≈359–425; **scroll390** liegt dazwischen:
+0,039 U/s, eine Wiederholung in 25,641 s, Motive bewegen sich mit 19,933 m/s nach
+−Y. Der Prüfbereich für die Mediane von Seat1–4 beträgt **1,17–1,43°/s**.
+Die vorige Einstellung scroll600 (1,84–2,17°/s) wurde auf Quest 3 weiterhin als zu
+schnell beurteilt. **390 = 600 × 0,65**: scroll390 ist exakt **35 % langsamer**.
 Perspektivisch variieren einzelne Blickrichtungen: horizontnahe/schräge Strahlen
-sind langsamer, die näheren Sofaplätze erreichen im Median 3,59–4,34°/s,
-die Konferenzplätze 2,62–2,63°/s. Eine gemeinsam verschobene Fläche kann nicht
+sind langsamer, die näheren Sofaplätze erreichen im Median 2,33–2,82°/s,
+die Konferenzplätze 1,70–1,71°/s. Eine gemeinsam verschobene Fläche kann nicht
 an jedem Sitz und in jeder Blickrichtung dieselbe Winkelgeschwindigkeit haben.
 
 Der Himmel spannt 4.600 m mit drei U-Wiederholungen, also L=1.533,333 m.
@@ -465,7 +465,7 @@ Sofaplatz beträgt die lokale Winkelbreite höchstens
 **0,0196°/s**; schräg betrachtete Bereiche bewegen sich noch langsamer.
 
 Bewegungsfreundliche, weich gerenderte Wolkendetails unverändert: bei 72/90 Hz
-1,707/1,365 Quelltexel Versatz pro Bild. Nur 0,033 % / 0,021 % der horizontalen
+1,109/0,887 Quelltexel Versatz pro Bild. Nur 0,008 % / 0,000 % der horizontalen
 Kontrastenergie liegen oberhalb der zeitlichen Nyquist-Grenze, bereits vor
 Mipmapping. Der Prüfer kontrolliert diese Werte sowie identische Texturkanten
 und Nahtgradienten. Das ist ein technischer Indikator gegen Flimmern; die erneute

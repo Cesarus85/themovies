@@ -7,7 +7,7 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
-CLOUD_NAME='Jet_Clouds_Panorama_unlit_scroll600'
+CLOUD_NAME='Jet_Clouds_Panorama_unlit_scroll390'
 SKY_NAME='Jet_Sky_Panorama_unlit_scroll2'
 
 def stable_name(name):
@@ -109,11 +109,11 @@ def audit_motion(tree,owners,seats,cloud_velocity,sky_velocity,cloud_image):
                         point,normal,index,distance=tree.ray_cast(eye,direction,2990)
                         if point is None or 'Clouds' not in owners[index]:continue
                         r=point-eye;speed=math.degrees(r.cross(cloud_velocity).length/r.length_squared)
-                        rates.append(speed);local_width.append(speed/.06)
+                        rates.append(speed);local_width.append(speed/.039)
                         finite_width.append(math.degrees((r+Vector((0,L/2,0))).angle(r-Vector((0,L/2,0)))))
         assert rates,(i,'No visible clouds')
         percentiles=np.percentile(rates,[0,10,50,90,100]).tolist()
-        if i<4:assert 1.8<=percentiles[2]<=2.2,(i,'Standard-seat median outside 1.8–2.2 deg/s',percentiles)
+        if i<4:assert 1.17<=percentiles[2]<=1.43,(i,'Standard-seat median outside 1.17–1.43 deg/s',percentiles)
         rows.append({'spot':f'Spot_{i:03d}','visible_cloud_samples':len(rates),'angular_speed_deg_s_min_p10_p50_p90_max':percentiles,
                      'median_local_angular_texture_width_deg':float(np.median(local_width)),
                      'median_finite_full_repeat_angle_deg':float(np.median(finite_width))})
@@ -126,10 +126,10 @@ def audit_motion(tree,owners,seats,cloud_velocity,sky_velocity,cloud_image):
     power=(abs(np.fft.rfft(luminance-luminance.mean(axis=1,keepdims=True),axis=1))**2).sum(axis=0)
     frequencies=np.fft.rfftfreq(w);temporal={}
     for hz in [72,90]:
-        step=w*.06/hz;alias=float(power[frequencies>1/(2*step)].sum()/max(power.sum(),1e-20))
+        step=w*.039/hz;alias=float(power[frequencies>1/(2*step)].sum()/max(power.sum(),1e-20))
         assert alias<.01,('Excess fine texture energy for scroll speed',hz,alias)
         temporal[str(hz)]={'source_texels_per_frame':step,'maximum_sampled_motion_deg_per_frame':max(all_rates)/hz,
                            'horizontal_contrast_energy_above_temporal_nyquist_fraction':alias}
-    return {'cloud_scroll':600,'cloud_uv_per_second':.06,'cloud_repeat_world_m':L,'cloud_velocity_mps':list(cloud_velocity),
+    return {'cloud_scroll':390,'cloud_uv_per_second':.039,'cloud_repeat_world_m':L,'cloud_velocity_mps':list(cloud_velocity),
             'sky_scroll':2,'sky_uv_per_second':.0002,'sky_repeat_world_m':4600/3,'sky_max_deg_s':sky_max,
-            'seats':rows,'temporal_sampling':temporal,'note':'1.8–2.2 deg/s targets Seat1–4 medians. Closer sofas move faster; horizon/oblique rays slower. Runtime headset motion acceptance remains open.'}
+            'seats':rows,'temporal_sampling':temporal,'note':'1.17–1.43 deg/s targets Seat1–4 medians. Closer sofas move faster; horizon/oblique rays slower. Runtime headset motion acceptance remains open.'}
