@@ -387,3 +387,72 @@ Aktueller Weltraum-Export: **102.189 Dreiecke, zwölf Materialien/Material-Meshe
 Die Atlas-Packung trennt 23 hohle UV-Inseln in kompakte Sektoren. Reimport: 5.304 freie
 Leinwandstrahlen; garantierter Kopf-Freiraum ≥14,82 cm; Erde höchstens 2.850,34 m und Sterne
 2.504,14 m von den Sitzaugen entfernt. Die Rotationsgrenze gilt für sämtliche Drehphasen.
+
+## 12. Präsidentenjet – CustomJet
+
+**Gestaltung:** Eigenständige Präsidentenjet-Konferenz-/Lounge-Kabine, inspiriert vom
+Hauptdeck eines luxuriös ausgebauten Großraumflugzeugs. Keine offiziellen Siegel,
+Wappen, realen Staatsflaggen, Betreiberlogos oder „Air Force One“-Beschriftung.
+Walnussfarbenes Holz und buchgespiegeltes Furnier, cremefarbene Ledersessel, marineblaue Wandsofas, Messing,
+fein gemusterter Teppich, warme Lichtvouten, Leselampen und Wandleuchten. Hinten
+Konferenztisch, Hospitality-Sideboards und ein selbst entworfenes Kompassornament.
+
+**Maße:** 6 m Innenbreite, 12 m Länge (Y −6 bis +6), Boden Z=0. Gerundete
+Schultern/Stauraumvouten; Deckenmitte normalerweise Z=2,45 m. Ab Y=2,8 steigt die
+Mitte sanft auf Z=2,80 m an der vorderen Schottwand: Diese lokale Erhöhung löst die
+Maßkollision zwischen etwa 2,4 m Kabinenhöhe und 0,90+1,80=2,70 m ScreenTop.
+Schottwände an beiden Enden, 28 echte unverschlossene Fensteröffnungen mit
+0,28 × 0,40 m Außenöffnung und etwa 0,20 m tiefer, gerundeter Laibung. Kein Glas.
+
+**Sitze:** Seat1–4 unverändert bei X −1,125 / −0,375 / +0,375 / +1,125,
+Y=Z=0; identisch mit Spot_000–003. Vier einzelne Leder-Drehsessel nach +Y.
+Spot_004–007: zwei Sofaplätze je Seite, X=±2,35, Y=1,70 / 2,85, Z=0,
+nach innen orientiert. Spot_008–011: Konferenzsessel, X=±1,72,
+Y=−2,70 / −4,00, Z=0, zum Tisch orientiert. Jeder Marker steht unter dem
+sitzenden Kopf; die komplette 20-cm-Kopfhülle gemäß Abschnitt 2 bleibt frei und
+mit ihrer Bodenprojektion über dem Polster. Alle Plätze haben aus 1,25 m
+Augenhöhe freie Sicht auf das volle Leinwandraster.
+
+**Leinwand:** ScreenAnchor=(0; 5,48; 0,90), ScreenTop=(0; 5,48; 2,70).
+Freie Projektionsfläche 3,40 × 1,80 m; Messingrahmen und dunkel zurückgesetzte
+Schottwand, keine modellierte Leinwandfläche. Die App begrenzt die Höhe über
+ScreenTop; die bauliche Öffnung ist auf diese 3,40-m-Projektion ausgelegt.
+
+**Vorbeiziehende Kulisse:** Originaler in Blender gerenderter Multiple-Scattering-Abendhimmel,
+`Jet_Sky_Panorama_unlit_scroll2`, auf opaken seitlichen Bändern in 900 m
+Entfernung. Die separat in Cycles als Volumen gerenderte, opake Wolkendecke liegt
+45 m unter dem Kabinenboden: `Jet_Clouds_Panorama_unlit_scroll25`. Keine Alpha-
+Karten. UV-U steigt auf **beiden** Seiten mit Welt-Y: Ein positiver U-Texturversatz
+verschiebt Motive nach −Y, also zum Flugzeugheck. Beide Texturen sind horizontal
+nahtlos einschließlich des Nahtgradienten; die unterschiedlichen Geschwindigkeiten
+und geometrischen Entfernungen liefern Parallaxe. Die App übernimmt die Animation.
+
+**Pipeline/Budget:** ≤120.000 Dreiecke, ≤14 Materialien/Material-Meshes.
+1024² Basisfarben, `Jet_Light.png` 2048²; Himmel 4096×2048,
+Wolken-Panorama 2048×1024. RGB8, keine Normal Maps oder Transparenz.
+UVMap plus globale, überschneidungsfreie Lightmap mit ≥4 px Inselabstand.
+Cycles Diffuse Direct+Indirect ohne Color, 256 Samples, Denoise, 8 px Bake-Rand,
+Standard/None/−1 EV. Warme Kabinenbeleuchtung und Sonnenlicht durch die Fenster
+werden gebacken. Vorschauen zeigen Basisfarbe × gespeicherten Atlas ×2;
+Filmlicht 4 %, Glow ebenfalls dimmbar, Unlit-Kulissen unverändert.
+
+Build: `/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/blender/jet.py -- Assets/TheMovies/Art/Jet`.
+Prüfung: gleicher Aufruf mit `-P tools/blender/verify_jet.py`.
+`--geometry-only` liefert einen ignorierten Geometrie-Checkpoint;
+`--preview-only` rendert aus dem Bake-Checkpoint. Scenery-PNGs werden für erneute
+Bakes wiederverwendet; zum vollständigen Neurendern nur die beiden Jet-Panorama-PNGs löschen.
+Lieferung: `Assets/TheMovies/Art/Jet/Jet.fbx` mit `Textures/`, für das von der
+App-Seite erzeugte Prefab `CustomJet`. Checkpoints unter ignoriertem `art/blender/`;
+Vorschauen `Logs/art-preview/jet-*.png`, Prüfprotokolle und `JET-REPORT.md` ignoriert.
+Geometrie und Kulissen sind Originalarbeit. Einzige Fremdquelle: CC0 `dark_wood`
+von Poly Haven, auf 1024² verkleinert und warm getönt; Rohquelle nur unter
+`art/sources/`, Prüfsumme in `art/jet-sources.json`, Herkunft in `docs/CREDITS.md`. Keine Änderungen an den vier akzeptierten Räumen, App-Code,
+Unity-Konfiguration oder Packages. Commit auf dem aktuellen Branch, kein Push.
+
+Aktueller Jet-Export: **45.886 Dreiecke, 13 Materialien/Material-Meshes, zwölf Plätze**.
+FBX-Reimport: 7.956 freie Leinwandstrahlen, kontinuierlich garantierter Kopf-Freiraum
+mindestens 17,79 cm. Himmel und Wolken sind von jedem Platz sichtbar; alle Kulissen-
+Vertices bleiben höchstens 2.932,27 m von den Sitzaugen entfernt. Horizontale
+Textur- und Gradientennähte sind identisch, beide Seiten bewegen sich zum Heck.
+Die endgültige Gestaltung sowie Stereo- und Scrollwirkung bleiben der menschlichen
+Abnahme in der App vorbehalten; Unity wurde für diese Art-Lieferung nicht gestartet.

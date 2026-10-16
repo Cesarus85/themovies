@@ -79,3 +79,33 @@ no NASA logo or endorsement is implied.
 under ignored `art/sources/`; only prepared RGB8 PNGs and Space.fbx are distributed. Mesh
 primitives, UV checks and baking structure were adapted from this repository's accepted pipeline;
 the accepted Cinema, Home and Rooftop scripts and assets remain unchanged.
+
+## Presidential jet / Präsidentenjet
+
+| Asset | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| Jet: dark_wood | Dario Barresi (baking), Dimitrios Savva (photography), Rico Cilliers (tiling) | [Poly Haven asset](https://polyhaven.com/a/dark_wood); [license](https://polyhaven.com/license) | CC0-1.0, checked 2026-10-16 | Only 2K diffuse downloaded; reduced to 1024², luminance normalized and tinted walnut. A warmer, mirrored/bookmatched derivative finishes the table and sideboard panels. No other source maps used. |
+
+All Jet architecture, rounded open window reveals, executive swivel chairs, sofas,
+conference furniture, ceramic coffee service, lights and compass ornament are original
+procedural geometry in `tools/blender/jet.py` and `lib_jet_room.py`. Leather and the
+woven geometric carpet are original deterministic surface artwork in `lib_jet_textures.py`.
+The compass ornament is invented; no official seal, coat of arms, state flag,
+airline/air-force logo or branded aircraft lettering is reproduced.
+
+The sunset sky is rendered in Blender using its Multiple Scattering sky model. The
+separate opaque cloud-deck panorama is rendered from original periodic procedural
+Cycles volume noise, then graded with warm highlights and cooler shadow tones. The
+build includes the full render setup and grading. Horizontal edge and gradient
+continuity are maintained for scrolling. No downloaded HDRI, external models,
+marketplace files or AI-generated images are used.
+
+`art/jet-sources.json` pins the single CC0 diffuse input and its MD5 checksum. The
+builder restricts the source download to `dl.polyhaven.org`, cached under ignored
+`art/sources/`. Only prepared RGB8 PNGs and `Jet.fbx` are distributed.
+
+Mesh primitives, UV auditing and bake/preview structure are adapted from this
+repository's accepted room pipeline into `lib_jet_*.py`; those accepted scripts and
+assets are unchanged. The common seated-head audit is reused read-only.
+Offline volume geometry, Blender checkpoints, intermediate renders and review logs
+remain git-ignored. No normal maps, alpha/transparency or glass are included.
