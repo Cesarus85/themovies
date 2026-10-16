@@ -54,8 +54,8 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🚧 in Arbeit · 🧪 umges
 | ✅ | 5c | Dachterrasse über der Stadt | Open-Air-Kino bei Nacht: Lounge-Sofas, Lichterketten, Olivenbäume, Holzdeck, Nachbardächer, Rundum-Panorama (CC0-HDRI, Stadt im Tal mit Bergen); auf der Quest 3 bestätigt | mittel |
 | 📋 | 5d | Autokino der 50er | Zwei Cabrios nebeneinander (je zwei Plätze = unsere Sitzreihe), Freiluftleinwand, Neon-Diner, Lautsprechersäulen, Sternenhimmel | mittel–groß |
 | ✅ | 5e | Weltraum-Lounge | Aussichtsdeck einer Raumstation: Panoramafenster auf die Erde (NASA Blue/Black Marble, eigener Planeten-Shader mit fester Sonne, Stadtlichter), Erde zieht langsam vorbei (Umlauf 92 min); auf der Quest 3 bestätigt | mittel |
-| 🚧 | 5f | Salonwagen im Orient-Express | Holzintarsien, Messing, Samtsessel; vorbeiziehende Abendlandschaft in zwei Ebenen (fern langsam, nah schnell) | groß |
-| 🚧 | 5h | Präsidentenjet | Konferenz-/Lounge-Kabine im Stil der „Air Force One“ (ohne offizielle Hoheitszeichen): Holz, Leder, Ledersessel; über den Wolken bei Sonnenuntergang, Wolkendecke zieht vorbei | groß |
+| ✅ | 5f | Salonwagen im Orient-Express | Holzintarsien, Messing, Samtsessel; vorbeiziehende Nachtlandschaft in drei Ebenen, auf ~70 km/h kalibriert; auf der Quest 3 bestätigt | groß |
+| ✅ | 5h | Präsidentenjet | Konferenz-/Lounge-Kabine im Stil der „Air Force One“ (ohne offizielle Hoheitszeichen): Holz, Leder, Ledersessel; über den Wolken bei Sonnenuntergang, Wolkendecke zieht mit ~1,3 °/s; auf der Quest 3 bestätigt | groß |
 | 🧪 | 5g | Bewegung in gebackenen Räumen | Umgesetzt: drehende Objekte (`_rotate<s>`), vorbeiziehende Texturen (`scroll<N>`). Offen: flackernde Lichterketten/Kaminfeuer, Funkeln | mittel |
 | 🧪 | 6 | 180°/360°-Videos | Innen texturierte Kugel/Halbkugel statt Leinwand, Formate mono/SBS/OU, Erkennung über Dateiname (`_180`, `_360`, `LR`, `TB`) | mittel |
 | 🧪 | 7 | Handtracking | Pinch = Klick, Strahl aus der Hand. Offen: Finger-Gelenke an den Avataren (XR Hands) | mittel |
