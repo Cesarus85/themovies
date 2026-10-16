@@ -421,13 +421,13 @@ ScreenTop; die bauliche Öffnung ist auf diese 3,40-m-Projektion ausgelegt.
 **Vorbeiziehende Kulisse:** Originaler in Blender gerenderter Multiple-Scattering-Abendhimmel,
 `Jet_Sky_Panorama_unlit_scroll2`, auf opaken seitlichen Bändern in 900 m
 Entfernung. Die separat in Cycles als Volumen gerenderte, opake Wolkendecke liegt
-45 m unter dem Kabinenboden: `Jet_Clouds_Panorama_unlit_scroll1500`. Keine Alpha-
+45 m unter dem Kabinenboden: `Jet_Clouds_Panorama_unlit_scroll600`. Keine Alpha-
 Karten. UV-U steigt auf **beiden** Seiten mit Welt-Y: Ein positiver U-Texturversatz
 verschiebt Motive nach −Y, also zum Flugzeugheck. Beide Texturen sind horizontal
 nahtlos einschließlich des Nahtgradienten; die unterschiedlichen Geschwindigkeiten
 und geometrischen Entfernungen liefern Parallaxe. Die App übernimmt die Animation.
 
-**Bewegung nach Quest-3-Abnahme des Looks (16.10.2026):** Wolken deutlich schneller,
+**Bewegung nach Quest-3-Abnahme des Looks (16.10.2026):** Wolken nach erneutem Quest-Feedback auf etwa 2°/s reduziert,
 Himmel unverändert. Keine zusätzliche Wolkenebene; die akzeptierte Gestaltung,
 alle Textur-Pixel und der Lichtatlas bleiben unverändert. Re-Export ohne neuen Bake.
 
@@ -443,17 +443,19 @@ nur Strahlen, die zuerst Wolken treffen, gehen ein. Die Tabelle zeigt Mediane.
 Die endliche Winkelspanne zwischen r±(0,L/2,0) ist zusätzlich aufgeführt; für die
 momentane Geschwindigkeit ist die lokale Winkelbreite maßgebend.
 
-| Sitz | Lokale Winkelbreite A | Endliche Texturspanne | Wolken bei scroll1500 |
+| Sitz | Lokale Winkelbreite A | Endliche Texturspanne | Wolken bei scroll600 |
 | --- | ---: | ---: | ---: |
-| Seat1 / Seat4 | 36,233°/U | 36,030° | 5,435°/s |
-| Seat2 / Seat3 | 30,601°/U | 30,210° | 4,590°/s |
+| Seat1 / Seat4 | 36,233°/U | 36,030° | 2,174°/s |
+| Seat2 / Seat3 | 30,601°/U | 30,210° | 1,836°/s |
 
-Für ungefähr 5°/s ergeben sich N≈1.380–1.634; **scroll1500** liegt dazwischen:
-0,15 U/s, eine Wiederholung in 6,667 s, Motive bewegen sich mit 76,667 m/s nach
-−Y. Zuvor ergab scroll25 nur 0,077–0,091°/s an der Standardreihe.
+Für ungefähr 2°/s ergeben sich N≈552–654; **scroll600** liegt dazwischen:
+0,06 U/s, eine Wiederholung in 16,667 s, Motive bewegen sich mit 30,667 m/s nach
+−Y. Der Prüfbereich für die Mediane von Seat1–4 beträgt **1,8–2,2°/s**.
+Die vorige Einstellung scroll1500 (4,59–5,43°/s) wurde auf Quest 3 als zu schnell
+beurteilt; scroll600 entspricht 40 % dieser Geschwindigkeit.
 Perspektivisch variieren einzelne Blickrichtungen: horizontnahe/schräge Strahlen
-sind langsamer, die näheren Sofaplätze erreichen im Median 8,98–10,85°/s,
-die Konferenzplätze 6,54–6,59°/s. Eine gemeinsam verschobene Fläche kann nicht
+sind langsamer, die näheren Sofaplätze erreichen im Median 3,59–4,34°/s,
+die Konferenzplätze 2,62–2,63°/s. Eine gemeinsam verschobene Fläche kann nicht
 an jedem Sitz und in jeder Blickrichtung dieselbe Winkelgeschwindigkeit haben.
 
 Der Himmel spannt 4.600 m mit drei U-Wiederholungen, also L=1.533,333 m.
@@ -463,11 +465,11 @@ Sofaplatz beträgt die lokale Winkelbreite höchstens
 **0,0196°/s**; schräg betrachtete Bereiche bewegen sich noch langsamer.
 
 Bewegungsfreundliche, weich gerenderte Wolkendetails unverändert: bei 72/90 Hz
-4,267/3,413 Quelltexel Versatz pro Bild. Nur 0,075 % / 0,062 % der horizontalen
+1,707/1,365 Quelltexel Versatz pro Bild. Nur 0,033 % / 0,021 % der horizontalen
 Kontrastenergie liegen oberhalb der zeitlichen Nyquist-Grenze, bereits vor
 Mipmapping. Der Prüfer kontrolliert diese Werte sowie identische Texturkanten
 und Nahtgradienten. Das ist ein technischer Indikator gegen Flimmern; die erneute
-Quest-Abnahme der schnelleren Bewegung bleibt ein separater Sichttest.
+Quest-Abnahme der reduzierten Bewegung bleibt ein separater Sichttest.
 Messdaten aller zwölf Sitze: `Logs/art-preview/jet-motion-verification.json`.
 
 **Pipeline/Budget:** ≤120.000 Dreiecke, ≤14 Materialien/Material-Meshes.
@@ -501,6 +503,6 @@ FBX-Reimport: 7.956 freie Leinwandstrahlen, kontinuierlich garantierter Kopf-Fre
 mindestens 17,79 cm. Himmel und Wolken sind von jedem Platz sichtbar; alle Kulissen-
 Vertices bleiben höchstens 2.932,27 m von den Sitzaugen entfernt. Horizontale
 Textur- und Gradientennähte sind identisch, beide Seiten bewegen sich zum Heck.
-Der Nutzer hat den Look auf Quest 3 abgenommen („bombastisch“). Die schnellere
+Der Nutzer hat den Look auf Quest 3 abgenommen („bombastisch“). Die reduzierte
 Scrollwirkung muss erneut im Headset beurteilt werden; Unity wurde für diese
 Art-Lieferung nicht gestartet.
