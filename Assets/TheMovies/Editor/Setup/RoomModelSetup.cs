@@ -189,7 +189,10 @@ namespace TheMovies.EditorTools
 
                 Directory.CreateDirectory(k_ResourcesFolder);
                 if (problems.Count == 0)
+                {
                     PrefabUtility.SaveAsPrefabAsset(instance, PrefabPath(kind));
+                    RemoveUnusedMaterials(folder + "/Materials", materials.Values);
+                }
 
                 log.Append(kind.Title).Append(": ").Append(problems.Count == 0 ? "fertig → " + PrefabPath(kind) : "NICHT übernommen").Append('\n');
                 log.Append($"{triangles:N0} Dreiecke, {meshes.Count} Meshes, {materials.Count} Materialien, {textures.Count} Texturen, " +
@@ -202,6 +205,20 @@ namespace TheMovies.EditorTools
             {
                 Object.DestroyImmediate(instance);
                 AssetDatabase.SaveAssets();
+            }
+        }
+
+        /// <summary>Materials of renamed Blender materials (e.g. a changed "scroll" speed) would stay behind otherwise.</summary>
+        static void RemoveUnusedMaterials(string materialFolder, IEnumerable<Material> used)
+        {
+            if (!Directory.Exists(materialFolder)) return;
+            var keep = new HashSet<string>(used.Select(AssetDatabase.GetAssetPath));
+            foreach (string file in Directory.GetFiles(materialFolder, "*.mat"))
+            {
+                string path = file.Replace('\\', '/');
+                if (keep.Contains(path)) continue;
+                AssetDatabase.DeleteAsset(path);
+                Debug.Log("[TheMovies] Removed unused material " + path);
             }
         }
 

@@ -38,6 +38,7 @@ Material:
     - _LightScale: 2
     - _RoomLightAffect: 1
     - _ScreenGlow: 0
+    - _Scroll: 0
     - _Sheen: 0
     - _Specular: 0
     - _VertexColor: 0
