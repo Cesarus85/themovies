@@ -58,3 +58,24 @@ accepted Home pipeline; the accepted Home and Cinema files remain unchanged.
 `art/rooftop-sources.json` pins the downloaded Poly Haven EXR by MD5. Raw files and API metadata
 remain under git-ignored `art/sources/`. Only the prepared RGB PNGs and exported FBX are distributed.
 No normal maps, opacity maps or restricted marketplace assets are included.
+
+## Space lounge / Weltraum-Lounge
+
+| Asset | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| The Blue Marble: Land Surface, Ocean Color and Sea Ice (2002) | NASA Goddard Space Flight Center; Reto Stöckli (land/shallow water); Robert Simmon (ocean color/compositing); MODIS teams; USGS/NOAA supporting data | [NASA Visible Earth](https://visibleearth.nasa.gov/images/57730/the-blue-marble-land-surface-ocean-color-and-sea-ice); [original 8192×4096 PNG](https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_8192.png); [NASA background and credits](https://science.nasa.gov/earth/earth-observatory/the-blue-marble-2181/) | NASA public domain; [NASA media usage guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) | Reduced to 4096×2048; combined with the NASA cloud composite below into Earth_Planet_BaseColor.png. No directional light, terminator, or atmosphere baked into albedo. |
+| Blue Marble: Clouds (2002) | NASA Goddard Space Flight Center; Reto Stöckli; MODIS Atmosphere Group | [NASA Visible Earth](https://visibleearth.nasa.gov/images/57747/blue-marble-clouds); [original 8192×4096 TIFF](https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57747/cloud_combined_8192.tif) | NASA public domain | Reduced to 4096×2048 and composited over the day map; full longitude/latitude extent preserved. |
+| Night Lights 2012 Map / Black Marble | NASA Earth Observatory image by Robert Simmon, using Suomi NPP VIIRS data courtesy of Chris Elvidge, NOAA National Geophysical Data Center; Suomi NPP is a NASA/NOAA/Department of Defense partnership | [NASA Earth Observatory](https://science.nasa.gov/earth/earth-observatory/night-lights-2012-map-79765/); [original 13500×6750 JPEG](https://eoimages.gsfc.nasa.gov/images/imagerecords/79000/79765/dnb_land_ocean_ice.2012.13500x6750.jpg) | NASA public domain | Reduced to 4096×2048; blue presentation basemap suppressed and light values warmed for Earth_Planet_Night.png. Geographic light distribution preserved. |
+
+All lounge architecture, furniture, plants, instrument artwork, wood/leather/fabric textures and
+starfield are original deterministic procedural work in `tools/blender/space.py` and `lib_space_*.py`.
+The star panorama contains small discrete stellar cores, without a borrowed nebula or Milky Way image.
+No ESA/Hubble, marketplace, AI-generated, normal-map, or transparent-glass assets are used.
+The NASA images are scientific composites from different dates, used as decorative Earth maps;
+they are not a live or contemporaneous Earth observation. NASA names identify the sources only;
+no NASA logo or endorsement is implied.
+
+`art/space-sources.json` pins all three downloaded NASA inputs by SHA-256. Raw images remain
+under ignored `art/sources/`; only prepared RGB8 PNGs and Space.fbx are distributed. Mesh
+primitives, UV checks and baking structure were adapted from this repository's accepted pipeline;
+the accepted Cinema, Home and Rooftop scripts and assets remain unchanged.

@@ -304,3 +304,73 @@ App-Code oder Unity-Konfiguration. Rohquellen ausschließlich CC0 von Poly Haven
 
 Aktueller Dachterrassen-Export: **95.056 Dreiecke, 14 Materialien/Material-Meshes, zehn Plätze**.
 Die Oliventöpfe enthalten abgeschirmte warme Uplights; die Blätter sind räumliche Low-Poly-Meshes.
+
+## 11. Weltraum-Lounge – vierter Raum
+
+**Gestaltung:** „Orbit / 04“, eine elegante Aussichts-Lounge einer Orbitalstation. Gerundetes,
+16 m breites Deck, Rückwand bei Y=−5 m, vorderer Fensterrand bei Y=11 m, Decke bei
+Z=6,25 m. Porzellanweiße und graphitfarbene Verkleidung, Walnuss, cognacfarbenes Leder,
+gewebter Teppich, Champagner-Metall, warme indirekte Lichtvouten und kühles blaues Erdlicht.
+Das durchgehende Front-/Seitenfenster ist eine geometrische Öffnung **ohne Glasscheibe**.
+Instrumente, eine kleine Hospitality-Konsole und opak modellierte Pflanzen ergänzen den Raum.
+
+**Plätze und Leinwand:** Vier einzelne Lounge-Sessel an den unveränderten Standardkoordinaten;
+Seat1–4 entsprechen Spot_000–003. Vier weitere Sessel: X=−4,1 / −3,2 / +3,2 / +4,1,
+Y=−0,6, Z=0 (Spot_004–007). Alle blicken nach +Y; alle Marker liegen unter den sitzenden
+Köpfen und über Polstern. Die vollständige Kopfhülle aus Abschnitt 2 gilt unverändert.
+ScreenAnchor=(0; 8,3; 1,35), ScreenTop=(0; 8,3; 5,35). Der schlanke abgehängte Rahmen
+lässt 9,5 × 4 m vollständig frei. Keine Leinwandfläche im Export. Die Erde bleibt seitlich
+und unterhalb der maximalen Projektion sichtbar; die App kann auf 3,5 m Bildbreite verkleinern.
+
+**Neue Konvention: planet / Planet.** Die Erde ist eine eigenständige Kugel, keine Fototapete.
+Material **Earth_Planet**, Tagkarte `Earth_Planet_BaseColor.png`, Nachtkarte
+`Earth_Planet_Night.png`, jeweils equirektangular 4096×2048, RGB8. „planet“ wählt den
+App-Planetshader (feste Sonne, Tag/Nacht, Nachtlichter, blauer Atmosphärenrand); das große P in
+„Planet“ erhält zugleich den 4096er-Texturimport. NASA Blue Marble plus NASA-Wolkenkarte bilden
+die unbeleuchtete Tagesbasis; NASA Black Marble liefert die Nachtlichter. **Kein Licht auf
+Erde backen**, keine Terminatorlinie in den Texturen. Rohquellen, Verarbeitung und Prüfsummen
+stehen in `art/space-sources.json` und `docs/CREDITS.md`.
+
+Die Erde hat **1.350 m Radius**, Zentrum (280; 1000; −1080), etwa 148 m Abstand der
+Standardplätze zur Oberfläche. Dies konkretisiert „≈1.500 m“ unter der strengeren
+Sichtweitenbedingung: Eine vollständige 1.500-m-Kugel von einem Standpunkt außerhalb der Kugel
+könnte nicht vollständig innerhalb von 2.900 m liegen. Die kleinere Kugel behält den Blick
+wie aus niedrigem Orbit; alle Erdvertices bleiben einschließlich aller Drehphasen unter
+2.900 m von jedem Sitz. Der Sternendom hat 2.500 m Radius um (0; 0; 1,25), nach innen
+weisende Flächen und Material **Space_Panorama_unlit**. Originales prozedurales 4096×2048-
+Equirektangular-Panorama mit scharfen 1–2-Pixel-Sternkernen, ohne Weichzeichner und ohne Sonnenscheibe.
+
+**Neue Konvention: Sun.** Das Empty **Sun** bei (−900; 160; −80) beschreibt mit seinem
+Positionsvektor vom Raumursprung die Richtung zur Sonne. Es ist keine exportierte Lampe.
+Die Tag-Nacht-Grenze soll im Fenster sichtbar sein.
+
+**Neue Konvention: _rotate<seconds>.** Empty **Earth_rotate5520** am Erdzentrum, die Erdkugel
+als Kind. Die App dreht um die lokale Hochachse (Blender Z / Unity Y), 5.520 Sekunden je
+Umdrehung, entsprechend 92 Minuten. Die geneigte Achse (Blender XYZ: −10,465° / 16,7312° / 101,263°)
+vermittelt einen Überflug. Translation und Parent-Hierarchie müssen im FBX erhalten bleiben;
+die Stars sind kein Kind des Rotators.
+
+**Budget und Pipeline:** ≤120.000 Dreiecke, ≤14 Materialien, statische Raumflächen nach
+Material zusammengefasst; Erde und Sternendom bleiben eigene Meshes. Basisfarben ≤2048²,
+Lichtatlas `Space_Light.png` 2048²; ausschließlich Erde und Panorama erhalten 4096×2048.
+Alle Meshes haben UVMap und globale, überlappungsfreie Lightmap-UVs mit ≥4 px Inselabstand.
+Erde und Sterne belegen reservierte UV2-Streifen, verwenden aber keinen Lichtatlas.
+Cycles Diffuse Direct+Indirect ohne Color, 256 Samples, Denoising, 8 px Bake-Margin,
+Standard/None, −1 EV, RGB8. Die diffusen Innenraumflächen der Vorschauen verwenden Basisfarbe × Atlas ×2;
+Glow-Flächen zeigen ihre Eigenemission. Beide werden bei Filmlicht auf ×0,04 gedimmt.
+Erde/Sterne bleiben ungedimmt. Der Vorschau-Planetshader mischt
+Tag-/Nachtkarte nach Sun, zeigt Stadtlichter und einen blauen Rand. Er dient zur Beurteilung;
+die endgültige Darstellung und Bewegung erfolgen durch die App-Shader.
+
+Build: `/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/blender/space.py -- Assets/TheMovies/Art/Space`.
+Prüfung: gleicher Blender-Aufruf mit `-P tools/blender/verify_space.py`.
+Lieferung: `Assets/TheMovies/Art/Space/Space.fbx`, `Textures/`, reproduzierbare `space.py` /
+`lib_space_*.py`, `verify_space.py`. Checkpoints nur in `art/blender/`, Quellen nur in
+`art/sources/`; beide ignoriert. Vorschauen `Logs/art-preview/space-*.png`, Prüfprotokoll
+und `SPACE-REPORT.md` ebenfalls ignoriert. Keine Änderungen an den drei akzeptierten Räumen,
+App-Code oder Unity-Konfiguration. Commit auf `art/movie-palace`, kein Push.
+
+Aktueller Weltraum-Export: **102.189 Dreiecke, zwölf Materialien/Material-Meshes, acht Plätze**.
+Die Atlas-Packung trennt 23 hohle UV-Inseln in kompakte Sektoren. Reimport: 5.304 freie
+Leinwandstrahlen; garantierter Kopf-Freiraum ≥14,82 cm; Erde höchstens 2.850,34 m und Sterne
+2.504,14 m von den Sitzaugen entfernt. Die Rotationsgrenze gilt für sämtliche Drehphasen.
