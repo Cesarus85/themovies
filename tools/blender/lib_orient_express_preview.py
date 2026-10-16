@@ -6,7 +6,7 @@ from mathutils import Vector
 def aim(o,target):o.rotation_euler=(Vector(target)-o.location).to_track_quat('-Z','Y').to_euler()
 
 
-def preview(root,tex,configure_cycles,quick=False):
+def preview(root,tex,configure_cycles,quick=False,setup_only=False):
     scene=bpy.context.scene;dest=root/'Logs/art-preview'
     atlas=bpy.data.images.load(str(tex/'OrientExpress_Light.png'),check_existing=True);dimmers=[]
     for m in bpy.data.materials:
@@ -27,6 +27,7 @@ def preview(root,tex,configure_cycles,quick=False):
     scene.render.resolution_x=1200 if quick else 1800;scene.render.resolution_y=800 if quick else 1200;scene.render.resolution_percentage=100
     scene.render.image_settings.file_format='PNG';scene.render.image_settings.color_mode='RGB';scene.render.image_settings.color_depth='8'
     data=bpy.data.cameras.new('OrientExpress preview');cam=bpy.data.objects.new('OrientExpress preview',data);scene.collection.objects.link(cam);scene.camera=cam
+    if setup_only:return cam,dimmers
     views=[('orient-express-seat2-on',(-.375,0,1.25),(0,6.65,1.55),18,1),
            ('orient-express-seat2-04pct',(-.375,0,1.25),(0,6.65,1.55),18,.04),
            ('orient-express-window-left',(.3,1.2,1.25),(-5,2.1,1.3),23,1),

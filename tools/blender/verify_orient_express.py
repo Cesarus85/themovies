@@ -8,6 +8,7 @@ import json
 import math
 import hashlib
 import struct
+import re
 from pathlib import Path
 import bpy
 import numpy as np
@@ -125,7 +126,12 @@ for y in [-7,-4,-1,1,4,6]:
 scroll=[]
 for o in objects:
     if 'scroll' not in o.name:continue
-    n=4 if 'Far' in o.name else 90;distance=60 if n==4 else 5;repeat=180 if n==4 else 24
+    n=int(re.search(r'scroll(\d+)',o.name).group(1))
+    expected_motion={'Far':(6,60.,(70/3.6)/10000*60/.0006,10000.),'Middle':(175,18.,80.,250.),'Near':(9002,5.,24.,4.5)}
+    key=next(k for k in expected_motion if f'_{k}_' in o.name)
+    expected_n,distance,repeat,depicted=expected_motion[key];assert n==expected_n
+    theta=repeat/distance;ideal_u=(70/3.6)/depicted/theta
+    assert abs(n/10000-ideal_u)/ideal_u<.0001,(key,'angular rate')
     me=o.data;uv=me.uv_layers['UVMap']
     sides=set()
     for p in me.polygons:
@@ -141,15 +147,51 @@ for o in objects:
     seam=float(abs(pixels[:,0,:3]-pixels[:,-1,:3]).max());assert seam<=1/255+1e-6,(o.name,'wrap seam',seam)
     # Positive shader sampling offset makes a fixed texel move by -speed/slope.
     velocity=-(n/10000)/slope;assert velocity<0
-    scroll.append({'material':o.name,'N':n,'distance_from_center_m':distance,'repeat_m':repeat,'world_feature_velocity_y_m_s':velocity,'both_sides_rearward':True,'max_wrap_channel_error':seam})
-assert len(scroll)==2
+    # Every actual seat has the correct translated broadside speed; no row-Y bias.
+    seat_speeds=[]
+    for seat in seats:
+        for side in [-1,1]:
+            carrier_distance=abs(side*distance-seat[0])
+            omega=abs(velocity)/carrier_distance
+            effective_depicted=depicted*carrier_distance/distance
+            assert abs(omega-(70/3.6)/effective_depicted)/omega<.0001
+            seat_speeds.append({'seat':list(seat),'side':side,'depicted_m':effective_depicted,'angular_rad_s':omega})
+    scroll.append({'depicted_distance_m':depicted,'local_angular_width_rad_per_repeat':theta,'endpoint_angle_rad':2*math.atan(repeat/2/distance),'u_per_second':n/10000,'ideal_u_per_second':ideal_u,'broadside_angular_rad_s':n/10000*theta,'seat_speeds':seat_speeds,'material':o.name,'N':n,'distance_from_center_m':distance,'repeat_m':repeat,'world_feature_velocity_y_m_s':velocity,'both_sides_rearward':True,'max_wrap_channel_error':seam})
+assert len(scroll)==3
 assert (count>0).mean()>.10
-result={'validation':'PASS','fbx_reimport':'PASS','fbx_sha256':hashlib.sha256((OUT/'OrientExpress.fbx').read_bytes()).hexdigest(),'triangles':stats,'total_triangles':sum(stats.values()),'materials':len(materials),'mesh_objects':len(objects),'markers':expected,'head_clearance':heads,'sightlines':{'eye_height_m':1.25,'screen_m':[2.6,1.5],'grid':[39,17],'clear_rays':screen_rays,'blocked':0},'uv_overlaps':0,'uv_padding':padding,'atlas':atlas_stats,'scroll':scroll,'visible_black_bake_fraction':black,'visible_bake_samples':len(sample_colors),'exterior_ray_misses':misses,'textures':texture_info}
+# Read-only comparison with the approved FBX captured before the scenery edit.
+baseline=LOG/'orient-express-before-motion.fbx'
+preservation={'checked':False}
+if baseline.exists():
+    def snapshot(objs):
+        result={}
+        for o in objs:
+            if o.type=='EMPTY':result[o.name]=[np.array(o.matrix_world)]
+            elif o.type=='MESH' and 'unlit_scroll' not in o.name:
+                me=o.data
+                result[o.name]=[np.array([tuple(o.matrix_world@v.co) for v in me.vertices]),
+                    np.array([tuple(p.vertices) for p in me.polygons]),
+                    np.array([tuple(o.matrix_world.to_3x3()@n.vector) for n in me.corner_normals]),
+                    *[np.array([tuple(d.uv) for d in uv.data]) for uv in me.uv_layers]]
+        return result
+    current=snapshot(scene.objects)
+    # Import into the same scene; Blender suffixes names, so compare imported
+    # objects via their original material names / strip the generated suffix.
+    before=set(scene.objects);bpy.ops.import_scene.fbx(filepath=str(baseline));imported=[o for o in scene.objects if o not in before]
+    old=snapshot(imported);old={re.sub(r'\.\d{3}$','',k):v for k,v in old.items()}
+    assert set(old)==set(current),(set(old)^set(current))
+    for name,arrays in old.items():
+        for a,b in zip(arrays,current[name]):assert a.shape==b.shape and np.allclose(a,b,rtol=0,atol=1e-6),(name,'approved interior/normal/UV/marker changed')
+    for o in imported:bpy.data.objects.remove(o,do_unlink=True)
+    recorded=json.loads((LOG/'orient-express-preserved-textures.json').read_text())
+    assert all(hashlib.sha256((OUT/'Textures'/name).read_bytes()).hexdigest()==sha for name,sha in recorded.items())
+    preservation={'checked':True,'pass':True,'baseline_fbx_sha256':hashlib.sha256(baseline.read_bytes()).hexdigest(),'interior_objects_and_markers':len(current),'unchanged_textures':recorded}
+result={'validation':'PASS','fbx_reimport':'PASS','fbx_sha256':hashlib.sha256((OUT/'OrientExpress.fbx').read_bytes()).hexdigest(),'triangles':stats,'total_triangles':sum(stats.values()),'materials':len(materials),'mesh_objects':len(objects),'markers':expected,'head_clearance':heads,'sightlines':{'eye_height_m':1.25,'screen_m':[2.6,1.5],'grid':[39,17],'clear_rays':screen_rays,'blocked':0},'uv_overlaps':0,'uv_padding':padding,'atlas':atlas_stats,'scroll':scroll,'approved_interior_preservation':preservation,'visible_black_bake_fraction':black,'visible_bake_samples':len(sample_colors),'exterior_ray_misses':misses,'textures':texture_info}
 (LOG/'orient-express-verification.json').write_text(json.dumps(result,indent=2)+'\n')
 lines=['# Orient-Express – Art-Bericht','',f"FBX-Reimport und Prüfungen: **PASS**. {sum(stats.values()):,} Dreiecke / 120.000; {len(materials)} Materialien / 14; zehn Plätze.",'','| Mesh | Dreiecke |','| --- | ---: |']
 lines += [f'| {k} | {v:,} |' for k,v in stats.items()]
-lines += ['',f'- {screen_rays:,} freie Leinwandstrahlen, 39 × 17 pro Spot, Augenhöhe 1,25 m; freie Fläche 2,6 × 1,5 m.',f"- Garantierter Kopf-Freiraum ≥ {heads['minimum_clearance_lower_bound_m']*100:.2f} cm über dem kontinuierlichen Höhenintervall 1,10–1,35 m.",'- Kopfprojektionen bleiben über Sitzpolstern, alle Marker über dem Boden.', f'- Sichtbare schwarze Bake-Proben: {black:.3%} aus {len(sample_colors):,} Treffern.', '- UVMap und Lightmap, keine UV-Flächen- oder Texelüberschneidung; gemessene Inselabstände und Atlasrand ≥4 px.', f"- Lichtatlas: {atlas_stats['clipped_fraction']:.3%} gesättigte belegte Texel.", '- Cycles Diffuse Direct+Indirect ohne Color, 256 Samples, Denoising, 8 px Margin, Standard/None/−1 EV, RGB8.', '- Beide Seiten: U wächst nach +Y; positiver App-UV-Offset verschiebt Bildmerkmale nach −Y zum Heck. Far scroll4 bei 60 m, Near scroll90 bei 5 m.', '- Horizontale Texturränder RGB-identisch. Opake Nahkulisse endet unter dem Horizont; kein Alpha/Glas in den Fenstern.', '', '## Texturen','']
+lines += ['',f'- {screen_rays:,} freie Leinwandstrahlen, 39 × 17 pro Spot, Augenhöhe 1,25 m; freie Fläche 2,6 × 1,5 m.',f"- Garantierter Kopf-Freiraum ≥ {heads['minimum_clearance_lower_bound_m']*100:.2f} cm über dem kontinuierlichen Höhenintervall 1,10–1,35 m.",'- Kopfprojektionen bleiben über Sitzpolstern, alle Marker über dem Boden.', f'- Sichtbare schwarze Bake-Proben: {black:.3%} aus {len(sample_colors):,} Treffern.', '- UVMap und Lightmap, keine UV-Flächen- oder Texelüberschneidung; gemessene Inselabstände und Atlasrand ≥4 px.', f"- Lichtatlas: {atlas_stats['clipped_fraction']:.3%} gesättigte belegte Texel.", '- Cycles Diffuse Direct+Indirect ohne Color, 256 Samples, Denoising, 8 px Margin, Standard/None/−1 EV, RGB8.', '- Beide Seiten nach −Y: Near scroll9002, Middle scroll175, Far scroll6. Kalibrierung nach dargestellter Entfernung für 70 km/h in docs/ART-BRIEF.md.', '- Horizontale Texturränder RGB-identisch. Opake Nahkulisse endet unter dem Horizont; kein Alpha/Glas in den Fenstern.', '', '## Texturen','']
 lines += [f'- {k}: {v["dimensions"][0]}×{v["dimensions"][1]}, RGB8.' for k,v in texture_info.items()]
-lines += ['', '## Vorschauen','', '- [Seat2 an](orient-express-seat2-on.png) · [Seat2 4 %](orient-express-seat2-04pct.png)', '- [Fenster links](orient-express-window-left.png) · [Fenster rechts](orient-express-window-right.png)', '- [Übersicht](orient-express-overview.png) · [Salon](orient-express-salon.png)', '- [Projektionsvorschau](orient-express-seat2-projection.png) (nur Vorschauhilfe, nicht im Export)' , '', 'Die Vorschauen verwenden ausschließlich Basisfarben × Lichtatlas ×2; bei Filmlicht ×0,04. Glow-Flächen dimmen ebenfalls; die Landschaft bleibt ungedimmt. Kein zusätzliches Echtzeitlicht.', '', 'Die Stirntür liegt hinter dem Projektionsportal; die App zeichnet die Leinwand selbst. Vier Standardsessel, zwei Bankplätze, zwei Essplätze und zwei vordere Sessel. Originales AV-Monogramm für den erfundenen Salon Aster Vale.', 'CC0 Clarens Night 02 / Poly Haven; Bearbeitung und Urheber in docs/CREDITS.md, Eingangschecksumme in art/orient-express-sources.json.', '', 'Offen: menschliche gestalterische Abnahme und tatsächliche Quest-/App-Darstellung inklusive Laufzeit-Scrollrichtung, Dimmung, Bildskalierung und Performance.', 'Die Vorzeichenprüfung setzt positive UV-Abtastverschiebung der dokumentierten scroll<N>-Konvention voraus. Kein App-Code wurde gelesen/geändert und Unity wurde nicht gestartet.', 'Build: tools/blender/orient_express.py; Prüfung: tools/blender/verify_orient_express.py. Akzeptierte Räume unverändert.']
+lines += ['', '## Vorschauen','', '- [Seat2 an](orient-express-seat2-on.png) · [Seat2 4 %](orient-express-seat2-04pct.png)', '- [Fenster links](orient-express-window-left.png) · [Fenster rechts](orient-express-window-right.png)', '- [Übersicht](orient-express-overview.png) · [Salon](orient-express-salon.png)', '- [Projektionsvorschau](orient-express-seat2-projection.png) (nur Vorschauhilfe, nicht im Export)' , '', 'Kein neuer Bake: Innengeometrie, Normalen, beide UV-Sätze, Marker und alle elf Innenraum-/Lichttexturen unverändert gegen den abgenommenen FBX geprüft.', '', 'Die Vorschauen verwenden ausschließlich Basisfarben × Lichtatlas ×2; bei Filmlicht ×0,04. Glow-Flächen dimmen ebenfalls; die Landschaft bleibt ungedimmt. Kein zusätzliches Echtzeitlicht.', '', 'Die Stirntür liegt hinter dem Projektionsportal; die App zeichnet die Leinwand selbst. Vier Standardsessel, zwei Bankplätze, zwei Essplätze und zwei vordere Sessel. Originales AV-Monogramm für den erfundenen Salon Aster Vale.', 'CC0 Clarens Night 02 / Poly Haven; Bearbeitung und Urheber in docs/CREDITS.md, Eingangschecksumme in art/orient-express-sources.json.', '', 'Innenraum vom Nutzer auf Quest 3 abgenommen. Offen: Quest-Abnahme des neuen Tempos, Komfort und zeitliches Aliasing unter tatsächlicher Laufzeitlast.', 'Die Vorzeichenprüfung setzt positive UV-Abtastverschiebung der dokumentierten scroll<N>-Konvention voraus. Kein App-Code wurde gelesen/geändert und Unity wurde nicht gestartet.', 'Build: tools/blender/orient_express.py; Prüfung: tools/blender/verify_orient_express.py. Akzeptierte Räume unverändert.']
 (LOG/'ORIENT-EXPRESS-REPORT.md').write_text('\n'.join(lines)+'\n')
 print('ORIENT EXPRESS VERIFICATION PASS',sum(stats.values()),'triangles;',len(materials),'materials;',screen_rays,'screen rays')

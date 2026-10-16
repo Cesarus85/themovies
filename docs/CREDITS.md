@@ -105,3 +105,13 @@ in ignored `art/sources/`. Only prepared RGB8 PNGs and the FBX are distributed.
 | --- | --- | --- | --- | --- |
 | Dark Wood | Dario Barresi (baking), Dimitrios Savva (photography), Rico Cilliers (tiling) | [Poly Haven](https://polyhaven.com/a/dark_wood) | CC0-1.0, checked 2026-10-16 | 2K diffuse reduced to 1024², luminance-normalized and walnut/ebony tinted. Original floral inlays composited over the prepared grain. |
 | Velour Velvet | colormass (photography), Rico Cilliers (processing) | [Poly Haven](https://polyhaven.com/a/velour_velvet) | CC0-1.0, checked 2026-10-16 | 2K diffuse reduced to 1024², normalized nap luminance tinted petrol for upholstery and champagne for curtains. No other maps used. |
+
+
+Orient-Express motion update: the accepted interior and light atlas are unchanged.
+The far panorama's prepared RGB pixels are retained; only its material name and UV
+repeat change. The new middle panorama (fields, hedges, tree crowns, farmhouses and
+warm windows) is original deterministic opaque artwork in
+`lib_orient_express_textures.py`. All silhouettes are in the scrolling RGB image;
+carrier edges are straight. The original near-band artwork now uses fewer, broader
+features and a periodic horizontal frequency filter for 70 km/h motion. No new
+third-party source, alpha, model, logo or license dependency was introduced.

@@ -1,5 +1,6 @@
 """Build, bake, export and preview OrientExpress; Blender 5.2. No Unity or add-ons.
 Blender -b --factory-startup -P tools/blender/orient_express.py -- Assets/TheMovies/Art/OrientExpress
+--scenery-only: preserve accepted interior and bake, replace scenery only.
 --geometry-only: ignored draft checkpoint; --preview-only: reuse baked checkpoint.
 """
 import sys
@@ -13,7 +14,8 @@ import bmesh
 import numpy as np
 from mathutils import Vector
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from lib_orient_express_textures import texture,landscapes
+from lib_orient_express_textures import texture
+from lib_orient_express_motion import replace_scenery,scenery_only
 from lib_orient_express_room import build,surroundings,SEATS,SCREEN
 from lib_orient_express_uvs import uv_overlaps
 from lib_orient_express_preview import preview,aim
@@ -46,6 +48,10 @@ def marker(name,loc):
 
 if '--preview-only' in ARGS:
     bpy.ops.wm.open_mainfile(filepath=str(BLEND/'OrientExpress-baked.blend'));preview(ROOT,TEX,configure_cycles,'--quick' in ARGS);sys.exit(0)
+if '--scenery-only' in ARGS:
+    scenery_only(ROOT,TEX,OUT,BLEND,PREVIEW)
+    if '--no-previews' not in ARGS:preview(ROOT,TEX,configure_cycles,'--quick' in ARGS)
+    sys.exit(0)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene=bpy.context.scene;scene.unit_settings.system='METRIC';scene.unit_settings.scale_length=1
 materials={}
@@ -162,7 +168,7 @@ for repair in range(6):
         for li,pt in zip(poly.loop_indices,pts):
             delta=pt-pts[0];layer.data[li].uv=(2+(k%32)*.1+delta.dot(axis)*scale,2+(k//32)*.1+delta.dot(other)*scale)
     repaired+=len(split);log(f'Repairing {len(split)} folded faces');pack()
-# Reserve two non-overlapping atlas strips for scenery meshes. They are
+# Reserve the top 5% of the atlas for the three unbaked scenery bands. They are
 # never baked or read by unlit materials, but have valid global UV2 too.
 for d in room.data.uv_layers['Lightmap'].data:d.uv.y*=.95
 log('UV audit passed; starting Cycles 256-sample diffuse-only bake')
@@ -186,19 +192,8 @@ for o in list(scene.objects):
     if o.type in ('LIGHT','CAMERA'):bpy.data.objects.remove(o,do_unlink=True)
 for o in scene.objects:
     if o.type=='MESH':o.name=next(m.name for m in o.data.materials if m)
-log('Preparing pinned CC0 panorama and opaque periodic ground band')
-far,near=landscapes(ROOT,TEX)
-material('Far','OE_Far_Panorama_unlit_scroll4',(1,1,1),img=far)
-material('Near','OE_Near_Panorama_unlit_scroll90',(1,1,1),img=near)
-scenery=surroundings(materials)
-# Reserve one rectangle per scenery panel with genuine 4px separation in UV2.
-for k,o in enumerate(scenery):
-    lm=o.data.uv_layers.new(name='Lightmap')
-    for side,p in enumerate(o.data.polygons):
-        width=.99/len(o.data.polygons);left=.005+side*width
-        coords=[(left,.963+k*.018),(left+width-.006,.963+k*.018),(left+width-.006,.973+k*.018),(left,.973+k*.018)]
-        for li,xy in zip(p.loop_indices,coords):lm.data[li].uv=xy
-    o.data.normals_split_custom_set([tuple(n.vector) for n in o.data.corner_normals]);o.data.uv_layers.active=o.data.uv_layers['UVMap']
+log('Preparing three calibrated scrolling layers')
+scenery_materials,scenery=replace_scenery(ROOT,TEX);materials.update(scenery_materials)
 objects=[o for o in scene.objects if o.type=='MESH']
 stats={o.name:sum(len(p.vertices)-2 for p in o.data.polygons) for o in objects}
 assert sum(stats.values())<=120000 and len(materials)<=14

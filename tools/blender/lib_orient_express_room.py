@@ -145,21 +145,18 @@ def build(m,light):
 
 
 def surroundings(m):
-    """Two materials / two meshes. UV U increases toward +Y on BOTH sides.
-    App samples U + t*N/10000, so visible features travel toward -Y (rear).
-    Far repeat 180m => 0.072m/s; near repeat 24m => 0.216m/s.
+    """Three flat opaque bands; affine U preserves broadside speed at every row.
+    Tree/hedge silhouettes live inside RGB. All geometric top edges are horizontal.
     """
+    from lib_orient_express_motion import LAYERS
     g=Geometry()
-    for key,x,z0,z1,repeat in [('Far',60,-26,110,180),('Near',5,-2.5,1.0,24)]:
+    for key,p in LAYERS.items():
+        x=p['carrier'];repeat=p['repeat']
+        levels=[(-200.,p['z0'],0,0),(p['z0'],p['z1'],0,1)] if key=='Near' else [(p['z0'],p['z1'],0,1)]
         for side in [-1,1]:
-            verts=[(side*x,-2000,z0),(side*x,2000,z0),(side*x,2000,z1),(side*x,-2000,z1)]
-            face=(3,2,1,0) if side==1 else (0,1,2,3)
-            uv=[(-2000/repeat,0),(2000/repeat,0),(2000/repeat,1),(-2000/repeat,1)]
-            g.add(m[key],verts,[face],uvs=[[uv[i] for i in face]])
-            if key=='Near':
-                # Continuous opaque ground skirt covers steep downward/grazing
-                # window views. Constant V samples ballast, never a repeated fence.
-                verts=[(side*x,-2000,-200),(side*x,2000,-200),(side*x,2000,z0),(side*x,-2000,z0)]
-                uv=[(-2000/repeat,0),(2000/repeat,0),(2000/repeat,0),(-2000/repeat,0)]
+            for z0,z1,v0,v1 in levels:
+                verts=[(side*x,-2000,z0),(side*x,2000,z0),(side*x,2000,z1),(side*x,-2000,z1)]
+                face=(3,2,1,0) if side==1 else (0,1,2,3)
+                uv=[(-2000/repeat,v0),(2000/repeat,v0),(2000/repeat,v1),(-2000/repeat,v1)]
                 g.add(m[key],verts,[face],uvs=[[uv[i] for i in face]])
     return g.objects()
