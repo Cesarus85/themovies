@@ -487,3 +487,121 @@ Commit auf dem aktuellen Branch, kein Push. Innenraum auf Quest 3 abgenommen; er
 Aktueller Orient-Express-Export: **55.340 Dreiecke, dreizehn Materialien/Material-Meshes, zehn Plätze**.
 FBX-Reimport: 6.630 freie Leinwandstrahlen; garantierte Luft um die kontinuierlich geprüfte
 Kopfhülle mindestens 17,70 cm. Globale UV-Prüfung ohne Überschneidungen, ≥4 px Inselabstand.
+## 13. Präsidentenjet – sechster Raum
+
+**Gestaltung:** Eigenständige Präsidentenjet-Konferenz-/Lounge-Kabine, inspiriert vom
+Hauptdeck eines luxuriös ausgebauten Großraumflugzeugs. Keine offiziellen Siegel,
+Wappen, realen Staatsflaggen, Betreiberlogos oder „Air Force One“-Beschriftung.
+Walnussfarbenes Holz und buchgespiegeltes Furnier, cremefarbene Ledersessel, marineblaue Wandsofas, Messing,
+fein gemusterter Teppich, warme Lichtvouten, Leselampen und Wandleuchten. Hinten
+Konferenztisch, Hospitality-Sideboards und ein selbst entworfenes Kompassornament.
+
+**Maße:** 6 m Innenbreite, 12 m Länge (Y −6 bis +6), Boden Z=0. Gerundete
+Schultern/Stauraumvouten; Deckenmitte normalerweise Z=2,45 m. Ab Y=2,8 steigt die
+Mitte sanft auf Z=2,80 m an der vorderen Schottwand: Diese lokale Erhöhung löst die
+Maßkollision zwischen etwa 2,4 m Kabinenhöhe und 0,90+1,80=2,70 m ScreenTop.
+Schottwände an beiden Enden, 28 echte unverschlossene Fensteröffnungen mit
+0,28 × 0,40 m Außenöffnung und etwa 0,20 m tiefer, gerundeter Laibung. Kein Glas.
+
+**Sitze:** Seat1–4 unverändert bei X −1,125 / −0,375 / +0,375 / +1,125,
+Y=Z=0; identisch mit Spot_000–003. Vier einzelne Leder-Drehsessel nach +Y.
+Spot_004–007: zwei Sofaplätze je Seite, X=±2,35, Y=1,70 / 2,85, Z=0,
+nach innen orientiert. Spot_008–011: Konferenzsessel, X=±1,72,
+Y=−2,70 / −4,00, Z=0, zum Tisch orientiert. Jeder Marker steht unter dem
+sitzenden Kopf; die komplette 20-cm-Kopfhülle gemäß Abschnitt 2 bleibt frei und
+mit ihrer Bodenprojektion über dem Polster. Alle Plätze haben aus 1,25 m
+Augenhöhe freie Sicht auf das volle Leinwandraster.
+
+**Leinwand:** ScreenAnchor=(0; 5,48; 0,90), ScreenTop=(0; 5,48; 2,70).
+Freie Projektionsfläche 3,40 × 1,80 m; Messingrahmen und dunkel zurückgesetzte
+Schottwand, keine modellierte Leinwandfläche. Die App begrenzt die Höhe über
+ScreenTop; die bauliche Öffnung ist auf diese 3,40-m-Projektion ausgelegt.
+
+**Vorbeiziehende Kulisse:** Originaler in Blender gerenderter Multiple-Scattering-Abendhimmel,
+`Jet_Sky_Panorama_unlit_scroll2`, auf opaken seitlichen Bändern in 900 m
+Entfernung. Die separat in Cycles als Volumen gerenderte, opake Wolkendecke liegt
+45 m unter dem Kabinenboden: `Jet_Clouds_Panorama_unlit_scroll390`. Keine Alpha-
+Karten. UV-U steigt auf **beiden** Seiten mit Welt-Y: Ein positiver U-Texturversatz
+verschiebt Motive nach −Y, also zum Flugzeugheck. Beide Texturen sind horizontal
+nahtlos einschließlich des Nahtgradienten; die unterschiedlichen Geschwindigkeiten
+und geometrischen Entfernungen liefern Parallaxe. Die App übernimmt die Animation.
+
+**Bewegung nach Quest-3-Abnahme des Looks (16.10.2026):** Wolken nach erneutem Quest-Feedback auf etwa 1,3°/s reduziert,
+Himmel unverändert. Keine zusätzliche Wolkenebene; die akzeptierte Gestaltung,
+alle Textur-Pixel und der Lichtatlas bleiben unverändert. Re-Export ohne neuen Bake.
+
+`scroll<N>` bedeutet U-Versatz `N/10000` pro Sekunde. Die Wolkenfläche spannt
+4.600 m in Y mit neun U-Wiederholungen: eine Texturbreite L=511,111 m.
+Für den Vektor r vom Sitzauge zum sichtbaren Wolkenpunkt und die Bewegungsrichtung
+−Y gilt die lokale Winkelbreite pro U-Einheit
+`A = (180/pi) * |r × (0, −L, 0)| / |r|²` in Grad. Damit ist
+`omega = A * N/10000` in Grad/s und `N = 10000 * omega/A`.
+Gemessen wird an den tatsächlichen FBX-Flächen durch beide Fensterreihen, Augenhöhe
+1,25 m, drei horizontale Proben pro Fenster und 40 Höhen zwischen 1,06 und 1,245 m;
+nur Strahlen, die zuerst Wolken treffen, gehen ein. Die Tabelle zeigt Mediane.
+Die endliche Winkelspanne zwischen r±(0,L/2,0) ist zusätzlich aufgeführt; für die
+momentane Geschwindigkeit ist die lokale Winkelbreite maßgebend.
+
+| Sitz | Lokale Winkelbreite A | Endliche Texturspanne | Wolken bei scroll390 |
+| --- | ---: | ---: | ---: |
+| Seat1 / Seat4 | 36,233°/U | 36,030° | 1,413°/s |
+| Seat2 / Seat3 | 30,601°/U | 30,210° | 1,193°/s |
+
+Für ungefähr 1,3°/s ergeben sich N≈359–425; **scroll390** liegt dazwischen:
+0,039 U/s, eine Wiederholung in 25,641 s, Motive bewegen sich mit 19,933 m/s nach
+−Y. Der Prüfbereich für die Mediane von Seat1–4 beträgt **1,17–1,43°/s**.
+Die vorige Einstellung scroll600 (1,84–2,17°/s) wurde auf Quest 3 weiterhin als zu
+schnell beurteilt. **390 = 600 × 0,65**: scroll390 ist exakt **35 % langsamer**.
+Perspektivisch variieren einzelne Blickrichtungen: horizontnahe/schräge Strahlen
+sind langsamer, die näheren Sofaplätze erreichen im Median 2,33–2,82°/s,
+die Konferenzplätze 1,70–1,71°/s. Eine gemeinsam verschobene Fläche kann nicht
+an jedem Sitz und in jeder Blickrichtung dieselbe Winkelgeschwindigkeit haben.
+
+Der Himmel spannt 4.600 m mit drei U-Wiederholungen, also L=1.533,333 m.
+**scroll2** bleibt bei 0,0002 U/s beziehungsweise 0,3067 m/s. Selbst am nächsten
+Sofaplatz beträgt die lokale Winkelbreite höchstens
+`(180/pi)*1533,333/(900−2,35) = 97,871°/U`, die Bewegung also höchstens
+**0,0196°/s**; schräg betrachtete Bereiche bewegen sich noch langsamer.
+
+Bewegungsfreundliche, weich gerenderte Wolkendetails unverändert: bei 72/90 Hz
+1,109/0,887 Quelltexel Versatz pro Bild. Nur 0,008 % / 0,000 % der horizontalen
+Kontrastenergie liegen oberhalb der zeitlichen Nyquist-Grenze, bereits vor
+Mipmapping. Der Prüfer kontrolliert diese Werte sowie identische Texturkanten
+und Nahtgradienten. Das ist ein technischer Indikator gegen Flimmern; die erneute
+Quest-Abnahme der reduzierten Bewegung bleibt ein separater Sichttest.
+Messdaten aller zwölf Sitze: `Logs/art-preview/jet-motion-verification.json`.
+
+**Pipeline/Budget:** ≤120.000 Dreiecke, ≤14 Materialien/Material-Meshes.
+1024² Basisfarben, `Jet_Light.png` 2048²; Himmel 4096×2048,
+Wolken-Panorama 2048×1024. RGB8, keine Normal Maps oder Transparenz.
+UVMap plus globale, überschneidungsfreie Lightmap mit ≥4 px Inselabstand.
+Cycles Diffuse Direct+Indirect ohne Color, 256 Samples, Denoise, 8 px Bake-Rand,
+Standard/None/−1 EV. Warme Kabinenbeleuchtung und Sonnenlicht durch die Fenster
+werden gebacken. Vorschauen zeigen Basisfarbe × gespeicherten Atlas ×2;
+Filmlicht 4 %, Glow ebenfalls dimmbar, Unlit-Kulissen unverändert.
+
+Build: `/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/blender/jet.py -- Assets/TheMovies/Art/Jet`.
+Prüfung: gleicher Aufruf mit `-P tools/blender/verify_jet.py`.
+`--geometry-only` liefert einen ignorierten Geometrie-Checkpoint;
+`--preview-only` rendert aus dem Bake-Checkpoint. `--motion-only` aktualisiert
+nur Wolken-Namen/-Texturpfade im vorhandenen FBX mit Blenders FBX-Encoder; sämtliche
+numerischen FBX-Eigenschaften sowie Geometrie/Normalen/UVs/Marker nach Reimport
+werden exakt verglichen, Texturdateien per SHA-256. `--motion-preview` rendert
+72 Bilder bei 24 Hz aus Seat2 zum linken Fenster unter `Logs/art-preview/jet-motion-frames/`. Scenery-PNGs werden für erneute
+Bakes wiederverwendet; zum vollständigen Neurendern nur die beiden Jet-Panorama-PNGs löschen.
+Lieferung: `Assets/TheMovies/Art/Jet/Jet.fbx` mit `Textures/`, für das von der
+App-Seite erzeugte Prefab `CustomJet`. Checkpoints unter ignoriertem `art/blender/`;
+Vorschauen `Logs/art-preview/jet-*.png`, Prüfprotokolle und `JET-REPORT.md` ignoriert.
+Geometrie und Kulissen sind Originalarbeit. Einzige Fremdquelle: CC0 `dark_wood`
+von Poly Haven, auf 1024² verkleinert und warm getönt; Rohquelle nur unter
+`art/sources/`, Prüfsumme in `art/jet-sources.json`, Herkunft in `docs/CREDITS.md`. Keine Änderungen an den vier akzeptierten Räumen, App-Code,
+Unity-Konfiguration oder Packages. Commit auf dem aktuellen Branch, kein Push.
+
+Aktueller Jet-Export: **45.886 Dreiecke, 13 Materialien/Material-Meshes, zwölf Plätze**.
+FBX-Reimport: 7.956 freie Leinwandstrahlen, kontinuierlich garantierter Kopf-Freiraum
+mindestens 17,79 cm. Himmel und Wolken sind von jedem Platz sichtbar; alle Kulissen-
+Vertices bleiben höchstens 2.932,27 m von den Sitzaugen entfernt. Horizontale
+Textur- und Gradientennähte sind identisch, beide Seiten bewegen sich zum Heck.
+Der Nutzer hat den Look auf Quest 3 abgenommen („bombastisch“). Die reduzierte
+Scrollwirkung muss erneut im Headset beurteilt werden; Unity wurde für diese
+Art-Lieferung nicht gestartet.
