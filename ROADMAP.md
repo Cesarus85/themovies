@@ -56,7 +56,7 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🚧 in Arbeit · 🧪 umges
 | ✅ | 5e | Weltraum-Lounge | Aussichtsdeck einer Raumstation: Panoramafenster auf die Erde (NASA Blue/Black Marble, eigener Planeten-Shader mit fester Sonne, Stadtlichter), Erde zieht langsam vorbei (Umlauf 92 min); auf der Quest 3 bestätigt | mittel |
 | ✅ | 5f | Salonwagen im Orient-Express | Holzintarsien, Messing, Samtsessel; vorbeiziehende Nachtlandschaft in drei Ebenen, auf ~70 km/h kalibriert; auf der Quest 3 bestätigt | groß |
 | ✅ | 5h | Präsidentenjet | Konferenz-/Lounge-Kabine im Stil der „Air Force One“ (ohne offizielle Hoheitszeichen): Holz, Leder, Ledersessel; über den Wolken bei Sonnenuntergang, Wolkendecke zieht mit ~1,3 °/s; auf der Quest 3 bestätigt | groß |
-| 🧪 | 5g | Bewegung in gebackenen Räumen | Umgesetzt: drehende Objekte (`_rotate<s>`), vorbeiziehende Texturen (`scroll<N>`). Offen: flackernde Lichterketten/Kaminfeuer, Funkeln | mittel |
+| ✅ | 5g | Bewegung in gebackenen Räumen | Drehende Objekte, vorbeiziehende Texturen, Flackern (Lampen, Kerzen, Kamin mit Feuerschein auf dem gebackenen Licht), Funkeln (Sterne), Blinken (Positionslichter) – in allen Räumen; auf der Quest 3 bestätigt. Später: realistischere Kaminflammen | mittel |
 | 🧪 | 6 | 180°/360°-Videos | Innen texturierte Kugel/Halbkugel statt Leinwand, Formate mono/SBS/OU, Erkennung über Dateiname (`_180`, `_360`, `LR`, `TB`) | mittel |
 | 🧪 | 7 | Handtracking | Pinch = Klick, Strahl aus der Hand. Offen: Finger-Gelenke an den Avataren (XR Hands) | mittel |
 | ✅ | – | Eigener Video-Player | ExoPlayer/Media3 über Java-Plugin, GL-Textur-Übergabe, FFmpeg-Ton, eingebettete Untertitel – auf der Quest bestätigt | groß |
