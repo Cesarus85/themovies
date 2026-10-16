@@ -1,6 +1,8 @@
 """Build, bake, export and preview Jet; Blender 5.2. No Unity or add-ons.
 Blender -b --factory-startup -P tools/blender/jet.py -- Assets/TheMovies/Art/Jet
 --geometry-only: ignored draft checkpoint; --preview-only: reuse baked checkpoint.
+--motion-only: update cloud scroll naming in the shipped FBX without rebuilding/baking.
+--motion-preview: render 72 frames at 24 Hz from Seat2 toward a side window.
 """
 import sys
 sys.dont_write_bytecode=True
@@ -14,6 +16,7 @@ import numpy as np
 from mathutils import Vector
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_jet_textures import texture,rendered_scenery
+from lib_jet_motion import update_export,CLOUD_NAME,SKY_NAME
 from lib_jet_room import build,surroundings,SEATS,SCREEN
 from lib_jet_uvs import uv_overlaps
 from lib_jet_preview import preview,aim
@@ -44,6 +47,10 @@ def configure_cycles(scene):
 def marker(name,loc):
     o=bpy.data.objects.new(name,None);bpy.context.scene.collection.objects.link(o);o.location=loc;o.empty_display_type='ARROWS';return o
 
+if '--motion-only' in ARGS:
+    update_export(ROOT,OUT);sys.exit(0)
+if '--motion-preview' in ARGS:
+    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Jet-baked.blend'));preview(ROOT,TEX,configure_cycles,True,motion=True);sys.exit(0)
 if '--preview-only' in ARGS:
     bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Jet-baked.blend'));preview(ROOT,TEX,configure_cycles,'--quick' in ARGS);sys.exit(0)
 def material(key,name,color,kind='',emission=0,img=None):
@@ -196,8 +203,8 @@ else:
     bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Jet-interior-baked.blend'))
 log('Rendering original sunset and volumetric cloud scenery')
 sky,cloud=rendered_scenery(ROOT,TEX,configure_cycles)
-material('Sky','Jet_Sky_Panorama_unlit_scroll2',(1,1,1),img=sky)
-material('Cloud','Jet_Clouds_Panorama_unlit_scroll25',(1,1,1),img=cloud)
+material('Sky',SKY_NAME,(1,1,1),img=sky)
+material('Cloud',CLOUD_NAME,(1,1,1),img=cloud)
 scenery=surroundings(materials)
 for oi,o in enumerate(scenery):
     # One unique rectangle per disconnected scenery face, in the reserved strip.

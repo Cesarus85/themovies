@@ -7,6 +7,7 @@ from pathlib import Path
 import bpy
 import numpy as np
 from mathutils import Vector
+from lib_jet_motion import CLOUD_NAME,SKY_NAME
 
 def save(path,rgb):
     h,w=rgb.shape[:2];p=np.ones((h,w,4),np.float32);p[:,:,:3]=np.clip(rgb,0,1)
@@ -61,7 +62,7 @@ def seamless(rgb,band=24):
     return rgb
 
 def rendered_scenery(root,tex,configure):
-    names=['Jet_Sky_Panorama_unlit_scroll2','Jet_Clouds_Panorama_unlit_scroll25']
+    names=[SKY_NAME,CLOUD_NAME]
     files=[tex/f'{n}_BaseColor.png' for n in names]
     if all(p.exists() for p in files):return [bpy.data.images.load(str(p),check_existing=True) for p in files]
     original=bpy.context.window.scene

@@ -15,6 +15,7 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from lib_jet_uvs import uv_overlaps,audit_padding
+from lib_jet_motion import audit_motion
 from lib_seated_head_clearance import audit as audit_heads
 ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'Assets/TheMovies/Art/Jet';LOG=ROOT/'Logs/art-preview';LOG.mkdir(parents=True,exist_ok=True)
 draft='--draft' in sys.argv
@@ -137,7 +138,7 @@ for x in [-1.5,-.5,.5,1.5]:
 scroll=[]
 for o in objects:
     if 'scroll' not in o.name:continue
-    speed=2 if 'Sky' in o.name else 25
+    speed=2 if 'Sky' in o.name else 1500
     assert f'unlit_scroll{speed}' in o.data.materials[0].name
     uv=o.data.uv_layers['UVMap'];o.data.calc_loop_triangles()
     for t in o.data.loop_triangles:
@@ -178,10 +179,12 @@ for p in (OUT/'Textures').glob('*scroll*.png'):
 assert (count>0).mean()>.10
 assert black<.015,('Visible black bake',black)
 assert atlas_stats['clipped_fraction']<.01,atlas_stats
+motion=audit_motion(alltree,triangle_owners,seats,Vector(next(r['velocity_mps'] for r in scroll if 'Clouds' in r['mesh'])),Vector(next(r['velocity_mps'] for r in scroll if 'Sky' in r['mesh'])),bpy.data.images.load(str(OUT/'Textures/Jet_Clouds_Panorama_unlit_scroll1500_BaseColor.png'),check_existing=True))
+(LOG/'jet-motion-verification.json').write_text(json.dumps(motion,indent=2)+'\n')
 result={'validation':'PASS','fbx_reimport':'PASS','fbx_sha256':hashlib.sha256((OUT/'Jet.fbx').read_bytes()).hexdigest(),
         'triangles':stats,'total_triangles':sum(stats.values()),'materials':len(materials),'mesh_objects':len(objects),
         'markers':expected,'head_clearance':heads,'sightlines':{'eye_height_m':1.25,'screen_m':[3.4,1.8],'grid':[39,17],'clear_rays':screen_rays,'blocked':0},
-        'open_window_rays':window_rays,'scroll_motion':scroll,'scroll_seams':seams,'seated_window_views':window_views,'maximum_scenery_distance_m':maximum_scenery,'uv_overlaps':0,'uv_padding':padding,
+        'open_window_rays':window_rays,'scroll_motion':scroll,'angular_motion':motion,'scroll_seams':seams,'seated_window_views':window_views,'maximum_scenery_distance_m':maximum_scenery,'uv_overlaps':0,'uv_padding':padding,
         'atlas':atlas_stats,'visible_black_fraction':black,'visible_light_samples':len(sample_colors),'ray_misses':misses,'textures':texture_info}
 (LOG/'jet-verification.json').write_text(json.dumps(result,indent=2)+'\n')
 lines=['# Präsidentenjet – Art-Bericht','',f'FBX-Reimport und automatische Prüfungen: **PASS**. {sum(stats.values()):,} Dreiecke / 120.000, {len(materials)} Materialien / 14, zwölf Plätze.','',
@@ -196,17 +199,20 @@ lines += ['', '## Nachweise','',f'- {screen_rays:,} freie Leinwandstrahlen aus 1
           f"- Gesättigte belegte Atlastexel: {atlas_stats['clipped_fraction']:.3%}; schwarze sichtbare Proben: {black:.3%}.",
           '- Horizontale Kulissennähte und Nahtgradienten geprüft; positive U-Bewegung schiebt beide Seiten nach −Y (hinten).',
           f'- Himmel und Wolken von jedem Sitz per Raytest sichtbar; größte Kulissenentfernung {maximum_scenery:.2f} m (<3.000 m).',
-          '- Himmelsbänder 900 m entfernt (scroll2); opake Wolkendecke 45 m unter dem Boden (scroll25).',
+          '- Himmelsbänder 900 m entfernt (scroll2); opake Wolkendecke 45 m unter dem Boden (scroll1500).',
           '', '## Texturen','']
 lines += [f'- {k}: {v["dimensions"][0]}×{v["dimensions"][1]}, RGB8.' for k,v in texture_info.items()]
 lines += ['', '## Vorschauen','',
           '- [Seat2 an](jet-seat2-on.png) · [Seat2 4 %](jet-seat2-04pct.png)',
           '- [Fenster links](jet-window-left.png) · [Fenster rechts](jet-window-right.png)',
           '- [Übersicht](jet-overview.png) · [Konferenz](jet-conference.png) · [Sessel](jet-seating.png)',
+          '- [Bewegung aus Seat2, 3 s / 24 Hz](jet-motion-seat2.mp4); dient der Richtung-/Tempoansicht, nicht als 72/90-Hz-Flimmertest.',
           '', 'Vorschauen: Basisfarbe × gespeicherter Lichtatlas ×2; bei Filmlicht ×0,04. Glow ebenfalls gedimmt, Unlit unverändert. Keine Echtzeitlampen oder zusätzliches Filmlicht.',
           'Keine Leinwandfläche exportiert. Die dunkle Fläche ist die zurückgesetzte Schottwand. Vordere Deckenmitte lokal 2,80 m für den 2,70 m hohen ScreenTop, übrige Deckenmitte 2,45 m.',
           '', 'Geometrie, Leder-/Teppichmuster und Kulissen sind Originalarbeit. Himmel: Blender Multiple Scattering; Wolken: offline gerenderte prozedurale Cycles-Volumetrie. Holz: CC0 dark_wood / Poly Haven, verkleinert, getönt und teils gespiegelt; siehe docs/CREDITS.md und art/jet-sources.json. Keine offiziellen Zeichen, Logos oder Transparenz.',
-          '', 'Offen: menschliche gestalterische Abnahme, CustomJet-Aufbereitung durch die App-Seite, tatsächliche Quest-Stereoansicht und Laufzeit-Scrolling. Unity wurde nicht gestartet.',
+          '', 'Der Look ist vom Nutzer auf Quest 3 abgenommen. Bewegung aktualisiert: Seat1–4 etwa 4,59–5,43°/s (sichtbare Wolken, Median); Himmel höchstens 0,020°/s. Nähere Sofaplätze etwa 9–11°/s, Konferenzplätze etwa 6,5–6,6°/s (Median). Keine zusätzliche Ebene; alle Textur-Pixel und der Lichtatlas unverändert. Kein neuer Bake. Herleitung und Einzelwerte: docs/ART-BRIEF.md und jet-motion-verification.json.',
+          'Wolken: 0,15 U/s, 76,667 m/s zum Heck, Wiederholung alle 6,667 s. Himmel: 0,0002 U/s. Horizontale Kontrastenergie über der zeitlichen Nyquist-Grenze bei 72/90 Hz: 0,075 % / 0,062 %. Geometrie, Normalen, beide UV-Sätze und Marker nach FBX-Reimport exakt erhalten; alle PNG-Payloads per SHA-256 unverändert (jet-motion-preservation.json).',
+          'Offen: erneute menschliche Quest-Abnahme der schnelleren Bewegung. Unity wurde nicht gestartet.',
           'Die vier akzeptierten Räume, App-Code, ProjectSettings und Packages wurden nicht verändert.',
           'Build: tools/blender/jet.py; unabhängige Prüfung: tools/blender/verify_jet.py.']
 (LOG/'JET-REPORT.md').write_text('\n'.join(lines)+'\n')

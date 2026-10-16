@@ -421,11 +421,54 @@ ScreenTop; die bauliche Öffnung ist auf diese 3,40-m-Projektion ausgelegt.
 **Vorbeiziehende Kulisse:** Originaler in Blender gerenderter Multiple-Scattering-Abendhimmel,
 `Jet_Sky_Panorama_unlit_scroll2`, auf opaken seitlichen Bändern in 900 m
 Entfernung. Die separat in Cycles als Volumen gerenderte, opake Wolkendecke liegt
-45 m unter dem Kabinenboden: `Jet_Clouds_Panorama_unlit_scroll25`. Keine Alpha-
+45 m unter dem Kabinenboden: `Jet_Clouds_Panorama_unlit_scroll1500`. Keine Alpha-
 Karten. UV-U steigt auf **beiden** Seiten mit Welt-Y: Ein positiver U-Texturversatz
 verschiebt Motive nach −Y, also zum Flugzeugheck. Beide Texturen sind horizontal
 nahtlos einschließlich des Nahtgradienten; die unterschiedlichen Geschwindigkeiten
 und geometrischen Entfernungen liefern Parallaxe. Die App übernimmt die Animation.
+
+**Bewegung nach Quest-3-Abnahme des Looks (16.10.2026):** Wolken deutlich schneller,
+Himmel unverändert. Keine zusätzliche Wolkenebene; die akzeptierte Gestaltung,
+alle Textur-Pixel und der Lichtatlas bleiben unverändert. Re-Export ohne neuen Bake.
+
+`scroll<N>` bedeutet U-Versatz `N/10000` pro Sekunde. Die Wolkenfläche spannt
+4.600 m in Y mit neun U-Wiederholungen: eine Texturbreite L=511,111 m.
+Für den Vektor r vom Sitzauge zum sichtbaren Wolkenpunkt und die Bewegungsrichtung
+−Y gilt die lokale Winkelbreite pro U-Einheit
+`A = (180/pi) * |r × (0, −L, 0)| / |r|²` in Grad. Damit ist
+`omega = A * N/10000` in Grad/s und `N = 10000 * omega/A`.
+Gemessen wird an den tatsächlichen FBX-Flächen durch beide Fensterreihen, Augenhöhe
+1,25 m, drei horizontale Proben pro Fenster und 40 Höhen zwischen 1,06 und 1,245 m;
+nur Strahlen, die zuerst Wolken treffen, gehen ein. Die Tabelle zeigt Mediane.
+Die endliche Winkelspanne zwischen r±(0,L/2,0) ist zusätzlich aufgeführt; für die
+momentane Geschwindigkeit ist die lokale Winkelbreite maßgebend.
+
+| Sitz | Lokale Winkelbreite A | Endliche Texturspanne | Wolken bei scroll1500 |
+| --- | ---: | ---: | ---: |
+| Seat1 / Seat4 | 36,233°/U | 36,030° | 5,435°/s |
+| Seat2 / Seat3 | 30,601°/U | 30,210° | 4,590°/s |
+
+Für ungefähr 5°/s ergeben sich N≈1.380–1.634; **scroll1500** liegt dazwischen:
+0,15 U/s, eine Wiederholung in 6,667 s, Motive bewegen sich mit 76,667 m/s nach
+−Y. Zuvor ergab scroll25 nur 0,077–0,091°/s an der Standardreihe.
+Perspektivisch variieren einzelne Blickrichtungen: horizontnahe/schräge Strahlen
+sind langsamer, die näheren Sofaplätze erreichen im Median 8,98–10,85°/s,
+die Konferenzplätze 6,54–6,59°/s. Eine gemeinsam verschobene Fläche kann nicht
+an jedem Sitz und in jeder Blickrichtung dieselbe Winkelgeschwindigkeit haben.
+
+Der Himmel spannt 4.600 m mit drei U-Wiederholungen, also L=1.533,333 m.
+**scroll2** bleibt bei 0,0002 U/s beziehungsweise 0,3067 m/s. Selbst am nächsten
+Sofaplatz beträgt die lokale Winkelbreite höchstens
+`(180/pi)*1533,333/(900−2,35) = 97,871°/U`, die Bewegung also höchstens
+**0,0196°/s**; schräg betrachtete Bereiche bewegen sich noch langsamer.
+
+Bewegungsfreundliche, weich gerenderte Wolkendetails unverändert: bei 72/90 Hz
+4,267/3,413 Quelltexel Versatz pro Bild. Nur 0,075 % / 0,062 % der horizontalen
+Kontrastenergie liegen oberhalb der zeitlichen Nyquist-Grenze, bereits vor
+Mipmapping. Der Prüfer kontrolliert diese Werte sowie identische Texturkanten
+und Nahtgradienten. Das ist ein technischer Indikator gegen Flimmern; die erneute
+Quest-Abnahme der schnelleren Bewegung bleibt ein separater Sichttest.
+Messdaten aller zwölf Sitze: `Logs/art-preview/jet-motion-verification.json`.
 
 **Pipeline/Budget:** ≤120.000 Dreiecke, ≤14 Materialien/Material-Meshes.
 1024² Basisfarben, `Jet_Light.png` 2048²; Himmel 4096×2048,
@@ -439,7 +482,11 @@ Filmlicht 4 %, Glow ebenfalls dimmbar, Unlit-Kulissen unverändert.
 Build: `/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/blender/jet.py -- Assets/TheMovies/Art/Jet`.
 Prüfung: gleicher Aufruf mit `-P tools/blender/verify_jet.py`.
 `--geometry-only` liefert einen ignorierten Geometrie-Checkpoint;
-`--preview-only` rendert aus dem Bake-Checkpoint. Scenery-PNGs werden für erneute
+`--preview-only` rendert aus dem Bake-Checkpoint. `--motion-only` aktualisiert
+nur Wolken-Namen/-Texturpfade im vorhandenen FBX mit Blenders FBX-Encoder; sämtliche
+numerischen FBX-Eigenschaften sowie Geometrie/Normalen/UVs/Marker nach Reimport
+werden exakt verglichen, Texturdateien per SHA-256. `--motion-preview` rendert
+72 Bilder bei 24 Hz aus Seat2 zum linken Fenster unter `Logs/art-preview/jet-motion-frames/`. Scenery-PNGs werden für erneute
 Bakes wiederverwendet; zum vollständigen Neurendern nur die beiden Jet-Panorama-PNGs löschen.
 Lieferung: `Assets/TheMovies/Art/Jet/Jet.fbx` mit `Textures/`, für das von der
 App-Seite erzeugte Prefab `CustomJet`. Checkpoints unter ignoriertem `art/blender/`;
@@ -454,5 +501,6 @@ FBX-Reimport: 7.956 freie Leinwandstrahlen, kontinuierlich garantierter Kopf-Fre
 mindestens 17,79 cm. Himmel und Wolken sind von jedem Platz sichtbar; alle Kulissen-
 Vertices bleiben höchstens 2.932,27 m von den Sitzaugen entfernt. Horizontale
 Textur- und Gradientennähte sind identisch, beide Seiten bewegen sich zum Heck.
-Die endgültige Gestaltung sowie Stereo- und Scrollwirkung bleiben der menschlichen
-Abnahme in der App vorbehalten; Unity wurde für diese Art-Lieferung nicht gestartet.
+Der Nutzer hat den Look auf Quest 3 abgenommen („bombastisch“). Die schnellere
+Scrollwirkung muss erneut im Headset beurteilt werden; Unity wurde für diese
+Art-Lieferung nicht gestartet.
