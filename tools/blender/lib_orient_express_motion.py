@@ -65,6 +65,8 @@ def scenery_only(root,tex,out,blend,logdir):
     checkpoint=blend/'OrientExpress-baked.blend'
     assert checkpoint.exists(),'Run full builder once to create the local baked checkpoint'
     bpy.ops.wm.open_mainfile(filepath=str(checkpoint));scene=bpy.context.scene
+    from lib_room_motion import rename_material
+    rename_material('OE_Silk_glow','OE_Silk_glow_flicker2',tex)
     before={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in tex.glob('*.png') if 'Panorama' not in p.name}
     def interior_signature():
         h=hashlib.sha256()

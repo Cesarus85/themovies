@@ -32,6 +32,8 @@ def sample(rgb,uv,time,speed):
 
 bpy.ops.wm.read_factory_settings(use_empty=True);bpy.ops.import_scene.fbx(filepath=str(OUT/'OrientExpress.fbx'))
 scene=bpy.context.scene;scene.world=bpy.data.worlds.new('Preview world')
+from lib_verify_room_motion import audit as audit_effects
+audit_effects(scene,'OrientExpress',ROOT)
 for m in bpy.data.materials:m['orient_express']=True
 spectral=[];textures={};speeds={}
 for o in scene.objects:

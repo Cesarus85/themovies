@@ -21,18 +21,20 @@ PREVIEW.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=str(OUT/'Rooftop.fbx'))
 scene=bpy.context.scene
+from lib_verify_room_motion import audit as audit_effects
+if '--draft' not in sys.argv:motion_evidence=audit_effects(scene,'Rooftop',ROOT)
 objects=[o for o in scene.objects if o.type=='MESH']
 assert set(o.type for o in scene.objects)<={'MESH','EMPTY'},'Export contains helpers'
 assert len(objects)<=14 and all(len(o.data.materials)==1 for o in objects)
 materials={o.data.materials[0].name for o in objects};assert len(materials)==len(objects)
-required={'Rooftop_Canvas_Linen','Rooftop_Blackened_Metal','Rooftop_Festoon_bulb','Rooftop_Panorama_unlit'}
+required={'Rooftop_Canvas_Linen','Rooftop_Blackened_Metal','Rooftop_Festoon_bulb_flicker4','Rooftop_Panorama_unlit_twinkle10'}
 assert required<=materials
 # Deliberately independent expected coordinates, rather than importing the builder's seats.
 seat_points=[(-1.125,0,0),(-.375,0,0),(.375,0,0),(1.125,0,0),(-3.15,.08,0),(-4.35,.08,0),(-.7,-2.82,0),(.7,-2.82,0),(3.15,-2.67,0),(4.25,-2.67,0)]
 expected={f'Seat{i+1}':seat_points[i] for i in range(4)}
 expected.update({f'Spot_{i:03d}':p for i,p in enumerate(seat_points)})
 expected.update(ScreenAnchor=(0,8.4,1.1),ScreenTop=(0,8.4,5.1))
-assert {o.name for o in scene.objects if o.type=='EMPTY'}==set(expected)
+assert {o.name for o in scene.objects if o.type=='EMPTY' and not o.name.startswith('FireLight_')}==set(expected)
 for i,a in enumerate(seat_points):
     for b in seat_points[i+1:]:assert (Vector(a)-Vector(b)).length>=.4
 for name,loc in expected.items():assert (scene.objects[name].matrix_world.translation-Vector(loc)).length<.00001,(name,'coordinates')
@@ -108,7 +110,7 @@ for path in sorted((OUT/'Textures').glob('*.png')):
     width,height,depth,mode=struct.unpack('>IIBB',header[16:26]);assert depth==8 and mode in (2,6),(path.name,'not RGB/RGBA8')
     assert width<= (4096 if 'Panorama' in path.name else 2048) and height<=2048
     if path.name=='Rooftop_Light.png':assert (width,height,mode)==(2048,2048,2)
-    if path.name!='Rooftop_Light.png' and 'Panorama' not in path.name:assert (width,height)==(1024,1024)
+    if path.name not in ('Rooftop_Light.png','Rooftop_Foliage_Atlas_BaseColor.png') and 'Panorama' not in path.name:assert (width,height)==(1024,1024)
     if 'Panorama' in path.name:assert (width,height,mode)==(4096,2048,2)
     textures[path.name]={'size':[width,height],'bits':depth,'bytes':path.stat().st_size}
     if 'Panorama' in path.name:
@@ -246,7 +248,7 @@ lines=['# Dachterrasse – Art-Bericht','',
        '', '## Geometrie und Dateien','', '| Material / Mesh | Dreiecke |', '| --- | ---: |']
 lines += [f'| {name} | {value:,} |' for name,value in sorted(stats.items())]
 lines += ['', 'Die Basisfarben heißen jeweils `Textures/<Material>_BaseColor.png`: 13 × 1024²,',
-          'dazu `Rooftop_Panorama_unlit_BaseColor.png` mit 4096×2048 und `Rooftop_Light.png` mit 2048², alle RGB8.',
+          'dazu `Rooftop_Panorama_unlit_twinkle10_BaseColor.png` mit 4096×2048 und `Rooftop_Light.png` mit 2048², alle RGB8.',
           'Export: `Assets/TheMovies/Art/Rooftop/Rooftop.fbx`. Kein Leinwandmesh; nur Rahmen und bauliche Wand dahinter.',
           '', '## Prüfungen','',
           '- Seat1–4 exakt an den Standardkoordinaten; Spot_000–009 lückenlos, Boden und Sitzpolster vorhanden.',

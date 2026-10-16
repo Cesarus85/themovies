@@ -45,7 +45,8 @@ def marker(name,loc):
     o=bpy.data.objects.new(name,None);bpy.context.scene.collection.objects.link(o);o.location=loc;o.empty_display_type='ARROWS';return o
 
 if '--preview-only' in ARGS:
-    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Space-baked.blend'));preview(ROOT,TEX,configure_cycles,'--quick' in ARGS);sys.exit(0)
+    from lib_room_motion import load_preview_export
+    load_preview_export(ROOT,'Space','space');preview(ROOT,TEX,configure_cycles,'--quick' in ARGS);sys.exit(0)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene=bpy.context.scene;scene.unit_settings.system='METRIC';scene.unit_settings.scale_length=1
 materials={}
@@ -207,3 +208,7 @@ bpy.ops.export_scene.fbx(filepath=str(OUT/'Space.fbx'),use_selection=False,objec
 log(f'Exported {sum(stats.values())} triangles / {len(materials)} materials')
 preview(ROOT,TEX,configure_cycles,'--quick' in ARGS)
 log('Complete')
+
+# Apply the accepted subtle effects after the static build/export.
+from room_motion import update_room
+update_room(ROOT,'Space')

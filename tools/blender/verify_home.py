@@ -27,16 +27,18 @@ if '--baseline' in sys.argv:
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=str(OUT/'Home.fbx'))
 scene=bpy.context.scene
+from lib_verify_room_motion import audit as audit_effects
+if '--draft' not in sys.argv:motion_evidence=audit_effects(scene,'Home',ROOT)
 objects=[o for o in scene.objects if o.type=='MESH']
 assert set(o.type for o in scene.objects)<={'MESH','EMPTY'},'Export contains helpers'
-assert len(objects)<=14 and all(len(o.data.materials)==1 for o in objects)
+assert len(objects)<=12 and all(len(o.data.materials)==1 for o in objects)
 materials={o.data.materials[0].name for o in objects};assert len(materials)==len(objects)
-required={'Home_Velvet_Forest','Home_Brass','Home_Linen_emit','Home_Embers_glow','Home_Night_unlit'}
+required={'Home_Velvet_Forest','Home_Brass','Home_Linen_emit','Home_Fire_glow_flicker30','Home_Night_unlit_twinkle12'}
 assert required<=materials
 expected={f'Seat{i+1}':((i-1.5)*.75,0,0) for i in range(4)}
 expected.update({f'Spot_{i:03d}':((i-1.5)*.75,0,0) for i in range(4)})
 expected.update(ScreenAnchor=(0,5.2,.78),ScreenTop=(0,5.2,2.63))
-assert {o.name for o in scene.objects if o.type=='EMPTY'}==set(expected)
+assert {o.name for o in scene.objects if o.type=='EMPTY' and not o.name.startswith('FireLight_')}==set(expected)
 for name,loc in expected.items():assert (scene.objects[name].matrix_world.translation-Vector(loc)).length<.00001,(name,'coordinates')
 
 def bvh_for(objs):
@@ -107,10 +109,10 @@ for path in sorted((OUT/'Textures').glob('*.png')):
     width,height,depth,mode=struct.unpack('>IIBB',header[16:26]);assert depth==8 and mode in (2,6),(path.name,'not RGB/RGBA8')
     assert width<=2048 and height<=2048
     if path.name=='Home_Light.png':assert (width,height,mode)==(2048,2048,2)
-    if path.name not in ('Home_Light.png','Home_Persian_Rug_BaseColor.png','Home_Night_unlit_BaseColor.png'):assert (width,height)==(1024,1024)
-    if path.name=='Home_Night_unlit_BaseColor.png':assert width<=2048 and height<=1024 and mode==2
+    if path.name not in ('Home_Mineral_Atlas_BaseColor.png','Home_Fire_glow_flicker30_BaseColor.png','Home_Light.png','Home_Persian_Rug_BaseColor.png','Home_Night_unlit_twinkle12_BaseColor.png'):assert (width,height)==(1024,1024)
+    if path.name=='Home_Night_unlit_twinkle12_BaseColor.png':assert width<=2048 and height<=1024 and mode==2
     textures[path.name]={'size':[width,height],'bits':depth,'bytes':path.stat().st_size}
-    if path.name=='Home_Night_unlit_BaseColor.png':
+    if path.name=='Home_Night_unlit_twinkle12_BaseColor.png':
         im=bpy.data.images.load(str(path));p=np.empty(width*height*4,np.float32);im.pixels.foreach_get(p)
         sky=p.reshape(height,width,4)[:,:,:3]
         assert float(sky.max())<.99,'Panorama has clipped highlights'
@@ -169,7 +171,7 @@ for m in bpy.data.materials:
     assert Path(image.filepath).name==f'{m.name}_BaseColor.png'
 # Exterior audit uses the RE-IMPORTED FBX, not the construction inputs.
 from lib_home_window import CENTER,RADIUS,AZIMUTH,ELEVATION
-panorama_object=next(o for o in objects if o.data.materials[0].name=='Home_Night_unlit')
+panorama_object=next(o for o in objects if o.data.materials[0].name=='Home_Night_unlit_twinkle12')
 garden_object=next(o for o in objects if o.data.materials[0].name=='Home_Garden_Night')
 exterior={}
 for o in (panorama_object,garden_object):

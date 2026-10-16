@@ -110,13 +110,16 @@ def export_anchored(report):
 
 if '--reanchor-only' in args:
     bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Cinema-baked.blend'))
+    from lib_room_motion import rename_material
+    rename_material('Bulb_emit','Bulb_emit_flicker2',TEX)
     scene=bpy.context.scene
     report=json.loads(scene['cinema_build_metrics']) if 'cinema_build_metrics' in scene else json.loads((PREVIEW/'metrics.json').read_text())
     report['bake_reused']=True
     export_anchored(report);sys.exit(0)
 
 if '--preview-only' in args:
-    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Cinema-baked.blend'));preview();sys.exit(0)
+    from lib_room_motion import load_preview_export
+    load_preview_export(ROOT,'Cinema','cinema');preview();sys.exit(0)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene=bpy.context.scene;scene.unit_settings.system='METRIC';scene.unit_settings.scale_length=1
@@ -138,7 +141,7 @@ walnut=material('Walnut_Panelling',(.20,.10,.055),wood)
 carpet=material('Carpet_Deco',(.16,.03,.04),pattern='carpet')
 teal=material('Ceiling_Petrol',(.08,.17,.18))
 dark=material('Stage_WarmShadow',(.075,.045,.045))
-bulb=material('Bulb_emit',(.95,.67,.32),emission=.4)
+bulb=material('Bulb_emit_flicker2',(.95,.67,.32),emission=.4)
 # Dedicated chair fabric: keeps the approved curtains and balcony velvet untouched.
 seat_velvet=material('Velvet_Seat',(.45,.035,.055),velour)
 seat_image=next(n.image for n in seat_velvet.node_tree.nodes if n.type=='TEX_IMAGE')

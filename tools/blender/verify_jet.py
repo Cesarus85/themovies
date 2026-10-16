@@ -23,6 +23,8 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 if draft:bpy.ops.wm.open_mainfile(filepath=str(ROOT/'art/blender/Jet-draft.blend'))
 else:bpy.ops.import_scene.fbx(filepath=str(OUT/'Jet.fbx'))
 scene=bpy.context.scene;bpy.context.view_layer.update()
+from lib_verify_room_motion import audit as audit_effects
+if '--draft' not in sys.argv:motion_evidence=audit_effects(scene,'Jet',ROOT)
 objects=[o for o in scene.objects if o.type=='MESH'];interior=[o for o in objects if 'unlit' not in o.name.lower()]
 def tree(objs):
     vs=[];fs=[]

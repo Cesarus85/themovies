@@ -45,6 +45,8 @@ if '--baseline' in sys.argv or '--balcony-baseline' in sys.argv:
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=str(OUT/'Cinema.fbx'))
 scene=bpy.context.scene
+from lib_verify_room_motion import audit as audit_effects
+if '--draft' not in sys.argv:motion_evidence=audit_effects(scene,'Cinema',ROOT)
 objs=[o for o in scene.objects if o.type=='MESH']
 assert len(objs)<=16
 assert all(len(o.data.materials)==1 for o in objs)
@@ -108,7 +110,7 @@ for o in objs:
     assert mesh.has_custom_normals,o.name+' lost explicit normals in FBX'
     evidence={'chair_triangles':count,'smooth_chair_triangles':smooth_count,'has_custom_normals':mesh.has_custom_normals}
     if reference is not None:
-        actual=normal_rows(o);expected_rows=reference[o.name]
+        actual=normal_rows(o);expected_rows=reference[o.name if o.name in reference else o.name.removesuffix('_flicker2')]
         assert actual.shape==expected_rows.shape
         assert np.allclose(actual[:,:9],expected_rows[:,:9],atol=.00002)
         a=actual[:,9:].reshape(-1,3);b=expected_rows[:,9:].reshape(-1,3)

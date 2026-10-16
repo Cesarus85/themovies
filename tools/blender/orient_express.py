@@ -47,7 +47,8 @@ def marker(name,loc):
     o=bpy.data.objects.new(name,None);bpy.context.scene.collection.objects.link(o);o.location=loc;o.empty_display_type='ARROWS';return o
 
 if '--preview-only' in ARGS:
-    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'OrientExpress-baked.blend'));preview(ROOT,TEX,configure_cycles,'--quick' in ARGS);sys.exit(0)
+    from lib_room_motion import load_preview_export
+    load_preview_export(ROOT,'OrientExpress','orient_express');preview(ROOT,TEX,configure_cycles,'--quick' in ARGS);sys.exit(0)
 if '--scenery-only' in ARGS:
     scenery_only(ROOT,TEX,OUT,BLEND,PREVIEW)
     if '--no-previews' not in ARGS:preview(ROOT,TEX,configure_cycles,'--quick' in ARGS)
@@ -72,7 +73,7 @@ material('Curtain','OE_Champagne_velvet',(.55,.40,.21),'curtain')
 material('Carpet','OE_ArtDeco_Carpet',(.2,.2,.2),'carpet')
 material('Dark','OE_Ebony',(.075,.065,.055),'wood')
 material('Glass','OE_Etched_glow',(.80,.73,.55),'glass',emission=.6)
-material('Shade','OE_Silk_glow',(.90,.71,.42),'shade',emission=.7)
+material('Shade','OE_Silk_glow_flicker2',(.90,.71,.42),'shade',emission=.7)
 meshes=build(materials,light)
 for i,loc in enumerate(SEATS):
     marker(f'Spot_{i:03d}',loc)

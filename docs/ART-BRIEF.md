@@ -615,3 +615,57 @@ Textur- und Gradientennähte sind identisch, beide Seiten bewegen sich zum Heck.
 Der Nutzer hat den Look auf Quest 3 abgenommen („bombastisch“). Die reduzierte
 Scrollwirkung muss erneut im Headset beurteilt werden; Unity wurde für diese
 Art-Lieferung nicht gestartet.
+
+## 14. Dezente Bewegung in den sechs abgenommenen Räumen
+
+| Raum | Neue Effekte | FireLight | Materialien / Budget |
+| --- | --- | --- | --- |
+| Kinopalast | `Bulb_emit_flicker2`, nur Kronleuchter-/Wandleuchtenbirnen | 0 | 11 / 16 |
+| Heimkino | Glut und opake Flammen `flicker30`, Simskerzen `flicker15`, Nachthimmel `twinkle12` | 350, 65 und 70 cm | 12 / 12 |
+| Dachterrasse | Lichterkette `flicker4`, Laternenkerzen `flicker20`, Panorama und Stadtfenster `twinkle10` | 140, 145, 150 und 125 cm an vier lounge-nahen Laternen | 14 / 14 |
+| Weltraum | Drei kleine rot/grün/weiße Flächen auf bestehenden Stationsrippen: `unlit_blink16` (1,6 s) | 0 | 13 / 14 |
+| Orient-Express | Nur Tischlampenschirme `OE_Silk_glow_flicker2` | 0 | 13 / 14 |
+| Präsidentenjet | Kein zusätzlicher Effekt: kein sichtbarer modellierter Flügel | 0 | 13 / 14 |
+
+Weltraumsterne bleiben ruhig; Erdrotation und Instrumente bleiben wie abgenommen.
+Bestehende Landschafts-/Wolkenbewegung bleibt erhalten. Alle neuen Flächen sind opak.
+Nur Home erhält einen neuen 2048²-Bake mit 1024 Samples, Diffuse Direct+Indirect,
+Denoising und dem bisherigen Lampenaufbau; die anderen fünf Lichtatlanten bleiben
+byte-identisch. Cinema/OrientExpress erhalten ausschließlich FBX-Namensänderungen.
+Rooftop erhält getrennte Materialzuweisungen und einen Laub-Farbatlas; Space kleine
+Materialflächen auf bestehenden Rippen, ohne neue Silhouette oder Lichtverdeckung.
+Die übrige Raum- und Sitzgeometrie bleibt erhalten. Jet-FBX und sämtliche Jet-PNGs
+bleiben byte-identisch. Vorhandene Textur-GUIDs werden beim Umbenennen übernommen.
+
+Reproduzierbarer Effekt-Pass mit Blender 5.2, ohne Unity:
+
+```sh
+# Der akzeptierte Home-Export dient als exakte Oberflächen-/UV0-Vorlage.
+git show cabcc7044ac8f1048e1a1e29794074e58bfd718e:Assets/TheMovies/Art/Home/Home.fbx > /tmp/Home-accepted.fbx
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python-exit-code 1 -P tools/blender/home.py -- Assets/TheMovies/Art/Home --accepted-fbx /tmp/Home-accepted.fbx --no-previews
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python-exit-code 1 -P tools/blender/room_motion.py -- Cinema Rooftop Space OrientExpress
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python-exit-code 1 -P tools/blender/preview_room_motion.py
+```
+
+Home-Vorlage SHA-256: `9468e58b4d2317a95983b7d66527a095821bb9b2d7e7ecc1282a32aded203802`.
+Die sechs `verify_<room>.py` prüfen zusätzlich die Effektgrammatik, Prozentwerte,
+Emissionsvoraussetzungen, Materialbudgets, opake Materialien und höchstens vier
+FireLight-Empties innerhalb des begehbaren Raumbereichs. Space prüft zusätzlich,
+dass alle drei Positionslichtfarben aus Seat2 sichtbar sind. Die bestehenden
+UV-, Normalen-, Sichtlinien-, Textur- und Sitzprüfungen bleiben aktiv.
+`verify_orient_express_motion.py` prüft weiterhin die Landschaft bei 72 und 90 fps.
+
+`verify_room_motion_preservation.py` vergleicht mit den vor dem Effekt-Pass unter
+`Logs/art-preview/motion-baseline/<Room>/` gesicherten FBX-/Texturdateien. Es prüft
+vorhandene Oberflächen, Marker, die unveränderten Lichtatlanten und den vollständigen
+Jet-Export. Neue Home-Oberflächen dürfen ausschließlich an Kamin und Simskerzen
+liegen. Der Vergleich dokumentiert auch bereits im Ausgangsstand vorhandene
+Kopffreiheitsabweichungen in Cinema und Home; diese akzeptierten Sitze werden hier
+nicht geändert. Das ist keine neue Freigabe ihrer Kopffreiheit.
+
+Detailbilder: `Logs/art-preview/home-fireplace-motion-closeup.png` und
+`Logs/art-preview/rooftop-lanterns-motion-closeup.png`. Die Standbilder verwenden
+exportierte Basisfarben und Lichtatlanten mit einer statischen Emissionsvorschau;
+sie belegen keine zeitliche Wirkung auf Quest. Laufzeit/Headset wurden in diesem
+Art-Pass nicht gestartet. Sämtliche Prüfberichte und Vorschauen bleiben unter
+ignoriertem `Logs/`, lokale Blender-Dateien unter ignoriertem `art/blender/`.

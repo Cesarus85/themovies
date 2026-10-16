@@ -144,3 +144,29 @@ repository's accepted room pipeline into `lib_jet_*.py`; those accepted scripts 
 assets are unchanged. The common seated-head audit is reused read-only.
 Offline volume geometry, Blender checkpoints, intermediate renders and review logs
 remain git-ignored. No normal maps, alpha/transparency or glass are included.
+
+## Subtle motion in the accepted rooms
+
+The Home fire tongues and tiny mantel candle tips are original opaque procedural
+geometry in `tools/blender/lib_room_motion.py`. Their orange-to-yellow RGB flame
+texture is original generated artwork; no third-party download, alpha texture or
+additional license is introduced. Existing ember artwork is retained in a padded
+2048² fire atlas. Plaster, limestone and charcoal share a second padded 2048² atlas,
+keeping their original palettes and surface mappings while meeting the 12-material
+Home budget. The `--accepted-fbx` build retains the accepted FBX triangulation before
+UV-repeat clipping; the ordinary source builder uses BMesh triangulation. Home alone is rebaked with its existing lamps.
+
+Rooftop olive and lavender colors share a padded 2048² foliage atlas to free one
+material for independent candle flicker. Geometry, normals and light UVs are
+retained; source grain is resampled from 1024 to 1020 pixels per tile. On foliage
+triangles crossing a repeat seam, the very fine ±3.5% grain is clamped to the tile
+border, preserving the original topology and lightmap. Festoon and candle colors
+are unchanged. The photographic panoramas keep their exact prepared pixels.
+
+Space navigation indicators recolor small patches of existing station ribs using
+an original red/green/white RGB texture. No new station silhouette is added. The
+Earth/star geometry and orbital FBX hierarchy are retained from the accepted
+export, including their local rotation basis. Cinema and Orient Express effects
+change material/texture names only; the binary FBX numeric properties are preserved.
+Jet has no modeled visible wing and receives no new effect. No new external asset
+was downloaded for this motion pass.

@@ -3,6 +3,8 @@
 /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/blender/home.py -- Assets/TheMovies/Art/Home
 Optional --preview-only uses the ignored Home-baked.blend checkpoint.
 Optional --geometry-only creates a draft without replacing the delivered FBX.
+--accepted-fbx PATH preserves an accepted Home surface mesh while rebuilding its bake rig.
+--no-previews skips general previews; preview_room_motion.py renders the effect closeups.
 """
 import sys
 sys.dont_write_bytecode=True
@@ -97,7 +99,8 @@ def preview():
     log('Baked-only room and window parallax previews complete; unlit panorama bypasses dimmer')
 
 if '--preview-only' in ARGS:
-    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Home-baked.blend'));preview();sys.exit(0)
+    from lib_room_motion import load_preview_export
+    load_preview_export(ROOT,'Home','home');preview();sys.exit(0)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene=bpy.context.scene;scene.unit_settings.system='METRIC';scene.unit_settings.scale_length=1
@@ -126,6 +129,32 @@ material('Embers','Home_Embers_glow',(.8,.12,.01),'embers',emission=2.2)
 material('Night','Home_Night_unlit',(.03,.05,.1),'panorama',emission=0)
 material('Garden','Home_Garden_Night',(.12,.15,.18),'stone')
 meshes=build(materials,light)+build_window(materials,light)
+# The motion pass can retain the accepted triangulation exactly. Rebuild only
+# the authored bake rig above, then import the accepted geometry/UV0 from its FBX.
+if '--accepted-fbx' in ARGS:
+    accepted=Path(ARGS[ARGS.index('--accepted-fbx')+1]).resolve()
+    assert accepted.is_file() and accepted!=OUT/'Home.fbx'
+    for obj in list(scene.objects):
+        if obj.type=='MESH':bpy.data.objects.remove(obj,do_unlink=True)
+    for mat in list(bpy.data.materials):bpy.data.materials.remove(mat)
+    bpy.ops.import_scene.fbx(filepath=str(accepted));bpy.context.view_layer.update()
+    for obj in list(scene.objects):
+        if obj.type=='EMPTY':bpy.data.objects.remove(obj,do_unlink=True)
+        elif obj.type=='MESH':
+            for uv in list(obj.data.uv_layers)[1:]:obj.data.uv_layers.remove(uv)
+    for mat in bpy.data.materials:
+        mat['home']=True
+        for node in mat.node_tree.nodes:
+            if node.type=='TEX_IMAGE' and node.image:
+                node.image.filepath=str(TEX/Path(node.image.filepath).name)
+                node.image.reload()
+        bs=mat.node_tree.nodes.get('Principled BSDF')
+        bs.inputs['Emission Strength'].default_value={'Home_Linen_emit':.22,'Home_Embers_glow':2.2}.get(mat.name,0)
+from lib_room_motion import home_effects
+meshes=home_effects(TEX,triangulate_source='--accepted-fbx' not in ARGS)
+from lib_motion_texture_meta import sync as sync_texture_meta
+sync_texture_meta(TEX,'Home')
+materials={o.data.materials[0].name:o.data.materials[0] for o in meshes}
 for i,x in enumerate([-1.125,-.375,.375,1.125]):
     for name in [f'Seat{i+1}',f'Spot_{i:03d}']:
         o=bpy.data.objects.new(name,None);scene.collection.objects.link(o);o.location=(x,0,0);o.empty_display_type='ARROWS'
@@ -218,9 +247,10 @@ report={'triangles':stats,'total_triangles':sum(stats.values()),'materials':sort
         'atlas_denoise':'OpenImageDenoise compositor, linear irradiance','view':'Standard / None / exposure -1',
         'device':scene.cycles.device,'blender':bpy.app.version_string,'repaired_uv_faces':repaired,
         'elapsed_seconds':round(time.time()-START)}
-assert report['total_triangles']<=120000 and len(objects)<=14
+assert report['total_triangles']<=120000 and len(objects)<=12
 bpy.ops.export_scene.fbx(filepath=str(OUT/'Home.fbx'),use_selection=False,object_types={'EMPTY','MESH'},apply_unit_scale=True,apply_scale_options='FBX_SCALE_ALL',axis_forward='-Z',axis_up='Y',use_space_transform=True,bake_space_transform=True,mesh_smooth_type='FACE',use_mesh_modifiers=True,add_leaf_bones=False,bake_anim=False,path_mode='AUTO')
 scene['home_build_metrics']=json.dumps(report)
 (PREVIEW/'home-metrics.json').write_text(json.dumps(report,indent=2)+'\n')
 bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Home-baked.blend'))
-preview();log(f'Complete: {report["total_triangles"]} triangles, {len(objects)} material batches')
+if '--no-previews' not in ARGS:preview()
+log(f'Complete: {report["total_triangles"]} triangles, {len(objects)} material batches')

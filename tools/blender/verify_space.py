@@ -22,6 +22,8 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 if draft:bpy.ops.wm.open_mainfile(filepath=str(ROOT/'art/blender/Space-draft.blend'))
 else:bpy.ops.import_scene.fbx(filepath=str(OUT/'Space.fbx'))
 scene=bpy.context.scene;bpy.context.view_layer.update()
+from lib_verify_room_motion import audit as audit_effects
+if '--draft' not in sys.argv:motion_evidence=audit_effects(scene,'Space',ROOT)
 objects=[o for o in scene.objects if o.type=='MESH'];interior=[o for o in objects if o.name not in ('Earth','Space_Panorama')]
 def tree(objs):
     vs=[];fs=[]
@@ -115,6 +117,16 @@ for p in seats:
 assert misses==0,('Open universe ray misses',misses)
 (LOG/'space-black-hits.json').write_text(json.dumps(black_hits,indent=2)+'\n')
 black=float(np.all(np.asarray(sample_colors)<1/255,axis=1).mean())
+# Three small red/green/white patches must actually be visible on station ribs.
+beacon=scene.objects['Space_Navigation_unlit_blink16'];beacon.data.calc_loop_triangles()
+visible_beacon_colors=set();eye=scene.objects['Seat2'].matrix_world.translation+Vector((0,0,1.25))
+for tri in beacon.data.loop_triangles:
+    center=sum((beacon.matrix_world@beacon.data.vertices[v].co for v in tri.vertices),Vector())/3
+    delta=center-eye
+    if alltree.ray_cast(eye,delta.normalized(),delta.length-.002)[0] is not None:continue
+    color=min(2,int(beacon.data.uv_layers['UVMap'].data[tri.loops[0]].uv.x*3))
+    visible_beacon_colors.add(color)
+assert visible_beacon_colors=={0,1,2},('navigation colors not visible from Seat2',visible_beacon_colors)
 # Orbital hierarchy, complete-sphere bounds (including all rotation phases).
 earth=scene.objects['Earth'];stars=scene.objects['Space_Panorama'];rotator=scene.objects['Earth_rotate5520'];sun=scene.objects['Sun']
 assert earth.parent==rotator and stars.parent is None

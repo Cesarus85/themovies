@@ -95,8 +95,10 @@ def preview():
     log('Baked-only terrace previews complete; unlit panorama bypasses dimmer')
 
 if '--head-positions-only' in ARGS:
-    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Rooftop-baked.blend'))
-    correct_heads(bpy.context.scene)
+    from lib_room_motion import load_preview_export
+    scene=load_preview_export(ROOT,'Rooftop','rooftop')
+    scene['rooftop_head_scene_shift_y']=SCENE_SHIFT_Y
+    correct_heads(scene)
     bpy.context.view_layer.update()
     bpy.ops.export_scene.fbx(filepath=str(OUT/'Rooftop.fbx'),use_selection=False,object_types={'EMPTY','MESH'},apply_unit_scale=True,apply_scale_options='FBX_SCALE_ALL',axis_forward='-Z',axis_up='Y',use_space_transform=True,bake_space_transform=True,mesh_smooth_type='FACE',use_mesh_modifiers=True,add_leaf_bones=False,bake_anim=False,path_mode='AUTO')
     bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Rooftop-baked.blend'))
@@ -104,7 +106,8 @@ if '--head-positions-only' in ARGS:
     sys.exit(0)
 
 if '--preview-only' in ARGS:
-    bpy.ops.wm.open_mainfile(filepath=str(BLEND/'Rooftop-baked.blend'));preview();sys.exit(0)
+    from lib_room_motion import load_preview_export
+    load_preview_export(ROOT,'Rooftop','rooftop');preview();sys.exit(0)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene=bpy.context.scene;scene.unit_settings.system='METRIC';scene.unit_settings.scale_length=1
@@ -264,3 +267,7 @@ scene['rooftop_build_metrics']=json.dumps(report)
 (PREVIEW/'rooftop-metrics.json').write_text(json.dumps(report,indent=2)+'\n')
 bpy.ops.wm.save_as_mainfile(filepath=str(BLEND/'Rooftop-baked.blend'))
 preview();log(f'Complete: {report["total_triangles"]} triangles, {len(objects)} material batches')
+
+# Apply the accepted subtle effects after the static build/export.
+from room_motion import update_room
+update_room(ROOT,'Rooftop')

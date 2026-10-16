@@ -23,6 +23,8 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 if draft:bpy.ops.wm.open_mainfile(filepath=str(ROOT/'art/blender/OrientExpress-draft.blend'))
 else:bpy.ops.import_scene.fbx(filepath=str(OUT/'OrientExpress.fbx'))
 scene=bpy.context.scene;bpy.context.view_layer.update()
+from lib_verify_room_motion import audit as audit_effects
+if '--draft' not in sys.argv:motion_evidence=audit_effects(scene,'OrientExpress',ROOT)
 objects=[o for o in scene.objects if o.type=='MESH'];interior=[o for o in objects if 'unlit' not in o.name]
 def tree(objs):
     vs=[];fs=[]
@@ -174,7 +176,7 @@ if baseline.exists():
                     np.array([tuple(o.matrix_world.to_3x3()@n.vector) for n in me.corner_normals]),
                     *[np.array([tuple(d.uv) for d in uv.data]) for uv in me.uv_layers]]
         return result
-    current=snapshot(scene.objects)
+    current={k.removesuffix('_flicker2'):v for k,v in snapshot(scene.objects).items()}
     # Import into the same scene; Blender suffixes names, so compare imported
     # objects via their original material names / strip the generated suffix.
     before=set(scene.objects);bpy.ops.import_scene.fbx(filepath=str(baseline));imported=[o for o in scene.objects if o not in before]
@@ -184,7 +186,7 @@ if baseline.exists():
         for a,b in zip(arrays,current[name]):assert a.shape==b.shape and np.allclose(a,b,rtol=0,atol=1e-6),(name,'approved interior/normal/UV/marker changed')
     for o in imported:bpy.data.objects.remove(o,do_unlink=True)
     recorded=json.loads((LOG/'orient-express-preserved-textures.json').read_text())
-    assert all(hashlib.sha256((OUT/'Textures'/name).read_bytes()).hexdigest()==sha for name,sha in recorded.items())
+    assert all(hashlib.sha256((OUT/'Textures'/name.replace('OE_Silk_glow_BaseColor','OE_Silk_glow_flicker2_BaseColor')).read_bytes()).hexdigest()==sha for name,sha in recorded.items())
     preservation={'checked':True,'pass':True,'baseline_fbx_sha256':hashlib.sha256(baseline.read_bytes()).hexdigest(),'interior_objects_and_markers':len(current),'unchanged_textures':recorded}
 result={'validation':'PASS','fbx_reimport':'PASS','fbx_sha256':hashlib.sha256((OUT/'OrientExpress.fbx').read_bytes()).hexdigest(),'triangles':stats,'total_triangles':sum(stats.values()),'materials':len(materials),'mesh_objects':len(objects),'markers':expected,'head_clearance':heads,'sightlines':{'eye_height_m':1.25,'screen_m':[2.6,1.5],'grid':[39,17],'clear_rays':screen_rays,'blocked':0},'uv_overlaps':0,'uv_padding':padding,'atlas':atlas_stats,'scroll':scroll,'approved_interior_preservation':preservation,'visible_black_bake_fraction':black,'visible_bake_samples':len(sample_colors),'exterior_ray_misses':misses,'textures':texture_info}
 (LOG/'orient-express-verification.json').write_text(json.dumps(result,indent=2)+'\n')
