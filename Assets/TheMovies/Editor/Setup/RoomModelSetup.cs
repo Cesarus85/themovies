@@ -40,7 +40,8 @@ namespace TheMovies.EditorTools
         static readonly RoomKind k_Cinema = new RoomKind { Folder = "Cinema", Model = "Cinema", Prefab = "CustomCinema", Title = "Kinosaal" };
         static readonly RoomKind k_Home = new RoomKind { Folder = "Home", Model = "Home", Prefab = "CustomHome", Title = "Heimkino" };
         static readonly RoomKind k_Rooftop = new RoomKind { Folder = "Rooftop", Model = "Rooftop", Prefab = "CustomRooftop", Title = "Dachterrasse" };
-        static readonly RoomKind[] k_All = { k_Cinema, k_Home, k_Rooftop };
+        static readonly RoomKind k_Space = new RoomKind { Folder = "Space", Model = "Space", Prefab = "CustomSpace", Title = "Weltraum-Lounge" };
+        static readonly RoomKind[] k_All = { k_Cinema, k_Home, k_Rooftop, k_Space };
 
         [MenuItem("The Movies/Raum-Modell aufbereiten/Kinosaal (Art/Cinema)", priority = 50)]
         static void PrepareCinemaMenu() => Report(Prepare(k_Cinema));
@@ -50,6 +51,9 @@ namespace TheMovies.EditorTools
 
         [MenuItem("The Movies/Raum-Modell aufbereiten/Dachterrasse (Art/Rooftop)", priority = 52)]
         static void PrepareRooftopMenu() => Report(Prepare(k_Rooftop));
+
+        [MenuItem("The Movies/Raum-Modell aufbereiten/Weltraum-Lounge (Art/Space)", priority = 53)]
+        static void PrepareSpaceMenu() => Report(Prepare(k_Space));
 
         [MenuItem("The Movies/Raum-Modell aufbereiten/Eigene Räume entfernen (eingebaute verwenden)", priority = 60)]
         static void RemoveMenu()
@@ -238,6 +242,8 @@ namespace TheMovies.EditorTools
             material.SetFloat("_VertexColor", 0f);
 
             string n = name.ToLowerInvariant();
+            if (n.Contains("planet"))
+                return Planet(material, texture, textures, name, done, key);
             bool unlit = n.Contains("unlit");
             bool emissive = unlit || n.Contains("emit") || n.Contains("glow") || n.Contains("bulb") || n.Contains("leucht");
             material.SetFloat("_Sheen", n.Contains("velvet") || n.Contains("samt") ? 0.8f : 0f);
@@ -251,6 +257,24 @@ namespace TheMovies.EditorTools
             material.SetFloat("_BakedDim", 0.04f); // house lights off (0 % / during the movie): nearly dark, the screen lights the room
             if (useBaked) material.EnableKeyword("_TM_BAKED");
             else material.DisableKeyword("_TM_BAKED");
+            EditorUtility.SetDirty(material);
+            done[key] = material;
+            return material;
+        }
+
+        /// <summary>
+        /// A planet (space lounge): own shader with a fixed sun – day side from the base color, city lights from
+        /// Textures/&lt;Material&gt;_Night, atmosphere rim. No baked light.
+        /// </summary>
+        static Material Planet(Material material, Texture day, Dictionary<string, Texture2D> textures, string name,
+            Dictionary<string, Material> done, string key)
+        {
+            material.shader = Shader.Find("TheMovies/Planet");
+            material.mainTexture = day;
+            material.mainTextureScale = Vector2.one;
+            textures.TryGetValue(name + "_Night", out var night);
+            material.SetTexture("_NightTex", night);
+            material.shaderKeywords = new string[0];
             EditorUtility.SetDirty(material);
             done[key] = material;
             return material;
@@ -302,7 +326,8 @@ namespace TheMovies.EditorTools
                 {
                     bool light = name.EndsWith("_Light", StringComparison.OrdinalIgnoreCase);
                     // Surrounding panoramas (sky, far city) cover up to 360°: 2048 would be blurry (~6 px per degree).
-                    bool panorama = name.IndexOf("Panorama", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool panorama = name.IndexOf("Panorama", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    name.IndexOf("Planet", StringComparison.OrdinalIgnoreCase) >= 0;
                     importer.textureType = TextureImporterType.Default;
                     importer.sRGBTexture = true; // base color and baked light (saved with Blender's "Standard" view) are sRGB
                     importer.mipmapEnabled = true;

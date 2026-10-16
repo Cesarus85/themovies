@@ -137,7 +137,7 @@ namespace TheMovies.XR
             camGo.transform.SetParent(m_Offset, false);
             Camera = camGo.AddComponent<Camera>();
             Camera.nearClipPlane = 0.03f;
-            Camera.farClipPlane = 250f;
+            Camera.farClipPlane = 3000f; // the space lounge's Earth is ~1.5 km away (real distance = real depth in stereo)
             Camera.clearFlags = CameraClearFlags.SolidColor;
             Camera.backgroundColor = Color.black;
             // No HDR: cheaper on the Quest, and an HDR buffer has no alpha channel, which passthrough needs.

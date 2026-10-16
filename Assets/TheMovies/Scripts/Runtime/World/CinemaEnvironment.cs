@@ -161,6 +161,9 @@ namespace TheMovies.World
             }
         }
 
+        readonly System.Collections.Generic.Dictionary<Transform, Vector3> m_SunDirections =
+            new System.Collections.Generic.Dictionary<Transform, Vector3>();
+
         static readonly ScreenPlacement k_HallPlacement = new ScreenPlacement(new Vector3(0, k_ScreenBottom, k_ScreenZ), 1f, 8.2f);
         ScreenPlacement m_HallPlacement;
 
@@ -218,6 +221,13 @@ namespace TheMovies.World
             var top = FindDeep(instance.transform, "ScreenTop");
             if (top != null)
                 placement.MaxHeight = Mathf.Max(0.5f, root.InverseTransformPoint(top.position).y - placement.Position.y);
+            // Motion ("_rotate<seconds>") and the sun direction (marker "Sun", for the planet shader).
+            int rotating = SlowRotator.AttachAll(instance.transform);
+            var sun = FindDeep(instance.transform, "Sun");
+            if (sun != null && root.InverseTransformPoint(sun.position).sqrMagnitude > 1e-6f)
+                m_SunDirections[root] = root.InverseTransformPoint(sun.position).normalized;
+            if (rotating > 0) Debug.Log($"[TheMovies] Room model '{prefab.name}': {rotating} slowly turning object(s).");
+
             // Free seat choice: the standard seats first, then every "Spot_###" marker of the model.
             foreach (var seat in s_Seats) AddSpot(spots, seat.position, placement.Position);
             foreach (var t in instance.GetComponentsInChildren<Transform>(true))

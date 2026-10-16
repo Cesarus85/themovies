@@ -17,9 +17,10 @@ namespace TheMovies.World
             Cinema = 0,
             Home = 1,
             Rooftop = 2,
+            Space = 3,
         }
 
-        public static readonly string[] RoomNames = { "Kino", "Heimkino", "Dachterrasse" };
+        public static readonly string[] RoomNames = { "Kino", "Heimkino", "Dachterrasse", "Weltraum-Lounge" };
 
         /// <summary>
         /// Rooms that exist only as a model (no built-in version): prefab under Resources and where the screen hangs if the
@@ -30,6 +31,8 @@ namespace TheMovies.World
             {
                 // Open air: screen on a wall 7–10 m away, picture 3.5–9.5 m wide.
                 { Room.Rooftop, ("TheMovies/CustomRooftop", new ScreenPlacement(new Vector3(0, 1f, 9f), 0.5f, 4f)) },
+                // Observation deck of an orbital station: screen in front of the panoramic window, Earth below.
+                { Room.Space, ("TheMovies/CustomSpace", new ScreenPlacement(new Vector3(0, 1f, 8f), 0.5f, 4f)) },
             };
 
         sealed class ModelRoom
@@ -129,8 +132,19 @@ namespace TheMovies.World
                 placement = model.Placement;
             }
             m_Room = room;
+            ApplySun();
             Screen.SetRoomPlacement(placement.Position, placement.Rotation, placement.SizeScale, placement.MaxHeight);
             ApplyHall();
+        }
+
+        static readonly int k_SunDir = Shader.PropertyToID("_TM_SunDir");
+
+        /// <summary>Direction towards the sun of the shown room (planet shader), from its model's "Sun" marker.</summary>
+        void ApplySun()
+        {
+            var root = RootOf(m_Room);
+            var direction = root != null && m_SunDirections.TryGetValue(root, out var d) ? d : Vector3.up;
+            Shader.SetGlobalVector(k_SunDir, direction);
         }
 
         /// <summary>The living room: the model from Resources/TheMovies/CustomHome if there is one, else the built-in one.</summary>
