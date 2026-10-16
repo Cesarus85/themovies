@@ -387,3 +387,103 @@ Aktueller Weltraum-Export: **102.189 Dreiecke, zwölf Materialien/Material-Meshe
 Die Atlas-Packung trennt 23 hohle UV-Inseln in kompakte Sektoren. Reimport: 5.304 freie
 Leinwandstrahlen; garantierter Kopf-Freiraum ≥14,82 cm; Erde höchstens 2.850,34 m und Sterne
 2.504,14 m von den Sitzaugen entfernt. Die Rotationsgrenze gilt für sämtliche Drehphasen.
+
+## 12. Orient-Express – fünfter Raum
+
+**Gestaltung:** Erfundenes Art-déco-Salonabteil „Aster Vale / AV“, ohne reale Bahnlogos,
+Hoheitszeichen oder Siegel. Innenbreite 2,90 m, Länge 16,10 m (Y −9,25 bis +6,85),
+flach gewölbte Elfenbeindecke bis Z 2,56 m. Walnussvertäfelung mit originalen floralen
+Intarsien, petrolfarbene Samtpolster, champagnerfarbene geraffte Vorhänge mit Pelmets,
+Messing-Gepäckablagen, gemusterter Teppich, opake geätzte Leuchtglasfelder,
+Deckenleuchten und kleine Tische mit gefransten Seidenschirmen. Türen an beiden Enden.
+Die vordere Tür liegt hinter dem Projektionsportal und ist bei eingefahrener App-Leinwand sichtbar.
+
+**Sitze und Leinwand:** Seat1–4 unverändert X −1,125 / −0,375 / +0,375 / +1,125,
+Y=Z=0, deckungsgleich mit Spot_000–003; vier schmale einzelne Sessel nach +Y.
+Zwei Bankplätze X ±0,38, Y −3,10; zwei Essplätze X ±0,83, Y −6,20,
+Spot_004–007; zwei zusätzliche Sessel X ±0,83, Y +2,65, Spot_008–009, alle Z=0. Niedrige gepolsterte Lehnen erhalten die Sicht aus 1,25 m Augenhöhe.
+Alle Marker müssen die vollständige kontinuierliche Kopfhülle aus Abschnitt 2 bestehen,
+einschließlich freier Kopfprojektion über dem Polster. ScreenAnchor=(0; 6,65; 0,90),
+ScreenTop=(0; 6,65; 2,40), freier Bildbereich 2,60 × 1,50 m an der Stirnwand.
+Keine Leinwandfläche im FBX. Die App begrenzt die Bildhöhe anhand ScreenTop;
+breitere/extreme Seitenverhältnisse müssen die App-seitige Wagenbreite respektieren.
+
+**Vorbeiziehende Landschaft – 70 km/h:** Der Nutzer hat den Innenraum auf Quest 3
+abgenommen; dessen Look, Geometrie, Normalen, beide UV-Sätze, Marker und sämtliche
+Innenraumtexturen einschließlich Lichtatlas bleiben erhalten. Nur unbeleuchtete
+Kulissen ändern sich; kein neuer Bake.
+
+Drei opake, horizontal nahtlose RGB-Panoramen mit geraden horizontalen Bandkanten:
+- **Nah:** Gleisbett/Gras/Zaun, dargestellt in 4,5 m Entfernung (über die Sitzbreite
+  effektiv 3,49–5,51 m), Träger X ±5 m, Textur 4096×1024. Oberkante Z=0,65;
+  darunter Bodenschürze. Wenige breite, kontrastarme Schwellen/Zaunpfosten;
+  periodischer horizontaler Tiefpass statt flimmernder Körnung.
+- **Mitte:** Felder, Hecken, Bäume, kleine Höfe mit warmen Fenstern, dargestellt in
+  250 m Entfernung, Träger X ±18 m, Z −6 bis +1, Textur 4096×1024. Baum-, Dach-
+  und Heckenkonturen sind vollständig Teil der scrollenden RGB-Textur, unterhalb
+  einer ruhigen geraden Feldkante. Keine unbewegliche geometrische Baumsilhouette,
+  keine Alpha-Karte und keine mitbewegte Himmelsattrappe.
+- **Fern:** dieselbe CC0-Fotografie „Clarens Night 02“, Berge/Himmel dargestellt in
+  10 km Entfernung, Träger X ±60 m. Die vorbereiteten RGB-Pixel bleiben unverändert,
+  4096×2048. Langsamer UV-Scroll; horizontale Wiederholung um 8,02 % vergrößert,
+  damit `scroll6` das Zieltempo ohne gröbere Integer-Rundung abbildet.
+
+**Rechnung:** v=70/3,6=19,444444 m/s; bei seitlichem Blick Ziel-Winkelgeschwindigkeit
+ω=v/d. Für eine ebene Trägerfläche X=±g mit U=Y/L gilt lokal in Fenstermitte
+Θ=dφ/dU=L/g (rad pro Texturbreite). Damit exakt u/s=(v/d)/Θ und N=round(10000·u/s).
+Θ ist die **lokale projizierte Winkelbreite**, nicht der endliche Winkel zwischen
+zwei weit entfernten Textur-Endpunkten. Der Endpunktwinkel 2·atan(L/(2g)) ist beim
+Nahband nur 2,3520 rad; ihn als lokalen Umrechnungsfaktor zu verwenden würde dort
+die Bewegung um Faktor 2,04 überhöhen. Affine UVs erhalten die korrekte Bewegung
+auch bei den hinteren Plätzen; beim Schrägblick sinkt ω physikalisch mit cos²(φ).
+
+| Ebene | dargestelltes d | Träger g | Wiederholung L | Θ lokal rad/U | u/s exportiert | Material | ω rad/s |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
+| Nah | 4,5 m | 5 m | 24 m | 4,8 | 0,9002 | OE_Near_Panorama_unlit_scroll9002 | 4,320960 |
+| Mitte | 250 m | 18 m | 80 m | 4,444444 | 0,0175 | OE_Middle_Panorama_unlit_scroll175 | 0,077778 |
+| Fern | 10.000 m | 60 m | 194,444444 m | 3,240741 | 0,0006 | OE_Far_Panorama_unlit_scroll6 | 0,001944 |
+
+Ideal Nah=0,900205761 U/s, Rundungsfehler −0,00064 %. Mitte und Fern sind exakt
+auf v kalibriert. Für Fern ergibt sich L=(v/d)·g/0,0006; deshalb ist kein feineres
+`scroll<N>`-Format nötig. Auf beiden Seiten wächst U nach +Y; der positive
+Shader-Abtastoffset bewegt Bildmerkmale nach −Y zum Heck.
+
+Nahtextur: höchstens 18 räumliche Zyklen pro Texturbreite nach weichem Tiefpass,
+entsprechend 16,2036 Hz bei voller Fahrt; Mittentextur höchstens 400 Zyklen,
+entsprechend 7 Hz. Beides unter der Nyquist-Grenze von 36 Hz bei 72 fps und 45 Hz
+bei 90 fps. RGB8-Restenergie, periodische Übergänge und vier sekundenlange
+Fenster-Clips beider Seiten bei 72/90 fps werden mit dem tatsächlichen FBX geprüft.
+Bewegungsbericht: `Logs/art-preview/ORIENT-EXPRESS-MOTION-REPORT.md`; vier MP4-Clips
+`orient-express-motion-{left,right}-{72,90}fps.mp4` daneben.
+Die Clips verwenden weder Bewegungsunschärfe noch zeitliches Blending, um Fehler
+nicht zu verdecken. Sie ersetzen keinen Quest-Test von Laufzeit, Komfort und Last.
+
+**Pipeline und Lieferung:** `Assets/TheMovies/Art/OrientExpress/OrientExpress.fbx`
+(Art-Unterordner `Art/OrientExpress`), Textures daneben; App-Prefabname
+`CustomOrientExpress` (Erzeugung durch die App-Seite, kein Unity-Aufruf hier).
+≤120.000 Dreiecke, ≤14 Materialien; Zusammenfassung nach Material.
+Basisfarben 1024², ausschließlich Panorama-Dateien größer; globaler Lichtatlas
+`OrientExpress_Light.png` 2048², zwei UV-Sätze, global keine Überschneidungen,
+≥4 px Abstand. Cycles Diffuse Direct+Indirect ohne Color, 256 Samples,
+Denoising, 8 px Bake-Margin, Standard/None/−1 EV/RGB8. Warme Innenbeleuchtung
+und kühles Fensterlicht im Bake; alle drei Kulissenbänder unlit und ungedimmt.
+Vorschauen Basisfarbe × Atlas ×2, dimmbar auf 4 %, Glow ebenfalls dimmbar.
+
+Build: `Blender -b --factory-startup -P tools/blender/orient_express.py -- Assets/TheMovies/Art/OrientExpress`.
+Prüfung: `Blender -b --factory-startup -P tools/blender/verify_orient_express.py`.
+`--scenery-only` ersetzt nur die Kulissen im vorhandenen Bake-Checkpoint und exportiert neu;
+`--no-previews` überspringt dabei die Standbilder. `verify_orient_express_motion.py`
+erzeugt und prüft die 72/90-fps-Clips unter Logs/art-preview.
+`--geometry-only` erstellt einen lokalen Entwurf; Prüfer `-- --draft` testet dessen Sichtlinien.
+`--preview-only` wiederholt die gebackenen Vorschauen aus dem ignorierten Checkpoint.
+Vorschauen und Bericht: `Logs/art-preview/orient-express-*.png`,
+`Logs/art-preview/ORIENT-EXPRESS-REPORT.md`; Logs nicht versioniert.
+Walnussmaserung und Samtflor aus den CC0-Diffusfotos dark_wood / velour_velvet
+von Poly Haven, auf 1024² reduziert und eingefärbt. Rohdaten ausschließlich unter
+ignoriertem `art/sources/`, Quellenmanifest `art/orient-express-sources.json`, Credits in `docs/CREDITS.md`.
+Die vier akzeptierten Räume, App-Code, ProjectSettings und Packages bleiben unverändert.
+Commit auf dem aktuellen Branch, kein Push. Innenraum auf Quest 3 abgenommen; erneuter Quest-Test des geänderten Fahrtempos offen.
+
+Aktueller Orient-Express-Export: **55.340 Dreiecke, dreizehn Materialien/Material-Meshes, zehn Plätze**.
+FBX-Reimport: 6.630 freie Leinwandstrahlen; garantierte Luft um die kontinuierlich geprüfte
+Kopfhülle mindestens 17,70 cm. Globale UV-Prüfung ohne Überschneidungen, ≥4 px Inselabstand.
