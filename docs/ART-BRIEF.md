@@ -10,6 +10,10 @@ Export-Einstellungen sind verbindlich, weil die App die Modelle automatisch einb
 | --- | --- | --- |
 | **Kinosaal** | Klassischer **Kinopalast** der 1920er/30er Jahre | `Assets/TheMovies/Art/Cinema/Cinema.fbx` |
 | **Heimkino** | Klassisches, gemütliches **Wohnzimmer-Kino** | `Assets/TheMovies/Art/Home/Home.fbx` |
+| **Dachterrasse** | Open-Air über der Stadt (Abschnitt 10) | `Assets/TheMovies/Art/Rooftop/Rooftop.fbx` |
+| **Weltraum-Lounge** | Aussichtsdeck einer Raumstation (Abschnitt 11) | `Assets/TheMovies/Art/Space/Space.fbx` |
+| **Orient-Express** | Salonwagen der 1920er/30er | `Assets/TheMovies/Art/OrientExpress/OrientExpress.fbx` |
+| **Präsidentenjet** | Konferenz-/Lounge-Kabine eines Präsidenten-Jumbos | `Assets/TheMovies/Art/Jet/Jet.fbx` |
 
 ### Kinopalast – Stilvorgaben
 
@@ -135,6 +139,15 @@ Die Quest rendert jedes Bild zweimal (ein Bild pro Auge) bei 72–90 Hz auf eine
 | `gold` / `brass` / `messing` / `chrome` / `metal` | Glanzlichter |
 | `emit` / `glow` / `bulb` / `leucht` | leuchtet selbst, wird mit dem Saallicht gedimmt (Glühbirnen, Lampenschirme, Kronleuchter-Kristalle) |
 | `unlit` | leuchtet immer gleich (Notausgang-Schild, Sternenhimmel) |
+| `planet` | eigener Planeten-Shader: Tag-/Nachtseite mit fester Sonne (Marker `Sun`), `<Material>_Night.png` = Stadtlichter |
+| `scroll<N>` | **vorbeiziehende Kulisse**: die Textur wandert waagrecht um N/10000 ihrer Breite pro Sekunde (z. B. `Far_unlit_scroll8`); Textur muss horizontal nahtlos kacheln. Mehrere Ebenen mit unterschiedlichem Tempo (nah schnell, fern langsam) ergeben Tiefe. |
+
+Bewegte Objekte: Ein Objekt/Empty mit `_rotate<Sekunden pro Umdrehung>` im Namen dreht die App um seine lokale
+Hochachse (Blender lokal Z), Kinder drehen mit (z. B. `Earth_rotate5520`).
+
+Marken und Hoheitszeichen: keine offiziellen Siegel, Wappen, Logos oder Kennzeichen realer Staaten, Behörden,
+Bahn- oder Fluggesellschaften (z. B. das Siegel des US-Präsidenten, „Air Force One“-Schriftzug, Logo der Wagons-Lits)
+– eigene, gleichwertige Gestaltung im passenden Stil.
 
 ## 5. Licht backen (der wichtigste Schritt für den Look)
 

@@ -18,6 +18,8 @@ Shader "TheMovies/CinemaLit"
         _LightTex ("Baked light (UV2)", 2D) = "white" {}
         _LightScale ("Baked light scale", Float) = 2
         _BakedDim ("Baked light left with house lights off", Range(0, 1)) = 0.04
+        // Passing landscape / clouds (material name "…scroll<N>"): texture moves horizontally, u per second.
+        _Scroll ("Scroll (u per second)", Float) = 0
     }
     SubShader
     {
@@ -46,6 +48,7 @@ Shader "TheMovies/CinemaLit"
             sampler2D _LightTex;
             float _LightScale;
             float _BakedDim;
+            float _Scroll;
 
             // Set globally by CinemaEnvironment / ScreenController
             float4 _TM_LightPos[TM_MAX_LIGHTS];    // xyz = position, w = range
@@ -85,6 +88,7 @@ Shader "TheMovies/CinemaLit"
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.uv.x += frac(_Scroll * _Time.y); // 0 for everything but passing scenery
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.color = v.color;

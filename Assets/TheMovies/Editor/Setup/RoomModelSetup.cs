@@ -41,7 +41,9 @@ namespace TheMovies.EditorTools
         static readonly RoomKind k_Home = new RoomKind { Folder = "Home", Model = "Home", Prefab = "CustomHome", Title = "Heimkino" };
         static readonly RoomKind k_Rooftop = new RoomKind { Folder = "Rooftop", Model = "Rooftop", Prefab = "CustomRooftop", Title = "Dachterrasse" };
         static readonly RoomKind k_Space = new RoomKind { Folder = "Space", Model = "Space", Prefab = "CustomSpace", Title = "Weltraum-Lounge" };
-        static readonly RoomKind[] k_All = { k_Cinema, k_Home, k_Rooftop, k_Space };
+        static readonly RoomKind k_Orient = new RoomKind { Folder = "OrientExpress", Model = "OrientExpress", Prefab = "CustomOrientExpress", Title = "Orient-Express" };
+        static readonly RoomKind k_Jet = new RoomKind { Folder = "Jet", Model = "Jet", Prefab = "CustomJet", Title = "Präsidentenjet" };
+        static readonly RoomKind[] k_All = { k_Cinema, k_Home, k_Rooftop, k_Space, k_Orient, k_Jet };
 
         [MenuItem("The Movies/Raum-Modell aufbereiten/Kinosaal (Art/Cinema)", priority = 50)]
         static void PrepareCinemaMenu() => Report(Prepare(k_Cinema));
@@ -54,6 +56,12 @@ namespace TheMovies.EditorTools
 
         [MenuItem("The Movies/Raum-Modell aufbereiten/Weltraum-Lounge (Art/Space)", priority = 53)]
         static void PrepareSpaceMenu() => Report(Prepare(k_Space));
+
+        [MenuItem("The Movies/Raum-Modell aufbereiten/Orient-Express (Art/OrientExpress)", priority = 54)]
+        static void PrepareOrientMenu() => Report(Prepare(k_Orient));
+
+        [MenuItem("The Movies/Raum-Modell aufbereiten/Präsidentenjet (Art/Jet)", priority = 55)]
+        static void PrepareJetMenu() => Report(Prepare(k_Jet));
 
         [MenuItem("The Movies/Raum-Modell aufbereiten/Eigene Räume entfernen (eingebaute verwenden)", priority = 60)]
         static void RemoveMenu()
@@ -252,6 +260,9 @@ namespace TheMovies.EditorTools
             material.SetFloat("_RoomLightAffect", emissive && !unlit ? 1f : 0f);
             material.SetFloat("_ScreenGlow", emissive ? 0f : 1f);
 
+            // Passing scenery: "…scroll<N>" moves the texture by N/10000 of its width per second.
+            material.SetFloat("_Scroll", ScrollSpeed(n));
+
             bool useBaked = baked && !emissive;
             material.SetTexture("_LightTex", useBaked ? lightTexture : null);
             material.SetFloat("_BakedDim", 0.04f); // house lights off (0 % / during the movie): nearly dark, the screen lights the room
@@ -278,6 +289,15 @@ namespace TheMovies.EditorTools
             EditorUtility.SetDirty(material);
             done[key] = material;
             return material;
+        }
+
+        static float ScrollSpeed(string lowerName)
+        {
+            int at = lowerName.IndexOf("scroll", StringComparison.Ordinal);
+            if (at < 0) return 0f;
+            int start = at + 6, end = start;
+            while (end < lowerName.Length && char.IsDigit(lowerName[end])) end++;
+            return end > start && int.TryParse(lowerName.Substring(start, end - start), out int n) ? n / 10000f : 0.001f;
         }
 
         static string Sanitize(string name)

@@ -18,9 +18,11 @@ namespace TheMovies.World
             Home = 1,
             Rooftop = 2,
             Space = 3,
+            OrientExpress = 4,
+            Jet = 5,
         }
 
-        public static readonly string[] RoomNames = { "Kino", "Heimkino", "Dachterrasse", "Weltraum-Lounge" };
+        public static readonly string[] RoomNames = { "Kino", "Heimkino", "Dachterrasse", "Weltraum-Lounge", "Orient-Express", "Präsidentenjet" };
 
         /// <summary>
         /// Rooms that exist only as a model (no built-in version): prefab under Resources and where the screen hangs if the
@@ -33,6 +35,10 @@ namespace TheMovies.World
                 { Room.Rooftop, ("TheMovies/CustomRooftop", new ScreenPlacement(new Vector3(0, 1f, 9f), 0.5f, 4f)) },
                 // Observation deck of an orbital station: screen in front of the panoramic window, Earth below.
                 { Room.Space, ("TheMovies/CustomSpace", new ScreenPlacement(new Vector3(0, 1f, 8f), 0.5f, 4f)) },
+                // Salon car: screen on the end wall of a narrow car, 2–6 m wide (limited by its height).
+                { Room.OrientExpress, ("TheMovies/CustomOrientExpress", new ScreenPlacement(new Vector3(0, 0.9f, 6f), 0.3f, 1.5f)) },
+                // Presidential jet: screen on the front bulkhead of the conference cabin.
+                { Room.Jet, ("TheMovies/CustomJet", new ScreenPlacement(new Vector3(0, 0.9f, 5f), 0.35f, 1.8f)) },
             };
 
         sealed class ModelRoom
