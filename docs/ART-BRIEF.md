@@ -142,8 +142,18 @@ Die Quest rendert jedes Bild zweimal (ein Bild pro Auge) bei 72–90 Hz auf eine
 | `planet` | eigener Planeten-Shader: Tag-/Nachtseite mit fester Sonne (Marker `Sun`), `<Material>_Night.png` = Stadtlichter |
 | `scroll<N>` | **vorbeiziehende Kulisse**: die Textur wandert waagrecht um N/10000 ihrer Breite pro Sekunde (z. B. `Far_unlit_scroll8`); Textur muss horizontal nahtlos kacheln. Mehrere Ebenen mit unterschiedlichem Tempo (nah schnell, fern langsam) ergeben Tiefe. |
 
+| `scrollv<N>` | wie `scroll`, aber senkrecht (N/10000 der Texturhöhe pro Sekunde; aufsteigende Flammen, Rauch) |
+| `flicker<N>` | das eigene Leuchten flackert um N % (Flammen 15–35, Glühbirnen/Lichterketten 2–6); nur zusammen mit `emit`/`glow`/`bulb`/`unlit` |
+| `twinkle<N>` | helle Bildpunkte funkeln um N % (Sterne am Nachthimmel; nicht im Weltraum – dort funkeln Sterne nicht) |
+| `blink<N>` | Leuchten blinkt kurz auf, Periode N/10 s (Positionslichter, Kontrollleuchten) |
+
+Jede Lampe flackert/blinkt mit eigener Phase (abhängig von ihrer Position), auch wenn alle Lampen in einem Mesh liegen.
+
 Bewegte Objekte: Ein Objekt/Empty mit `_rotate<Sekunden pro Umdrehung>` im Namen dreht die App um seine lokale
 Hochachse (Blender lokal Z), Kinder drehen mit (z. B. `Earth_rotate5520`).
+
+Feuerschein: Empties `FireLight_<Radius in cm>` (höchstens 4 pro Raum, z. B. `FireLight_350` vor dem Kamin) lassen
+das gebackene Licht in diesem Umkreis warm mitflackern – Wände, Möbel und Boden im Schein des Feuers bewegen sich mit.
 
 Marken und Hoheitszeichen: keine offiziellen Siegel, Wappen, Logos oder Kennzeichen realer Staaten, Behörden,
 Bahn- oder Fluggesellschaften (z. B. das Siegel des US-Präsidenten, „Air Force One“-Schriftzug, Logo der Wagons-Lits)

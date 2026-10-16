@@ -139,6 +139,7 @@ namespace TheMovies.World
             var hall = env.m_HallPlacement;
             env.Screen = ScreenController.Create(go.transform, hall.Position, hall.Rotation, maxHeight: hall.MaxHeight);
             env.Screen.ImmersiveChanged += _ => env.ApplyHall();
+            env.ApplySun();
             return env;
         }
 
@@ -163,6 +164,8 @@ namespace TheMovies.World
 
         readonly System.Collections.Generic.Dictionary<Transform, Vector3> m_SunDirections =
             new System.Collections.Generic.Dictionary<Transform, Vector3>();
+        readonly System.Collections.Generic.Dictionary<Transform, Vector4[]> m_FireLights =
+            new System.Collections.Generic.Dictionary<Transform, Vector4[]>();
 
         static readonly ScreenPlacement k_HallPlacement = new ScreenPlacement(new Vector3(0, k_ScreenBottom, k_ScreenZ), 1f, 8.2f);
         ScreenPlacement m_HallPlacement;
@@ -227,6 +230,17 @@ namespace TheMovies.World
             if (sun != null && root.InverseTransformPoint(sun.position).sqrMagnitude > 1e-6f)
                 m_SunDirections[root] = root.InverseTransformPoint(sun.position).normalized;
             if (rotating > 0) Debug.Log($"[TheMovies] Room model '{prefab.name}': {rotating} slowly turning object(s).");
+            // Firelight: markers "FireLight_<radius in cm>" – the baked light flickers around them (CinemaLit, up to 4).
+            var fires = new System.Collections.Generic.List<Vector4>();
+            foreach (var t in instance.GetComponentsInChildren<Transform>(true))
+            {
+                if (!t.name.StartsWith("FireLight", System.StringComparison.OrdinalIgnoreCase) || fires.Count >= 4) continue;
+                int us = t.name.LastIndexOf('_');
+                float radius = us >= 0 && int.TryParse(t.name.Substring(us + 1), out int cm) && cm > 0 ? cm / 100f : 3f;
+                var p = root.InverseTransformPoint(t.position);
+                fires.Add(new Vector4(p.x, p.y, p.z, radius));
+            }
+            if (fires.Count > 0) m_FireLights[root] = fires.ToArray();
 
             // Free seat choice: the standard seats first, then every "Spot_###" marker of the model.
             foreach (var seat in s_Seats) AddSpot(spots, seat.position, placement.Position);

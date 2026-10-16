@@ -277,8 +277,13 @@ namespace TheMovies.EditorTools
             material.SetFloat("_RoomLightAffect", emissive && !unlit ? 1f : 0f);
             material.SetFloat("_ScreenGlow", emissive ? 0f : 1f);
 
-            // Passing scenery: "…scroll<N>" moves the texture by N/10000 of its width per second.
-            material.SetFloat("_Scroll", ScrollSpeed(n));
+            // Motion: "…scroll<N>" / "…scrollv<N>" move the texture by N/10000 of its width/height per second,
+            // "…flicker<N>" / "…twinkle<N>" N % brightness variation, "…blink<N>" on/off every N/10 s.
+            material.SetFloat("_Scroll", (NumberAfter(n, "scroll") ?? 0) / 10000f);
+            material.SetFloat("_ScrollV", (NumberAfter(n, "scrollv") ?? 0) / 10000f);
+            material.SetFloat("_Flicker", Mathf.Clamp01((NumberAfter(n, "flicker") ?? 0) / 100f));
+            material.SetFloat("_Twinkle", Mathf.Clamp01((NumberAfter(n, "twinkle") ?? 0) / 100f));
+            material.SetFloat("_Blink", (NumberAfter(n, "blink") ?? 0) / 10f);
 
             bool useBaked = baked && !emissive;
             material.SetTexture("_LightTex", useBaked ? lightTexture : null);
@@ -308,13 +313,16 @@ namespace TheMovies.EditorTools
             return material;
         }
 
-        static float ScrollSpeed(string lowerName)
+        /// <summary>The number right after <paramref name="tag"/> in the (lower-case) name, e.g. "flicker30" → 30; null if none.</summary>
+        static int? NumberAfter(string lowerName, string tag)
         {
-            int at = lowerName.IndexOf("scroll", StringComparison.Ordinal);
-            if (at < 0) return 0f;
-            int start = at + 6, end = start;
-            while (end < lowerName.Length && char.IsDigit(lowerName[end])) end++;
-            return end > start && int.TryParse(lowerName.Substring(start, end - start), out int n) ? n / 10000f : 0.001f;
+            for (int at = lowerName.IndexOf(tag, StringComparison.Ordinal); at >= 0; at = lowerName.IndexOf(tag, at + 1, StringComparison.Ordinal))
+            {
+                int start = at + tag.Length, end = start;
+                while (end < lowerName.Length && char.IsDigit(lowerName[end])) end++;
+                if (end > start && int.TryParse(lowerName.Substring(start, end - start), out int n)) return n;
+            }
+            return null;
         }
 
         static string Sanitize(string name)

@@ -144,13 +144,24 @@ namespace TheMovies.World
         }
 
         static readonly int k_SunDir = Shader.PropertyToID("_TM_SunDir");
+        static readonly int k_FireLight = Shader.PropertyToID("_TM_FireLight");
+        static readonly int k_FireCount = Shader.PropertyToID("_TM_FireCount");
 
-        /// <summary>Direction towards the sun of the shown room (planet shader), from its model's "Sun" marker.</summary>
+        /// <summary>
+        /// Per-room shader globals: direction towards the sun (planet shader, model marker "Sun") and the points whose
+        /// baked light flickers like fire (markers "FireLight_&lt;cm&gt;").
+        /// </summary>
         void ApplySun()
         {
             var root = RootOf(m_Room);
             var direction = root != null && m_SunDirections.TryGetValue(root, out var d) ? d : Vector3.up;
             Shader.SetGlobalVector(k_SunDir, direction);
+            var fires = new Vector4[4];
+            int count = 0;
+            if (root != null && m_FireLights.TryGetValue(root, out var list))
+                for (; count < list.Length && count < 4; count++) fires[count] = list[count];
+            Shader.SetGlobalVectorArray(k_FireLight, fires);
+            Shader.SetGlobalFloat(k_FireCount, count);
         }
 
         /// <summary>The living room: the model from Resources/TheMovies/CustomHome if there is one, else the built-in one.</summary>

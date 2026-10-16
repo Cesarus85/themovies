@@ -20,6 +20,11 @@ Shader "TheMovies/CinemaLit"
         _BakedDim ("Baked light left with house lights off", Range(0, 1)) = 0.04
         // Passing landscape / clouds (material name "…scroll<N>"): texture moves horizontally, u per second.
         _Scroll ("Scroll (u per second)", Float) = 0
+        _ScrollV ("Scroll (v per second)", Float) = 0
+        // Motion in baked rooms (material names "…flicker<N>", "…twinkle<N>", "…blink<N>"):
+        _Flicker ("Flicker of own glow (0..1)", Range(0, 1)) = 0
+        _Twinkle ("Twinkle of bright pixels (0..1)", Range(0, 1)) = 0
+        _Blink ("Blink period in seconds (0 = off)", Float) = 0
     }
     SubShader
     {
@@ -49,6 +54,25 @@ Shader "TheMovies/CinemaLit"
             float _LightScale;
             float _BakedDim;
             float _Scroll;
+            float _ScrollV;
+            float _Flicker;
+            float _Twinkle;
+            float _Blink;
+            float4 _MainTex_TexelSize;
+            // Flickering firelight on the baked light around up to 4 points (room model markers "FireLight_<cm>").
+            float4 _TM_FireLight[4]; // xyz = position, w = radius
+            float _TM_FireCount;
+
+            // Irregular flicker in [-1, 1]; the phase keeps neighbouring lamps out of step.
+            float FlickerNoise(float t, float phase)
+            {
+                return sin(t * 7.3 + phase) * 0.5 + sin(t * 13.1 + phase * 1.7) * 0.3 + sin(t * 23.7 + phase * 0.6) * 0.2;
+            }
+
+            float Hash(float2 p)
+            {
+                return frac(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+            }
 
             // Set globally by CinemaEnvironment / ScreenController
             float4 _TM_LightPos[TM_MAX_LIGHTS];    // xyz = position, w = range
@@ -89,6 +113,7 @@ Shader "TheMovies/CinemaLit"
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.uv.x += frac(_Scroll * _Time.y); // 0 for everything but passing scenery
+                o.uv.y += frac(_ScrollV * _Time.y);
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.color = v.color;
@@ -145,6 +170,16 @@ Shader "TheMovies/CinemaLit"
                     light += glow * falloff * falloff * facing * _ScreenGlow * 1.6;
                 }
 
+                // Firelight: the baked light flickers warm around fireplaces and candles.
+                [unroll]
+                for (int f = 0; f < 4; f++)
+                {
+                    float on = f < _TM_FireCount ? 1.0 : 0.0;
+                    float d = distance(i.worldPos, _TM_FireLight[f].xyz);
+                    float fall = saturate(1.0 - d / max(_TM_FireLight[f].w, 0.01));
+                    light *= 1.0 + on * 0.22 * FlickerNoise(_Time.y, f * 12.9) * fall * fall * float3(1.0, 0.85, 0.6);
+                }
+
                 float3 col = albedo * light;
 
                 // Velvet: brighter rim at grazing angles
@@ -152,7 +187,18 @@ Shader "TheMovies/CinemaLit"
                 col += albedo * rim * _Sheen * (light + 0.05);
 
                 col += spec * _Specular;
-                col += albedo * _Emission * lerp(1.0, lampLevel, _RoomLightAffect);
+                // Own glow, with flicker (flames, bulbs), blink (signal lights) and twinkle (stars).
+                float glow = _Emission * lerp(1.0, lampLevel, _RoomLightAffect);
+                float phase = dot(floor(i.worldPos * 4.0), float3(1.7, 3.1, 2.3)); // per lamp, uniform over one bulb
+                glow *= 1.0 + _Flicker * FlickerNoise(_Time.y, phase);
+                if (_Blink > 0.0) glow *= frac(_Time.y / _Blink + phase * 0.07) < 0.12 ? 1.6 : 0.15;
+                if (_Twinkle > 0.0)
+                {
+                    float h = Hash(floor(i.uv * _MainTex_TexelSize.zw * 0.5));
+                    float bright = smoothstep(0.35, 0.8, dot(albedo, float3(0.3333, 0.3333, 0.3333)));
+                    glow *= 1.0 + _Twinkle * bright * sin(_Time.y * (1.5 + h * 3.5) + h * 40.0);
+                }
+                col += albedo * glow;
                 return fixed4(col, 1);
             }
             ENDCG
