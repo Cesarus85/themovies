@@ -43,12 +43,18 @@ Sitzplätze der Teilnehmerreihe (im Heimkino entsprechende Sofaplätze):
 - blicken nach **+Y**; die Leinwand liegt auf **+Y**;
 - Augenhöhe sitzend: **1,25 m** über diesem Boden.
 
-**Definition der Sitzmarker (Kinosaal und später auch Heimkino-Sofa):** Ein Sitzmarker liegt am Bodenpunkt
-senkrecht unter den Augen eines angelehnten, sitzenden Erwachsenen, auf der **Bodenhöhe der jeweiligen Reihe**.
-Er liegt horizontal **0,12 m vor der gepolsterten Vorderfläche der Rückenlehne**, gemessen auf der Mittellinie des
-Sitzplatzes in **0,85 m Höhe über dem Reihenboden** (Schulterhöhe). Die Fläche ist am tatsächlichen fertigen
-Polstermesh zu messen, bei unterschiedlichen Detailstufen jeweils separat. Der Marker liegt damit unter der
-sitzenden Kopfposition, nicht vor der Sitzvorderkante; die App addiert die Augenhöhe von 1,25 m.
+**Definition der Sitzmarker (alle Räume):** Ein Sitzmarker liegt am Bodenpunkt senkrecht unter den
+Augen eines sitzenden Erwachsenen, auf der **Bodenhöhe der jeweiligen Reihe**. Die App addiert
+**1,25 m Augenhöhe**. Ein Kopf mit **0,20 m Durchmesser** muss vollständig vor/frei von
+Rückenpolster, Rahmen und allen anderen Oberflächen liegen, mit **mindestens 0,08 m Luft in jeder
+Richtung**. Die Prüfung erfolgt an der tatsächlichen exportierten Geometrie, einschließlich aller
+Polsterdetails, als Kugel mit Radius 0,10 m über **Mittenhöhen 1,10–1,35 m** relativ zum jeweiligen
+Boden. Der kleinste Oberflächenabstand muss also mindestens 0,18 m betragen; bei diskreten Proben
+ist deren Zwischenraum konservativ abzusichern (5-mm-Schritte: zusätzlich 2,5 mm Abstand).
+Die Kopfmitte muss außerhalb der Möbel liegen. Marker und die Bodenprojektion der Kopffläche
+(±0,10 m in X/Y) bleiben über dem Sitzpolster, nicht vor der Sitzvorderkante. Eine einzelne Probe
+in Schulterhöhe 0,85 m und der frühere pauschale 0,12-m-Rückenabstand genügen ausdrücklich nicht.
+Bestehende Räume bei einem fehlgeschlagenen Test melden; Änderungen nur im beauftragten Raum.
 
 `Seat1` … `Seat4` bleiben exakt an den oben festgelegten Standardkoordinaten. Falls zur Korrektur nötig, wird der
 **gesamte Saal einschließlich aller Sitze, Architektur, Lichtquellen und Leinwandmarker starr verschoben**.
@@ -243,3 +249,128 @@ Unity-Menü **The Movies → Raum-Modell aufbereiten → Kinosaal / Heimkino** (
 `-executeMethod TheMovies.EditorTools.RoomModelSetup.PrepareAllBatch`) stellt Import, Texturen und Materialien ein,
 prüft Marker und Budget und erzeugt `Resources/TheMovies/CustomCinema.prefab` bzw. `CustomHome.prefab`. Fehlt ein
 Prefab, nutzt die App den eingebauten Raum.
+
+
+## 10. Dachterrasse – dritter Raum
+
+**Stil:** Mediterranes Freiluftkino über einer Stadt zwischen Hügeln zur blauen Stunde/frühen Nacht.
+Teakdeck, gekalkte Brüstung mit Kalksteinabdeckung, zwei cremefarbene Loveseats, indigoblaue
+Kissen und gestreifte Decken, gewebter Außenteppich, Terrakotta, Oliven, Lavendel und kleine
+Fächerpalmen. Pflanzen bestehen aus opaker Geometrie; keine Alpha-Karten oder Glasscheiben.
+Warmweiße Festons an schlanken Metallpfosten, Kerzenlaternen, Beistelltische, eine kleine Bar
+mit niedrigen Rückenlehnen-Hockern und ein rollbarer Servierwagen.
+
+**Maße und Sitze:** Deck 13,6 × 14 m (X ±6,8; Y −4,9 bis +9,1), Oberkante Z=0.
+Brüstungsabdeckung maximal 0,79 m. Die vier Standardmarker bleiben exakt bei
+X −1,125 / −0,375 / +0,375 / +1,125, Y=Z=0 und entsprechen Spot_000–003.
+Weitere Plätze: zwei Lounge-Sessel (−3,15 / −4,35; Y=0,08), zwei Bankplätze
+(X ±0,70; Y=−2,82) und zwei niedrige Barhocker (X 3,15 / 4,25; Y=−2,67),
+alle auf Z=0, alle nach +Y. Spot_000–009 stehen unter den angelehnten Köpfen;
+die Kopfhülle gemäß Abschnitt 2 ist frei und bleibt über dem Sitzpolster.
+Die akzeptierte Szene wurde insgesamt starr um Y=−0,10 m verschoben (inklusive Panorama und
+Leinwandmarker); Loveseat-Köpfe liegen dadurch 0,10 m weiter vorn relativ zum Sitz. Die übrigen
+Spots wurden um 0,08 m relativ zu ihren Sitzen nach vorn gesetzt. Geometrie, UVs und Texturen
+bleiben unverändert; kein neuer Bake. Bei Schulterhöhe beträgt der Rückenabstand nun 0,22 bzw. 0,20 m.
+Sitzende Augenhöhe ist 1,25 m; jeder Platz muss das vollständige Projektionsraster sehen.
+
+**Leinwand:** ScreenAnchor=(0; 8,40; 1,10), ScreenTop=(0; 8,40; 5,10).
+Freie Fläche 9,5 × 4 m für die App-Bildbreiten 3,5–9,5 m. Stabiler Teakrahmen und
+dunkle bauliche Nachbarwand dahinter, keine modellierte Leinwandfläche.
+
+**Tiefe und Himmel:** Zwölf echte Nachbardächer mit Kaminen, Gesimsen, Tanks und Antennen
+im Abstand von ungefähr 10–40 m. Dahinter vollständiges CC0-Panorama „Clarens Night 02“,
+Dimitrios Savva (Fotografie), Jarod Guest (Verarbeitung) / Poly Haven, 4096 × 2048, ohne Winkelstreckung auf einer Kugel mit Radius 150 m.
+Material und Textur heißen Rooftop_Panorama_unlit bzw. Rooftop_Panorama_unlit_BaseColor.png.
+Das vollständige equirektangulare Foto bleibt erhalten, nur Belichtung und weiche HDR-Schulter
+werden angepasst. Tiefblauer Himmel und begrenzte Stadtlichter lassen dem Filmbild Vorrang.
+
+**Budget und Pipeline:** ≤120.000 Dreiecke, ≤14 Materialien und Material-Meshes,
+Basisfarben 1024² (maximal 2048²), ein 2048² Lichtatlas, ein 4096×2048 Panorama.
+Cycles Diffuse Direct+Indirect ohne Color, mindestens 256 Samples, Denoising, 8 px Bake-Rand,
+≥4 px UV-Inselabstand. Standard/None, Exposure −1, RGB8. Vorschauen multiplizieren ausschließlich
+Basisfarbe × gespeicherten Lichtatlas ×2; bei Filmlicht ×0,04. Unlit-Panorama und ferne Fenster
+bleiben unverändert. Keine Echtzeitlampen im Export.
+
+Aufruf: `Blender -b --factory-startup -P tools/blender/rooftop.py -- Assets/TheMovies/Art/Rooftop`.
+Prüfung: `Blender -b --factory-startup -P tools/blender/verify_rooftop.py` (inklusive rein lesender
+Kopffreiheitsprüfung von Home/Cinema; deren Befunde in `all-rooms-head-clearance.json`).
+Nur Kopfkorrektur aus vorhandenem Bake-Checkpoint: gleicher Build-Aufruf mit `--head-positions-only`
+(idempotent, ohne Textur- oder Bake-Änderung).
+Lieferung: `Rooftop.fbx`, `Textures/`, Sitz-/Leinwandmarker; Bake-Checkpoint nur unter
+`art/blender/`. Reimport-, UV-, Kopfpositions- und Sichtlinienprüfungen sowie gebackene Ansichten
+unter `Logs/art-preview/`; Bericht `ROOFTOP-REPORT.md`. Keine Änderungen an Kino/Heimkino,
+App-Code oder Unity-Konfiguration. Rohquellen ausschließlich CC0 von Poly Haven, unter
+`art/sources/`; Herkunft und Bearbeitung in `docs/CREDITS.md` und `art/rooftop-sources.json`.
+
+Aktueller Dachterrassen-Export: **95.056 Dreiecke, 14 Materialien/Material-Meshes, zehn Plätze**.
+Die Oliventöpfe enthalten abgeschirmte warme Uplights; die Blätter sind räumliche Low-Poly-Meshes.
+
+## 11. Weltraum-Lounge – vierter Raum
+
+**Gestaltung:** „Orbit / 04“, eine elegante Aussichts-Lounge einer Orbitalstation. Gerundetes,
+16 m breites Deck, Rückwand bei Y=−5 m, vorderer Fensterrand bei Y=11 m, Decke bei
+Z=6,25 m. Porzellanweiße und graphitfarbene Verkleidung, Walnuss, cognacfarbenes Leder,
+gewebter Teppich, Champagner-Metall, warme indirekte Lichtvouten und kühles blaues Erdlicht.
+Das durchgehende Front-/Seitenfenster ist eine geometrische Öffnung **ohne Glasscheibe**.
+Instrumente, eine kleine Hospitality-Konsole und opak modellierte Pflanzen ergänzen den Raum.
+
+**Plätze und Leinwand:** Vier einzelne Lounge-Sessel an den unveränderten Standardkoordinaten;
+Seat1–4 entsprechen Spot_000–003. Vier weitere Sessel: X=−4,1 / −3,2 / +3,2 / +4,1,
+Y=−0,6, Z=0 (Spot_004–007). Alle blicken nach +Y; alle Marker liegen unter den sitzenden
+Köpfen und über Polstern. Die vollständige Kopfhülle aus Abschnitt 2 gilt unverändert.
+ScreenAnchor=(0; 8,3; 1,35), ScreenTop=(0; 8,3; 5,35). Der schlanke abgehängte Rahmen
+lässt 9,5 × 4 m vollständig frei. Keine Leinwandfläche im Export. Die Erde bleibt seitlich
+und unterhalb der maximalen Projektion sichtbar; die App kann auf 3,5 m Bildbreite verkleinern.
+
+**Neue Konvention: planet / Planet.** Die Erde ist eine eigenständige Kugel, keine Fototapete.
+Material **Earth_Planet**, Tagkarte `Earth_Planet_BaseColor.png`, Nachtkarte
+`Earth_Planet_Night.png`, jeweils equirektangular 4096×2048, RGB8. „planet“ wählt den
+App-Planetshader (feste Sonne, Tag/Nacht, Nachtlichter, blauer Atmosphärenrand); das große P in
+„Planet“ erhält zugleich den 4096er-Texturimport. NASA Blue Marble plus NASA-Wolkenkarte bilden
+die unbeleuchtete Tagesbasis; NASA Black Marble liefert die Nachtlichter. **Kein Licht auf
+Erde backen**, keine Terminatorlinie in den Texturen. Rohquellen, Verarbeitung und Prüfsummen
+stehen in `art/space-sources.json` und `docs/CREDITS.md`.
+
+Die Erde hat **1.350 m Radius**, Zentrum (280; 1000; −1080), etwa 148 m Abstand der
+Standardplätze zur Oberfläche. Dies konkretisiert „≈1.500 m“ unter der strengeren
+Sichtweitenbedingung: Eine vollständige 1.500-m-Kugel von einem Standpunkt außerhalb der Kugel
+könnte nicht vollständig innerhalb von 2.900 m liegen. Die kleinere Kugel behält den Blick
+wie aus niedrigem Orbit; alle Erdvertices bleiben einschließlich aller Drehphasen unter
+2.900 m von jedem Sitz. Der Sternendom hat 2.500 m Radius um (0; 0; 1,25), nach innen
+weisende Flächen und Material **Space_Panorama_unlit**. Originales prozedurales 4096×2048-
+Equirektangular-Panorama mit scharfen 1–2-Pixel-Sternkernen, ohne Weichzeichner und ohne Sonnenscheibe.
+
+**Neue Konvention: Sun.** Das Empty **Sun** bei (−900; 160; −80) beschreibt mit seinem
+Positionsvektor vom Raumursprung die Richtung zur Sonne. Es ist keine exportierte Lampe.
+Die Tag-Nacht-Grenze soll im Fenster sichtbar sein.
+
+**Neue Konvention: _rotate<seconds>.** Empty **Earth_rotate5520** am Erdzentrum, die Erdkugel
+als Kind. Die App dreht um die lokale Hochachse (Blender Z / Unity Y), 5.520 Sekunden je
+Umdrehung, entsprechend 92 Minuten. Die geneigte Achse (Blender XYZ: −10,465° / 16,7312° / 101,263°)
+vermittelt einen Überflug. Translation und Parent-Hierarchie müssen im FBX erhalten bleiben;
+die Stars sind kein Kind des Rotators.
+
+**Budget und Pipeline:** ≤120.000 Dreiecke, ≤14 Materialien, statische Raumflächen nach
+Material zusammengefasst; Erde und Sternendom bleiben eigene Meshes. Basisfarben ≤2048²,
+Lichtatlas `Space_Light.png` 2048²; ausschließlich Erde und Panorama erhalten 4096×2048.
+Alle Meshes haben UVMap und globale, überlappungsfreie Lightmap-UVs mit ≥4 px Inselabstand.
+Erde und Sterne belegen reservierte UV2-Streifen, verwenden aber keinen Lichtatlas.
+Cycles Diffuse Direct+Indirect ohne Color, 256 Samples, Denoising, 8 px Bake-Margin,
+Standard/None, −1 EV, RGB8. Die diffusen Innenraumflächen der Vorschauen verwenden Basisfarbe × Atlas ×2;
+Glow-Flächen zeigen ihre Eigenemission. Beide werden bei Filmlicht auf ×0,04 gedimmt.
+Erde/Sterne bleiben ungedimmt. Der Vorschau-Planetshader mischt
+Tag-/Nachtkarte nach Sun, zeigt Stadtlichter und einen blauen Rand. Er dient zur Beurteilung;
+die endgültige Darstellung und Bewegung erfolgen durch die App-Shader.
+
+Build: `/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/blender/space.py -- Assets/TheMovies/Art/Space`.
+Prüfung: gleicher Blender-Aufruf mit `-P tools/blender/verify_space.py`.
+Lieferung: `Assets/TheMovies/Art/Space/Space.fbx`, `Textures/`, reproduzierbare `space.py` /
+`lib_space_*.py`, `verify_space.py`. Checkpoints nur in `art/blender/`, Quellen nur in
+`art/sources/`; beide ignoriert. Vorschauen `Logs/art-preview/space-*.png`, Prüfprotokoll
+und `SPACE-REPORT.md` ebenfalls ignoriert. Keine Änderungen an den drei akzeptierten Räumen,
+App-Code oder Unity-Konfiguration. Commit auf `art/movie-palace`, kein Push.
+
+Aktueller Weltraum-Export: **102.189 Dreiecke, zwölf Materialien/Material-Meshes, acht Plätze**.
+Die Atlas-Packung trennt 23 hohle UV-Inseln in kompakte Sektoren. Reimport: 5.304 freie
+Leinwandstrahlen; garantierter Kopf-Freiraum ≥14,82 cm; Erde höchstens 2.850,34 m und Sterne
+2.504,14 m von den Sitzaugen entfernt. Die Rotationsgrenze gilt für sämtliche Drehphasen.
