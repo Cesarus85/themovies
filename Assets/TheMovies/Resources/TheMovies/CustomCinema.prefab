@@ -254,6 +254,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2520941408152999978}
+  - component: {fileID: 3043078557519444788}
   m_Layer: 0
   m_Name: CustomCinema
   m_TagString: Untagged
@@ -285,6 +286,7 @@ Transform:
   - {fileID: 2554563221409683092}
   - {fileID: 8479586298304740944}
   - {fileID: 3915721242146010321}
+  - {fileID: 1162377007232092881}
   - {fileID: 1026349409166902323}
   - {fileID: 6103908362130375721}
   - {fileID: 9125595303391318885}
@@ -445,6 +447,21 @@ Transform:
   - {fileID: 2615003590307196971}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3043078557519444788
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 406247182993300404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d788563576b0494194fdb75d06cb18c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: TheMovies.Runtime::TheMovies.World.RoomReflection
+  Map: {fileID: 8900000, guid: 472a2bbe5338e400bb63b3462f886fef, type: 3}
+  CubeRotation: {x: 0, y: 180, z: 0}
+  Intensity: 1
 --- !u!1 &435729096723708451
 GameObject:
   m_ObjectHideFlags: 0
@@ -2128,6 +2145,37 @@ Transform:
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -1.875, y: -0.45, z: -1.6499997}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2520941408152999978}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2894889857750366652
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1162377007232092881}
+  m_Layer: 0
+  m_Name: ReflectionProbe
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1162377007232092881
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2894889857750366652}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0, y: 5.1, z: -3.6575766}
+  m_LocalScale: {x: 12, y: 6, z: 10.4}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2520941408152999978}
