@@ -1,6 +1,6 @@
-// Window and display glass of photorealistic rooms (material keyword "glass", docs/ART-BRIEF.md section 15): adds
-// the room's reflection (Fresnel, box-projected), the screen's glint and lit smudges on top of whatever lies behind.
-// The app has no real transparency – the glass is purely additive, so the view through it stays unchanged.
+// Window and display glass of photorealistic rooms (material keyword "glass", docs/ART-BRIEF.md section 15): the
+// room's reflection (Fresnel, box-projected), the screen's glint and lit smudges over whatever lies behind, which is
+// dimmed by the share the glass reflects (at grazing angles a window mirrors the lit car more than it shows the night).
 Shader "TheMovies/RoomGlass"
 {
     Properties
@@ -20,7 +20,7 @@ Shader "TheMovies/RoomGlass"
         Tags { "RenderType" = "Transparent" "Queue" = "Transparent-10" "IgnoreProjector" = "True" }
         Cull Off
         ZWrite Off
-        Blend One One
+        Blend One OneMinusSrcAlpha
         Pass
         {
             CGPROGRAM
@@ -93,9 +93,11 @@ Shader "TheMovies/RoomGlass"
                 ScreenLight(i.worldPos, n, r, roughness, screenDiffuse, screenSpecular);
 
                 float3 brdf = EnvBrdf(0.04, roughness, nv);
+                float reflected = saturate(brdf.x * _Reflectivity);
                 float3 col = brdf * (RoomReflection(i.worldPos, r, roughness) * dim + screenSpecular) * _Reflectivity;
                 col += smudge * (light + screenDiffuse) * 0.5;
-                return fixed4(PbrNeutral(col * _Exposure), 0);
+                // Alpha = reflected share: the view through is dimmed by it (passthrough alpha stays 1 behind the glass).
+                return fixed4(PbrNeutral(col * _Exposure), reflected);
             }
             ENDCG
         }

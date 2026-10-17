@@ -142,7 +142,8 @@ Shader "TheMovies/RoomPBR"
                 col += brdf * (RoomReflection(i.worldPos, r, roughness) * dim * specOcclusion + screenSpecular * _ScreenGlow);
 
                 // Velvet: brighter rim at grazing angles.
-                col += albedo * pow(1.0 - nv, 3.0) * _Sheen * light;
+                // Velvet: brighter, paler rim at grazing angles (the pile catches the light).
+                col += lerp(albedo, 1.0, 0.5) * pow(1.0 - nv, 3.0) * _Sheen * light;
 
                 // Own glow (lamp shades, bulbs), dimmed with the house lights, optionally flickering or blinking.
                 float lampLevel = lerp(0.18, 1.0, room);

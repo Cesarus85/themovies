@@ -140,6 +140,7 @@ namespace TheMovies.EditorTools
                 return new Result { Ok = false, Text = $"{kind.Title}: {modelPath} ließ sich nicht laden." };
 
             textures.TryGetValue(modelName + "_Light", out var lightTexture);
+            s_Emission = LoadEmission(folder + "/Textures/" + modelName + "_Materials.json");
             RoomV2 v2 = null;
             if (textures.TryGetValue(modelName + "_RNM0", out var rnm0) && textures.TryGetValue(modelName + "_RNM1", out var rnm1) &&
                 textures.TryGetValue(modelName + "_RNM2", out var rnm2))
@@ -299,9 +300,11 @@ namespace TheMovies.EditorTools
             bool emissive = unlit || n.Contains("emit") || n.Contains("glow") || n.Contains("bulb") || n.Contains("leucht");
             if (v2 != null && !unlit)
                 return Physical(material, texture, n, emissive, baked ? v2 : null, textures, name, done, key);
+            // Pipeline v2: the scenery is shown as photographed (like Blender's previews), not brightened.
+            float unlitGlow = v2 != null ? 1f : 1.2f;
             material.SetFloat("_Sheen", n.Contains("velvet") || n.Contains("samt") ? 0.8f : 0f);
             material.SetFloat("_Specular", n.Contains("gold") || n.Contains("brass") || n.Contains("messing") || n.Contains("chrome") || n.Contains("metal") ? 0.5f : 0f);
-            material.SetFloat("_Emission", emissive ? 1.2f : 0f);
+            material.SetFloat("_Emission", unlit ? unlitGlow : emissive ? 1.2f : 0f);
             material.SetFloat("_RoomLightAffect", emissive && !unlit ? 1f : 0f);
             material.SetFloat("_ScreenGlow", emissive ? 0f : 1f);
 
@@ -355,7 +358,7 @@ namespace TheMovies.EditorTools
             {
                 material.SetFloat("_Sheen", n.Contains("velvet") || n.Contains("samt") ? 0.6f : 0f);
                 // Lamp shades and bulbs: HDR glow, tone mapped like everything else.
-                material.SetFloat("_Emission", emissive ? 4f : 0f);
+                material.SetFloat("_Emission", !emissive ? 0f : s_Emission.TryGetValue(name, out float strength) ? strength : 2f);
                 material.SetFloat("_RoomLightAffect", emissive ? 1f : 0f);
                 material.SetFloat("_ScreenGlow", emissive ? 0f : 1f);
                 material.SetFloat("_Flicker", Mathf.Clamp01((NumberAfter(n, "flicker") ?? 0) / 100f));
@@ -365,6 +368,30 @@ namespace TheMovies.EditorTools
             EditorUtility.SetDirty(material);
             done[key] = material;
             return material;
+        }
+
+        static Dictionary<string, float> s_Emission = new Dictionary<string, float>();
+
+        /// <summary>
+        /// Pipeline v2: the Blender emission strength per glowing material (Textures/&lt;Model&gt;_Materials.json,
+        /// { "Material": { "emission": 2.0 } }), so lamp shades glow as bright as in the previews.
+        /// </summary>
+        static Dictionary<string, float> LoadEmission(string path)
+        {
+            var result = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            if (!File.Exists(path)) return result;
+            try
+            {
+                if (TheMovies.Core.Json.Parse(File.ReadAllText(path)) is Dictionary<string, object> materials)
+                    foreach (var pair in materials)
+                        if (pair.Value is Dictionary<string, object> entry && entry.TryGetValue("emission", out var value))
+                            result[pair.Key] = System.Convert.ToSingle(value, System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[TheMovies] {path}: {e.Message}");
+            }
+            return result;
         }
 
         /// <summary>

@@ -734,6 +734,12 @@ Metal), eingefärbt/kombiniert nach Bedarf. Nichts davon wird nachträglich „g
   v1); die Belichtung wird so gewählt, dass die Vorschau mit Khronos PBR Neutral bei Exposure 0 stimmt.
 - Meshes vor UV-Abwicklung, Bake und Export **triangulieren** (gleiche Tangenten in Blender und Unity).
 
+- **Texeldichte pro Material** festlegen, nicht pauschal: große, nahe Flächen (Decke, Teppich, Vertäfelung) und
+  Polster ≥ 150 px/m, Glas fast nichts (wird nicht gebacken). Zu grobe Texel sind blockig und rauschen sichtbar.
+- **Leuchtstärken:** `Textures/<Modell>_Materials.json` – `{ "<Material>": { "emission": 2.0 } }` mit der Blender-
+  Emission Strength jedes leuchtenden Materials; die App übernimmt sie 1:1.
+- Material-AO aus Fotosätzen nur schwach (≈ 35 %) in ORM.R übernehmen – Cycles backt die echte Verdeckung schon ein.
+
 ### Umgebungskarte für Spiegelungen
 
 - Empty `ReflectionProbe` an einer Stelle mit gutem Überblick (etwa Kopfhöhe in Raummitte). **Seine Skalierung
