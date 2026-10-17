@@ -87,7 +87,6 @@ namespace TheMovies.UI
         UIButton m_SetMixed;
         UILabel m_SetRoomName;
         UILabel m_SetMixedStatus;
-        UIButton m_SetMixedTest;
         GameObject m_SettingsReturn;
         UIButton m_ResumeButton, m_RestartButton;
         UILabel m_SessionStatus;
@@ -323,6 +322,27 @@ namespace TheMovies.UI
             return result;
         }
 
+        /// <summary>A centered row of buttons, each as wide as its label needs (plus padding).</summary>
+        static UIButton[] FittedRow(GameObject page, float y, float h, float gap, float textHeight, params (string label, Action action)[] items)
+        {
+            const float padding = 0.034f;
+            var widths = new float[items.Length];
+            float total = -gap;
+            for (int i = 0; i < items.Length; i++)
+            {
+                widths[i] = UIFactory.EstimateTextWidth(items[i].label, textHeight) + padding;
+                total += widths[i] + gap;
+            }
+            float x = -total * 0.5f;
+            var result = new UIButton[items.Length];
+            for (int i = 0; i < items.Length; i++)
+            {
+                result[i] = Button(page, items[i].label, x + widths[i] * 0.5f, y, widths[i], h, items[i].action, textHeight);
+                x += widths[i] + gap;
+            }
+            return result;
+        }
+
         GameObject BuildMainPage()
         {
             var p = Page("Main Page");
@@ -442,7 +462,7 @@ namespace TheMovies.UI
             }
 
             // Free seat choice: discs above every free seat, point and click (also balcony and boxes).
-            m_SeatButton = Button(p, "Platz wählen", 0.345f, -0.292f, 0.19f, 0.062f, () => m_App.BeginSeatChoice(), 0.019f, style: ButtonStyle.Primary);
+            m_SeatButton = Button(p, "Platz wählen", 0.335f, -0.292f, 0.18f, 0.062f, () => m_App.BeginSeatChoice(), 0.019f, style: ButtonStyle.Primary);
 
             m_SessionStatus = Label(p, string.Empty, 0, -0.345f, 0.014f, 100, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
@@ -456,21 +476,26 @@ namespace TheMovies.UI
             Divider(p, 0.272f);
             m_SetMixedStatus = Label(p, string.Empty, 0, 0.247f, 0.0135f, 100, TextAnchor.MiddleCenter, UIStyle.TextDim);
 
-            const float minusX = 0.0f, valueX = 0.18f, plusX = 0.36f, small = 0.05f, step = 0.062f;
-            float y = 0.2f;
+            // One column grid for all rows: name on the left, a stepper (− value +) in the middle, one extra
+            // button on the right. Rarely used things live on the sub pages in the bar at the bottom.
+            const float minusX = -0.075f, valueX = 0.05f, plusX = 0.175f, extraX = 0.33f, extraW = 0.18f;
+            const float small = 0.048f, step = 0.058f;
+            float y = 0.195f;
 
-            SettingRow(p, "3D-Format", y);
-            m_SetFormatPrev = Button(p, null, minusX, y, small, small, () => m_App.Media.CycleFormat(-1), 0.02f, UIIcon.ChevronLeft);
-            m_SetFormat = Label(p, string.Empty, valueX, y, 0.02f, 16, TextAnchor.MiddleCenter);
-            m_SetFormatNext = Button(p, null, plusX, y, small, small, () => m_App.Media.CycleFormat(1), 0.02f, UIIcon.ChevronRight);
+            SettingRow(p, "Umgebung", y);
+            // Room switch: Kino, Heimkino, Dachterrasse … (only rooms whose model is in the build).
+            Button(p, null, minusX, y, small, small, () => m_App.CycleRoom(-1), 0.02f, UIIcon.ChevronLeft);
+            m_SetRoomName = Label(p, string.Empty, valueX, y, 0.018f, 16, TextAnchor.MiddleCenter);
+            Button(p, null, plusX, y, small, small, () => m_App.CycleRoom(1), 0.02f, UIIcon.ChevronRight);
+            m_SetMixed = Button(p, "Mixed Reality", extraX, y, extraW, small, () => m_App.SetMixedReality(true), 0.017f);
 
             y -= step;
-            SettingRow(p, "Augen tauschen", y);
-            m_SetSwap = Button(p, "Aus", valueX, y, 0.2f, small, () => m_App.Media.ToggleSwapEyes(), 0.019f);
-
-            y -= step;
-            SettingRow(p, "Untertitel (.srt)", y);
-            m_SetSubtitles = Button(p, "An", valueX, y, 0.2f, small, () => m_App.SetSubtitles(!m_App.Subtitles.Enabled), 0.019f);
+            SettingRow(p, "Saallicht", y);
+            // Auto dims while the movie plays; − / + set a fixed level (also during the movie).
+            Button(p, null, minusX, y, small, small, () => m_App.ChangeHouseLight(-0.1f), 0.02f, UIIcon.Minus);
+            m_SetLightLevel = Label(p, string.Empty, valueX, y, 0.02f, 10, TextAnchor.MiddleCenter);
+            Button(p, null, plusX, y, small, small, () => m_App.ChangeHouseLight(0.1f), 0.02f, UIIcon.Plus);
+            m_SetLightAuto = Button(p, "Automatisch", extraX, y, extraW, small, () => m_App.SetLightMode(LightMode.Auto), 0.017f);
 
             y -= step;
             SettingRow(p, "Leinwand", y);
@@ -479,21 +504,11 @@ namespace TheMovies.UI
             Button(p, null, plusX, y, small, small, () => ChangeScreenSize(1), 0.02f, UIIcon.Plus);
 
             y -= step;
-            SettingRow(p, "Umgebung", y);
-            // Room switch: Kino, Heimkino, Dachterrasse … (only rooms whose model is in the build).
-            Button(p, null, -0.075f, y, small, small, () => m_App.CycleRoom(-1), 0.02f, UIIcon.ChevronLeft);
-            m_SetRoomName = Label(p, string.Empty, 0.04f, y, 0.018f, 14, TextAnchor.MiddleCenter);
-            Button(p, null, 0.155f, y, small, small, () => m_App.CycleRoom(1), 0.02f, UIIcon.ChevronRight);
-            m_SetMixed = Button(p, "Mixed Reality", 0.272f, y, 0.16f, small, () => m_App.SetMixedReality(true), 0.017f);
-            m_SetMixedTest = Button(p, "Test", 0.395f, y, 0.08f, small, MixedReality.CycleTestMode, 0.014f, style: ButtonStyle.Subtle);
-
-            y -= step;
-            SettingRow(p, "Saallicht", y);
-            // Auto dims while the movie plays; − / + set a fixed level (also during the movie).
-            m_SetLightAuto = Button(p, "Auto", -0.07f, y, 0.11f, small, () => m_App.SetLightMode(LightMode.Auto), 0.018f);
-            Button(p, null, minusX + 0.06f, y, small, small, () => m_App.ChangeHouseLight(-0.1f), 0.02f, UIIcon.Minus);
-            m_SetLightLevel = Label(p, string.Empty, valueX + 0.03f, y, 0.02f, 10, TextAnchor.MiddleCenter);
-            Button(p, null, plusX, y, small, small, () => m_App.ChangeHouseLight(0.1f), 0.02f, UIIcon.Plus);
+            SettingRow(p, "3D-Format", y);
+            m_SetFormatPrev = Button(p, null, minusX, y, small, small, () => m_App.Media.CycleFormat(-1), 0.02f, UIIcon.ChevronLeft);
+            m_SetFormat = Label(p, string.Empty, valueX, y, 0.018f, 16, TextAnchor.MiddleCenter);
+            m_SetFormatNext = Button(p, null, plusX, y, small, small, () => m_App.Media.CycleFormat(1), 0.02f, UIIcon.ChevronRight);
+            m_SetSwap = Button(p, "Augen tauschen", extraX, y, extraW, small, () => m_App.Media.ToggleSwapEyes(), 0.017f);
 
             y -= step;
             SettingRow(p, "Lautstärke Film", y);
@@ -502,10 +517,14 @@ namespace TheMovies.UI
             Button(p, null, plusX, y, small, small, () => m_App.ChangeVolume(0.1f), 0.02f, UIIcon.Plus);
 
             y -= step;
+            SettingRow(p, "Untertitel (.srt)", y);
+            m_SetSubtitles = Button(p, "An", valueX, y, plusX - minusX + small, small, () => m_App.SetSubtitles(!m_App.Subtitles.Enabled), 0.017f);
+
+            y -= step;
             SettingRow(p, "Sprachchat", y);
-            m_SetMic = Button(p, "An", -0.03f, y, 0.13f, small, ToggleMic, 0.018f);
-            m_SetPushToTalk = Button(p, "Sprechtaste", 0.12f, y, 0.15f, small, () => m_App.SetPushToTalk(!VoiceChat.PushToTalk), 0.016f);
-            m_SetDucking = Button(p, "Film leiser: etwas", 0.33f, y, 0.24f, small, () => m_App.SetDucking((m_App.Settings.Ducking + 1) % 3), 0.016f);
+            m_SetMic = Button(p, "Mikro: An", -0.0275f, y, 0.143f, small, ToggleMic, 0.016f);
+            m_SetPushToTalk = Button(p, "Sprechtaste", 0.1275f, y, 0.143f, small, () => m_App.SetPushToTalk(!VoiceChat.PushToTalk), 0.016f);
+            m_SetDucking = Button(p, "Film leiser: etwas", extraX, y, extraW, small, () => m_App.SetDucking((m_App.Settings.Ducking + 1) % 3), 0.016f);
 
             y -= step;
             SettingRow(p, "Sitzhöhe", y, divider: false);
@@ -513,22 +532,14 @@ namespace TheMovies.UI
             m_SetHeight = Label(p, string.Empty, valueX, y, 0.02f, 10, TextAnchor.MiddleCenter);
             Button(p, null, plusX, y, small, small, () => m_App.ChangeHeight(0.05f), 0.02f, UIIcon.Plus);
 
-            var bottom = new (string label, float width, Action action)[]
-            {
-                ("Bild & 3D", 0.13f, () => ShowPage(m_PicturePage)),
-                ("Ton & Untertitel", 0.165f, () => ShowPage(m_TracksPage)),
-                ("Protokoll", 0.12f, OpenLog),
-                ("Platz wählen", 0.145f, () => m_App.BeginSeatChoice()),
-                ("Ausrichten", 0.13f, () => XRRig.Instance?.RequestAlign()),
-                ("Menü herholen", 0.15f, PlaceInFrontOfUser),
-            };
-            float bx = -0.005f * (bottom.Length - 1) * 0.5f;
-            foreach (var b in bottom) bx -= b.width * 0.5f;
-            foreach (var b in bottom)
-            {
-                Button(p, b.label, bx + b.width * 0.5f, -0.322f, b.width, 0.042f, b.action, 0.015f, style: ButtonStyle.Subtle);
-                bx += b.width + 0.005f;
-            }
+            Divider(p, -0.268f);
+            FittedRow(p, -0.31f, 0.046f, 0.008f, 0.016f,
+                ("Bild & 3D", () => ShowPage(m_PicturePage)),
+                ("Ton & Untertitel", () => ShowPage(m_TracksPage)),
+                ("Platz wählen", () => m_App.BeginSeatChoice()),
+                ("Ausrichten", () => XRRig.Instance?.RequestAlign()),
+                ("Menü herholen", PlaceInFrontOfUser),
+                ("Protokoll", OpenLog));
             return p;
         }
 
@@ -844,7 +855,6 @@ namespace TheMovies.UI
             m_SetFormatNext.Interactable = hasMovie;
             m_SetSwap.Interactable = hasMovie && media.StereoFormat.IsStereo();
             m_SetSwap.Highlighted = media.SwapEyes;
-            m_SetSwap.Label = media.SwapEyes ? "An" : "Aus";
             m_SetSize.Text = ScreenController.SizeNames[m_App.Screen.SizeIndex];
             var lights = m_App.Media.Lights;
             m_SetLightAuto.Highlighted = lights == LightMode.Auto;
@@ -855,7 +865,7 @@ namespace TheMovies.UI
             bool micAvailable = Playback.Current.IsNetworked && VoiceChat.Compiled;
             m_SetMic.Interactable = micAvailable;
             m_SetMic.Highlighted = micAvailable && !VoiceChat.Muted;
-            m_SetMic.Label = !VoiceChat.Compiled ? "fehlt" : VoiceChat.Muted ? "Aus" : VoiceChat.PushToTalk && !VoiceChat.TalkHeld ? "Taste" : "An";
+            m_SetMic.Label = "Mikro: " + (!VoiceChat.Compiled ? "fehlt" : VoiceChat.Muted ? "Aus" : VoiceChat.PushToTalk && !VoiceChat.TalkHeld ? "Taste" : "An");
             m_SetPushToTalk.Highlighted = VoiceChat.PushToTalk;
             m_SetPushToTalk.Interactable = VoiceChat.Compiled;
             m_SetDucking.Label = "Film leiser: " + (m_App.Settings.Ducking == 0 ? "nein" : m_App.Settings.Ducking == 1 ? "etwas" : "stark");
@@ -880,8 +890,6 @@ namespace TheMovies.UI
             bool mixedOk = !MixedReality.Enabled || MixedReality.Problem.Length == 0;
             if (MixedReality.Enabled) details = MixedReality.Status;
             m_SetMixedStatus.Text = (rig != null ? rig.InputSummary : string.Empty) + "\n" + details;
-            m_SetMixedTest.gameObject.SetActive(MixedReality.Enabled);
-            m_SetMixedTest.Label = $"Test {MixedReality.TestMode + 1}/{MixedReality.TestModes}";
             m_SetMixedStatus.Color = inputOk && mixedOk ? UIStyle.TextDim : UIStyle.Warning;
         }
 

@@ -44,7 +44,7 @@ namespace TheMovies.UI
         // Log page
         readonly UILabel[] m_LogLabels = new UILabel[k_LogLines];
         UILabel m_LogInfo;
-        UIButton m_LogFilterButton, m_LogSessionButton;
+        UIButton m_LogFilterButton, m_LogSessionButton, m_LogMixedTest;
         int m_LogPageIndex;
         bool m_LogProblemsOnly;
         bool m_LogPrevious;
@@ -301,14 +301,17 @@ namespace TheMovies.UI
             for (int i = 0; i < k_LogLines; i++)
                 m_LogLabels[i] = Label(p, string.Empty, k_Left, 0.248f - i * 0.0285f, 0.0125f, 118, TextAnchor.MiddleLeft, UIStyle.Text);
             m_LogInfo = Label(p, string.Empty, k_Left, -0.25f, 0.013f, 110, TextAnchor.MiddleLeft, UIStyle.TextDim);
-            var row = Row(p, -0.3f, 0.045f, 0.012f,
-                ("Älter", 0.13f, () => { m_LogPageIndex++; m_LogShownVersion = -1; }),
-                ("Neuer", 0.13f, () => { m_LogPageIndex = Mathf.Max(0, m_LogPageIndex - 1); m_LogShownVersion = -1; }),
-                ("Neueste", 0.13f, () => { m_LogPageIndex = 0; m_LogShownVersion = -1; }),
-                ("Nur Probleme", 0.17f, () => { m_LogProblemsOnly = !m_LogProblemsOnly; m_LogPageIndex = 0; m_LogShownVersion = -1; }),
-                ("Vorige Sitzung", 0.2f, () => { m_LogPrevious = !m_LogPrevious; m_LogPageIndex = 0; m_LogShownVersion = -1; }));
+            var row = Row(p, -0.3f, 0.045f, 0.01f,
+                ("Älter", 0.11f, () => { m_LogPageIndex++; m_LogShownVersion = -1; }),
+                ("Neuer", 0.11f, () => { m_LogPageIndex = Mathf.Max(0, m_LogPageIndex - 1); m_LogShownVersion = -1; }),
+                ("Neueste", 0.12f, () => { m_LogPageIndex = 0; m_LogShownVersion = -1; }),
+                ("Nur Probleme", 0.16f, () => { m_LogProblemsOnly = !m_LogProblemsOnly; m_LogPageIndex = 0; m_LogShownVersion = -1; }),
+                ("Vorige Sitzung", 0.18f, () => { m_LogPrevious = !m_LogPrevious; m_LogPageIndex = 0; m_LogShownVersion = -1; }),
+                // Passthrough test modes (diagnosis), only while mixed reality is on.
+                ("MR-Test", 0.12f, MixedReality.CycleTestMode));
             m_LogFilterButton = row[3];
             m_LogSessionButton = row[4];
+            m_LogMixedTest = row[5];
             return p;
         }
 
@@ -325,6 +328,8 @@ namespace TheMovies.UI
             int version = buffer.Version * 4 + (m_LogProblemsOnly ? 1 : 0) + (m_LogPrevious ? 2 : 0);
             m_LogFilterButton.Highlighted = m_LogProblemsOnly;
             m_LogSessionButton.Highlighted = m_LogPrevious;
+            m_LogMixedTest.Interactable = MixedReality.Enabled;
+            m_LogMixedTest.Label = MixedReality.Enabled ? $"MR-Test {MixedReality.TestMode + 1}/{MixedReality.TestModes}" : "MR-Test";
             if (version == m_LogShownVersion) return;
             m_LogShownVersion = version;
 

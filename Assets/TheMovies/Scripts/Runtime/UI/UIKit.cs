@@ -29,8 +29,9 @@ namespace TheMovies.UI
         public static readonly Color ButtonHover = new Color(0.30f, 0.32f, 0.41f, 1f);
         public static readonly Color ButtonPressed = new Color(0.14f, 0.14f, 0.18f, 1f);
         public static readonly Color ButtonDisabled = new Color(0.13f, 0.13f, 0.16f, 0.8f);
-        public static readonly Color Subtle = new Color(1f, 1f, 1f, 0.0f);
-        public static readonly Color SubtleHover = new Color(1f, 1f, 1f, 0.10f);
+        // A faint pill, so secondary buttons still read as buttons (not as loose text).
+        public static readonly Color Subtle = new Color(1f, 1f, 1f, 0.055f);
+        public static readonly Color SubtleHover = new Color(1f, 1f, 1f, 0.13f);
         public static readonly Color Accent = new Color(0.98f, 0.66f, 0.22f, 1f);
         public static readonly Color AccentHover = new Color(1f, 0.76f, 0.38f, 1f);
         public static readonly Color Danger = new Color(0.66f, 0.20f, 0.22f, 1f);

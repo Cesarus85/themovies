@@ -46,14 +46,15 @@ namespace TheMovies.UI
         {
             var p = Page("Browser Page");
             m_TileView = PlayerPrefs.GetInt(k_TilesPrefsKey, 1) == 1;
-            m_BrowserTitle = Label(p, string.Empty, k_Left, 0.258f, 0.026f, 22, TextAnchor.MiddleLeft, UIStyle.Accent);
-            m_TabRecent = Button(p, "Zuletzt", 0.035f, 0.258f, 0.12f, 0.045f, SetRecentTab, 0.017f);
-            m_TabLocal = Button(p, "Dieses Gerät", 0.185f, 0.258f, 0.165f, 0.045f, () => SetBrowserTab(false), 0.017f);
-            m_TabNetwork = Button(p, "Netzwerk", 0.345f, 0.258f, 0.14f, 0.045f, () => SetBrowserTab(true), 0.017f);
-            m_BrowserInfo = Label(p, string.Empty, k_Left, 0.212f, 0.015f, 70, TextAnchor.MiddleLeft, UIStyle.TextDim);
-            m_SearchButton = Button(p, "Suchen", 0.215f, 0.212f, 0.1f, 0.034f, SearchOrClear, 0.015f, style: ButtonStyle.Subtle);
-            m_ViewButton = Button(p, "Liste", 0.32f, 0.212f, 0.1f, 0.034f, ToggleTileView, 0.015f, style: ButtonStyle.Subtle);
-            m_PageLabel = Label(p, string.Empty, k_Right, 0.212f, 0.016f, 9, TextAnchor.MiddleRight, UIStyle.TextDim);
+            m_BrowserTitle = Label(p, string.Empty, k_Left, 0.305f, 0.026f, 22, TextAnchor.MiddleLeft, UIStyle.Accent);
+            m_TabRecent = Button(p, "Zuletzt", 0.035f, 0.305f, 0.12f, 0.045f, SetRecentTab, 0.017f);
+            m_TabLocal = Button(p, "Dieses Gerät", 0.185f, 0.305f, 0.165f, 0.045f, () => SetBrowserTab(false), 0.017f);
+            m_TabNetwork = Button(p, "Netzwerk", 0.345f, 0.305f, 0.14f, 0.045f, () => SetBrowserTab(true), 0.017f);
+            Divider(p, 0.272f);
+            m_BrowserInfo = Label(p, string.Empty, k_Left, 0.235f, 0.015f, 70, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            m_SearchButton = Button(p, "Suchen", 0.215f, 0.235f, 0.1f, 0.034f, SearchOrClear, 0.015f, style: ButtonStyle.Subtle);
+            m_ViewButton = Button(p, "Liste", 0.32f, 0.235f, 0.1f, 0.034f, ToggleTileView, 0.015f, style: ButtonStyle.Subtle);
+            m_PageLabel = Label(p, string.Empty, k_Right, 0.235f, 0.016f, 9, TextAnchor.MiddleRight, UIStyle.TextDim);
             for (int i = 0; i < k_BrowserRows; i++)
             {
                 int index = i;
@@ -68,20 +69,20 @@ namespace TheMovies.UI
                 var position = new Vector3((column - (k_TileColumns - 1) * 0.5f) * spacing, 0.09f - row * (PosterTile.Height + 0.01f), -UIStyle.Layer);
                 m_Tiles[i] = new PosterTile(p.transform, position, () => PickItem(m_TileItems[index]));
             }
-            m_LocalBar = IconRow(p, -0.255f, 0.05f, 0.012f,
+            m_LocalBar = IconRow(p, -0.3f, 0.05f, 0.012f,
                 ("Zurück", 0.12f, BrowserBack, UIIcon.None),
                 (null, 0.07f, () => TurnPage(-1), UIIcon.ChevronLeft),
                 (null, 0.07f, () => TurnPage(1), UIIcon.ChevronRight),
                 ("Aktualisieren", 0.155f, () => m_App.Media.Library.Refresh(), UIIcon.None),
                 ("Adresse eingeben", 0.19f, EnterStreamUrl, UIIcon.None),
                 ("NAS-Kopien", 0.15f, DeleteCopies, UIIcon.None));
-            m_NetworkBar = IconRow(p, -0.255f, 0.05f, 0.012f,
+            m_NetworkBar = IconRow(p, -0.3f, 0.05f, 0.012f,
                 ("Zurück", 0.13f, BrowserBack, UIIcon.None),
                 (null, 0.07f, () => TurnPage(-1), UIIcon.ChevronLeft),
                 (null, 0.07f, () => TurnPage(1), UIIcon.ChevronRight),
                 ("Im Netz suchen", 0.19f, NetworkPrimary, UIIcon.None),
                 ("Hinzufügen", 0.19f, NetworkSecondary, UIIcon.None));
-            m_RecentBar = IconRow(p, -0.255f, 0.05f, 0.012f,
+            m_RecentBar = IconRow(p, -0.3f, 0.05f, 0.012f,
                 ("Zurück", 0.13f, BrowserBack, UIIcon.None),
                 (null, 0.07f, () => TurnPage(-1), UIIcon.ChevronLeft),
                 (null, 0.07f, () => TurnPage(1), UIIcon.ChevronRight),
@@ -93,6 +94,22 @@ namespace TheMovies.UI
             return p;
         }
 
+        /// <summary>Centers the visible buttons of a row again (after some of them were hidden or shown).</summary>
+        static void CenterRow(UIButton[] row, float gap)
+        {
+            float total = -gap;
+            foreach (var b in row)
+                if (b.gameObject.activeSelf) total += b.Size.x + gap;
+            float x = -total * 0.5f;
+            foreach (var b in row)
+            {
+                if (!b.gameObject.activeSelf) continue;
+                var position = b.transform.localPosition;
+                b.transform.localPosition = new Vector3(x + b.Size.x * 0.5f, position.y, position.z);
+                x += b.Size.x + gap;
+            }
+        }
+
         /// <summary>Like <see cref="Row"/>, with icon-only buttons where the label is null.</summary>
         static UIButton[] IconRow(GameObject page, float y, float h, float gap, params (string label, float width, Action action, UIIcon icon)[] items)
         {
@@ -102,7 +119,7 @@ namespace TheMovies.UI
             var result = new UIButton[items.Length];
             for (int i = 0; i < items.Length; i++)
             {
-                result[i] = Button(page, items[i].label, x + items[i].width * 0.5f, y, items[i].width, h, items[i].action, 0.021f, items[i].icon);
+                result[i] = Button(page, items[i].label, x + items[i].width * 0.5f, y, items[i].width, h, items[i].action, 0.018f, items[i].icon);
                 x += items[i].width + gap;
             }
             return result;
@@ -503,6 +520,7 @@ namespace TheMovies.UI
                 m_LocalBar[5].gameObject.SetActive(copies > 0);
                 m_LocalBar[5].Label = Time.unscaledTime < m_DeleteCopiesUntil ? "Alle löschen?" : "NAS-Kopien";
                 m_LocalBar[5].Style = Time.unscaledTime < m_DeleteCopiesUntil ? ButtonStyle.Danger : ButtonStyle.Normal;
+                CenterRow(m_LocalBar, 0.012f);
             }
             if (recent)
             {
