@@ -278,6 +278,41 @@
           "size": 25594524
         }
       }
+    },
+    "teak_veneer": {
+      "authors": {
+        "Jenelle van Heerden": "All"
+      },
+      "metadata": "https://api.polyhaven.com/info/teak_veneer",
+      "source": "https://polyhaven.com/a/teak_veneer",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/teak_veneer/teak_veneer_diff_2k.png",
+          "md5": "3d80e4fb555315f92772ade4dcce08d2",
+          "size": 21194782
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/teak_veneer/teak_veneer_nor_gl_2k.png",
+          "md5": "fa106ac83cf827fc753267396035392b",
+          "size": 19816078
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/teak_veneer/teak_veneer_rough_2k.png",
+          "md5": "892ed3454488db5e6251c71e8485a928",
+          "size": 7658544
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/teak_veneer/teak_veneer_ao_2k.png",
+          "md5": "48b523d4c65d8c0a77efb034b92d5ee9",
+          "size": 7288218
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/teak_veneer/teak_veneer_arm_2k.png",
+          "md5": "9bee3fe063cbb35dbb52cc398666bb42",
+          "size": 17464838
+        }
+      }
     }
   }
 }

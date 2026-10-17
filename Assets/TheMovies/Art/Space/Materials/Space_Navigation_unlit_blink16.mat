@@ -35,7 +35,7 @@ Material:
     m_Floats:
     - _BakedDim: 0.04
     - _Blink: 1.6
-    - _Emission: 1.2
+    - _Emission: 1
     - _Flicker: 0
     - _LightScale: 2
     - _RoomLightAffect: 0

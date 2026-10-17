@@ -8,10 +8,12 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Space_Cove_glow
-  m_Shader: {fileID: 4800000, guid: 9f6889c322fb44cf7968ff8f24ef05fc, type: 3}
+  m_Shader: {fileID: 4800000, guid: 64a436d11046849918c5448dcf275db6, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - _TM_NORMALMAP
+  - _TM_ORM
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -31,14 +33,37 @@ Material:
         m_Texture: {fileID: 2800000, guid: e5cc6667b3bc74d9686415c60b0af8a4, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _NormalTex:
+        m_Texture: {fileID: 2800000, guid: d6d39037d7d354605875c1c0029726d8, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ORMTex:
+        m_Texture: {fileID: 2800000, guid: 9b7ca298369c94c568721db603e53c20, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BakedDim: 0.04
     - _Blink: 0
-    - _Emission: 1.2
+    - _Emission: 1.5
+    - _Exposure: 1
     - _Flicker: 0
     - _LightScale: 2
+    - _Metallic: 0
     - _RoomLightAffect: 1
+    - _Roughness: 0.7
     - _ScreenGlow: 0
     - _Scroll: 0
     - _ScrollV: 0
