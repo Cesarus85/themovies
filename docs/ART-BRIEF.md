@@ -669,3 +669,77 @@ exportierte Basisfarben und Lichtatlanten mit einer statischen Emissionsvorschau
 sie belegen keine zeitliche Wirkung auf Quest. Laufzeit/Headset wurden in diesem
 Art-Pass nicht gestartet. Sämtliche Prüfberichte und Vorschauen bleiben unter
 ignoriertem `Logs/`, lokale Blender-Dateien unter ignoriertem `art/blender/`.
+
+## 15. Fotorealistische Räume – Pipeline v2 (zuerst Orient-Express)
+
+Ziel: Räume, die auf der Quest 3 wie echt wirken statt „gezeichnet“. Der alte Weg (nur Basisfarbe × gebackenes
+diffuses Licht, LDR, keine Normal Maps) bleibt für die abgenommenen Räume unverändert. Ein Raum nutzt Pipeline v2,
+sobald seine RNM-Lichtatlanten (unten) vorliegen. Die App rendert v2-Räume mit einem eigenen physikalisch
+basierten Shader:
+
+- **Diffus:** Basisfarbe × gerichtetes gebackenes Licht (Radiosity Normal Mapping, drei Richtungen) – Normal Maps
+  wirken damit auch im gebackenen Licht (Maserung, Polsterknöpfe, Teppichflor, Prägungen).
+- **Glanz:** GGX-Spiegelung aus einer in Blender gerenderten, box-projizierten Umgebungskarte des Raums
+  (Rauheit, Metall, Fresnel; Glanzverdeckung aus AO und gebackenem Licht). Dazu ein Glanzschein der Filmleinwand.
+- **HDR:** Licht als HDR (RGBM) statt auf 0–2 begrenzt; am Ende die Tonwertkurve **Khronos PBR Neutral** mit
+  Belichtung 1,0 – identisch mit Blenders View Transform „Khronos PBR Neutral“ (Look „None“, Exposure 0).
+  Blender-Vorschauen mit genau dieser Einstellung entsprechen damit der Darstellung in der App.
+- Saallicht dimmt gebackenes Licht und Spiegelung gemeinsam (wie bisher auf ~4 %).
+
+### Material-Texturen (UV-Satz 0 „UVMap“, Kachelung wie bisher)
+
+| Datei | Inhalt | Format |
+| --- | --- | --- |
+| `Textures/<Material>_BaseColor.png` | Albedo, bei Metall die Reflexionsfarbe | sRGB, 8 Bit |
+| `Textures/<Material>_Normal.png` | Tangentenraum-Normal Map, **OpenGL-Konvention (+Y = V-Richtung)**, Tangenten aus „UVMap“ (MikkTSpace) | linear, 8 Bit RGB |
+| `Textures/<Material>_ORM.png` | R = Ambient Occlusion (Materialdetail), G = Rauheit, B = Metall | linear, 8 Bit RGB |
+
+Fehlen Normal/ORM, nimmt die App eine flache Normale und Rauheit/Metall aus Stichworten (`brass`/`gold`/`metal`:
+Metall, Rauheit 0,3; sonst Rauheit 0,7). Größe je ≤ 2048²; höchstens 12 Materialien mit 2048², die übrigen 1024².
+Quellen bevorzugt **Poly Haven / ambientCG (CC0)** mit vollständigen PBR-Sätzen (Diffuse, Normal GL, Rough, AO,
+Metal), eingefärbt/kombiniert nach Bedarf. Nichts davon wird nachträglich „gemalt“, was physikalisch entstehen soll
+(keine aufgemalten Glanzlichter oder Schatten in der Basisfarbe).
+
+### Stichworte, zusätzlich zu Abschnitt 4
+
+| Stichwort | Wirkung in v2 |
+| --- | --- |
+| `glass` | **Glasscheibe:** additive Spiegelung (Fresnel, Umgebungskarte) über dem, was dahinter liegt – Fenster, Vitrinen, Bilderglas. Eigenes dünnes Mesh, wenige Millimeter vor der Kulisse bzw. dem Inhalt. Basisfarbe = Verschmutzung/Schlieren (schwarz = sauber), ORM.G = Rauheit. |
+| `velvet` | Samtglanz wie bisher, zusätzlich zur GGX-Spiegelung (Rauheit hoch halten) |
+| `emit`/`glow`/`bulb`, `flicker`… | wie bisher; Leuchtstärke in HDR (Lampenschirm hell, aber nicht weiß ausgebrannt) |
+| `unlit`, `scroll`… | wie bisher (Kulissen sind schon fertige Bilder, ohne Tonwertkurve) |
+
+### Gebackenes Licht (UV-Satz 1 „Lightmap“)
+
+- Drei Atlanten `Textures/<Modell>_RNM0.png`, `_RNM1.png`, `_RNM2.png`, je **4096²**, Inseln ohne Überschneidung,
+  ≥ 4 px Abstand, Texeldichte auf Sitzhöhe ≥ 200 px/m (sichtbare Nahflächen mehr).
+- Je ein Cycles-Bake **Diffuse, Direct + Indirect, ohne Color**, ≥ 1024 Samples, Denoising, Margin 8 px,
+  wobei die Schattierungsnormale **aller** Materialien durch eine konstante Tangentenraum-Richtung ersetzt wird
+  (Normal-Map-Knoten auf „UVMap“, Farbe = b·0,5+0,5; die eigenen Normal Maps sind beim Bake aus):
+  - b0 = ( √(2/3), 0, 1/√3 )  b1 = ( −1/√6, 1/√2, 1/√3 )  b2 = ( −1/√6, −1/√2, 1/√3 )
+  - (x = Tangente/U, y = Bitangente/V, z = Normale). Die App gewichtet w_i = max(0, n·b_i)², normiert auf Σ = 1.
+- **Kodierung RGBM, Bereich 8:** lineares HDR-Licht L → M = max(L)/8, auf 1/255 aufgerundet, mindestens 1/255;
+  RGB = (L / (M·8)) **sRGB-kodiert**, A = M (linear). PNG RGBA 8 Bit. Die App liest RGB als sRGB-Textur
+  (Hardware linearisiert) und rechnet L = RGB · A · 8.
+- Die Bake-Werte entsprechen direkt der Beleuchtungsstärke-Skala von Blender (keine Exposure-Verschiebung wie bei
+  v1); die Belichtung wird so gewählt, dass die Vorschau mit Khronos PBR Neutral bei Exposure 0 stimmt.
+- Meshes vor UV-Abwicklung, Bake und Export **triangulieren** (gleiche Tangenten in Blender und Unity).
+
+### Umgebungskarte für Spiegelungen
+
+- Empty `ReflectionProbe` an einer Stelle mit gutem Überblick (etwa Kopfhöhe in Raummitte). **Seine Skalierung
+  (X/Y/Z, in Metern) ist die halbe Größe des achsparallelen Projektionsquaders** um das Empty, der den Raum
+  möglichst gut umschließt (bei langen Räumen wie dem Zugwagen: der ganze Wagen). Nicht drehen.
+- `Textures/<Modell>_Reflection.exr`: Cycles-Panorama (equirektangular 2048 × 1024, 32-Bit- oder Half-Float-EXR,
+  linear, ohne Tonwertkurve) aus der Position des Empties, Saallicht an, Kulissen sichtbar wie gebacken.
+
+### Sonstiges
+
+- Budget v2: ≤ **200 000 Dreiecke**, ≤ **20 Materialien**, Statisches pro Material zusammenfassen.
+- Kanten fasen (Bevel 2–10 mm, wo man nah sitzt), damit sie Licht fangen; keine messerscharfen 90°-Kanten an Möbeln.
+- Ein v2-Raum liefert zusätzlich die alte Ein-Atlas-Datei `<Modell>_Light.png` **nicht** mehr; die alten
+  Abschnitte zu Exposure −1 und „keine Normal Maps“ gelten für v2 nicht.
+- Prüfskript wie bisher (`verify_<raum>.py`), zusätzlich: Texturdateien und -formate, RNM-Atlanten vorhanden und
+  gleich groß, Probe-Empty vorhanden, Dreiecke/Materialien im Budget, alle Meshes trianguliert.
+- Vorschauen: Cycles-Renderings aus Seat2 (1,25 m) mit Khronos PBR Neutral, Saallicht an und gedimmt, dazu
+  Nahaufnahmen (Tisch mit Lampe, Polster, Messing, Fenster) – zur Abnahme mit „sieht echt aus?“ als Maßstab.
