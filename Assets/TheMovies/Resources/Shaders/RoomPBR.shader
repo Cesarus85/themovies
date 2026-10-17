@@ -56,6 +56,7 @@ Shader "TheMovies/RoomPBR"
             float _ScreenGlow;
             float _Flicker;
             float _Blink;
+            float _TM_DebugView;
 
             struct appdata
             {
@@ -151,6 +152,9 @@ Shader "TheMovies/RoomPBR"
                 if (_Blink > 0.0) glow *= frac(_Time.y / _Blink + phase * 0.07) < 0.12 ? 1.6 : 0.15;
                 col += albedo * glow;
 
+                // Diagnosis (room snapshots): 1 = reflection only, 2 = baked light only, 3 = normal.
+                if (_TM_DebugView > 0.5)
+                    col = _TM_DebugView < 1.5 ? RoomReflection(i.worldPos, r, roughness) : _TM_DebugView < 2.5 ? light : n * 0.5 + 0.5;
                 return fixed4(PbrNeutral(col * _Exposure), 1);
             }
             ENDCG

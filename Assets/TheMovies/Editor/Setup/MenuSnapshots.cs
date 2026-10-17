@@ -104,6 +104,8 @@ namespace TheMovies.EditorTools
                 return false;
             }
             s_App.SetRoom(room);
+            float.TryParse(System.Environment.GetEnvironmentVariable("THEMOVIES_DEBUGVIEW") ?? "0", out float debugView);
+            Shader.SetGlobalFloat("_TM_DebugView", debugView);
             s_App.SetLightMode(TheMovies.Video.LightMode.On);
             s_App.Menu.Hide();
             return true;
@@ -136,11 +138,11 @@ namespace TheMovies.EditorTools
             EditorApplication.isPlaying = false;
         }
 
-        /// <summary>Seat2 (x −0.375), 1.25 m eye height, looking +Z, 90° horizontal field of view, 16:9.</summary>
+        /// <summary>Seat2 (x −0.375), 1.25 m eye height, looking +Z, 90° horizontal field of view, 16:10.</summary>
         static void CaptureRoom(string path)
         {
             Directory.CreateDirectory(k_OutputFolder);
-            const int width = 1920, height = 1080;
+            const int width = 1440, height = 900; // as the Blender previews
             var camera = new GameObject("Room Snapshot Camera").AddComponent<Camera>();
             camera.enabled = false;
             camera.clearFlags = CameraClearFlags.SolidColor;

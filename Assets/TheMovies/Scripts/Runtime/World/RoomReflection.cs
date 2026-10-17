@@ -46,6 +46,7 @@ namespace TheMovies.World
             Shader.SetGlobalMatrix(k_WorldToBox, probeToWorld.inverse);
             Shader.SetGlobalMatrix(k_RoomToCube, Matrix4x4.Rotate(Quaternion.Euler(CubeRotation) * toModel));
             Shader.SetGlobalVector(k_HalfExtents, new Vector4(half.x, half.y, half.z, Mathf.Max(0f, Intensity)));
+            Debug.Log($"[TheMovies] Reflections of '{name}': box ±{half} m around {probe.position}, map {Map.width}² {Map.format}.");
             return true;
         }
 
