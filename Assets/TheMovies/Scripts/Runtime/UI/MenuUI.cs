@@ -936,7 +936,8 @@ namespace TheMovies.UI
             bool networked = auth.IsNetworked;
 
             if (!networked)
-                m_RoomLabel.Text = sessions.State == ConnectionState.Connecting ? "Verbinde …" : "Allein im Kino";
+                m_RoomLabel.Text = sessions.IsMigrating ? "Neuer Gastgeber wird gesucht …"
+                    : sessions.State == ConnectionState.Connecting ? "Verbinde …" : "Allein im Kino";
             else if (sessions.Kind == SessionKind.Online)
                 m_RoomLabel.Text = "Raum-Code: " + sessions.RoomCode;
             else

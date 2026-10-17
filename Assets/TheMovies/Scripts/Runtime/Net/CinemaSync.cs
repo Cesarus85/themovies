@@ -28,6 +28,40 @@ namespace TheMovies.Net
         readonly NetworkVariable<bool> m_WaitingForOthers = new NetworkVariable<bool>(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
+        /// <summary>What was playing, kept up to date every frame: continues the movie when the host goes away.</summary>
+        public struct Snapshot
+        {
+            public MediaDescriptor Media;
+            public double Position;
+            public bool Playing;
+            public string VoiceChannel;
+
+            /// <summary>Local clock (realtimeSinceStartup) at which <see cref="Position"/> was valid.</summary>
+            public double LocalTime;
+
+            public bool Valid => LocalTime > 0;
+
+            public double PositionAt(double localTime) => Playing ? Position + Math.Max(0, localTime - LocalTime) : Position;
+        }
+
+        static Snapshot s_Last;
+        static string s_ContinueVoiceChannel;
+
+        /// <summary>The last state of the shared cinema (also after it went away).</summary>
+        public static Snapshot Last => s_Last;
+
+        /// <summary>
+        /// Host migration: the next cinema this device hosts continues the old one (same voice channel; a host stream
+        /// gets a new version, so participants without their own copy fetch it from the new host).
+        /// </summary>
+        public static void ContinueNextSession(string voiceChannel) => s_ContinueVoiceChannel = voiceChannel;
+
+        public static void ForgetLast()
+        {
+            s_Last = default;
+            s_ContinueVoiceChannel = null;
+        }
+
         readonly ClockSync m_Clock = new ClockSync();
         double m_WaitingSince = -1;
         double m_ReadySince = -1;
@@ -58,12 +92,20 @@ namespace TheMovies.Net
 
             if (IsServer)
             {
-                m_VoiceChannel.Value = new FixedString64Bytes("TheMovies_" + Guid.NewGuid().ToString("N").Substring(0, 16));
+                bool continuing = !string.IsNullOrEmpty(s_ContinueVoiceChannel);
+                m_VoiceChannel.Value = new FixedString64Bytes(continuing ? s_ContinueVoiceChannel
+                    : "TheMovies_" + Guid.NewGuid().ToString("N").Substring(0, 16));
+                s_ContinueVoiceChannel = null;
 
-                // The host continues whatever it was watching alone.
+                // The host continues whatever it was watching alone (or what the old host showed).
                 LocalAuthority.Instance.Export(out var media, out var timeline);
                 if (!media.IsEmpty)
                 {
+                    if (continuing && media.HostStream)
+                    {
+                        media.Version++;
+                        m_LastVersion = media.Version;
+                    }
                     m_Media.Value = media;
                     var now = LocalNow;
                     double position = timeline.MediaTimeAt(LocalAuthority.Instance.HostNow);
@@ -87,6 +129,19 @@ namespace TheMovies.Net
         {
             if (!IsSpawned)
                 return;
+
+            if (ClockReady)
+            {
+                var t = Timeline;
+                s_Last = new Snapshot
+                {
+                    Media = m_Media.Value,
+                    Position = t.MediaTimeAt(HostNow),
+                    Playing = t.Playing,
+                    VoiceChannel = VoiceChannel,
+                    LocalTime = LocalNow,
+                };
+            }
 
             if (IsServer)
             {

@@ -35,6 +35,15 @@ namespace TheMovies.Net
         /// <summary>Set by the app: voice chat id of the local player (to match speaking indicators).</summary>
         public static Func<string> LocalVoiceIdProvider;
 
+        /// <summary>
+        /// Standard seat this device had in its last cinema (-1: none). Sent along when connecting, so after a host
+        /// change everybody gets their old seat back instead of being shuffled around.
+        /// </summary>
+        public static int PreferredSeat = -1;
+
+        /// <summary>Set by the session: the seat a connecting client asked for (-1: none).</summary>
+        public static Func<ulong, int> RequestedSeatProvider;
+
         /// <summary>Set by the app: called on the owner to fill in its playback status.</summary>
         public static Func<ParticipantStatus> LocalStatusProvider;
 
@@ -161,15 +170,21 @@ namespace TheMovies.Net
 
         int FreeSeat()
         {
+            int wanted = RequestedSeatProvider?.Invoke(OwnerClientId) ?? -1;
+            if (wanted >= 0 && Array.IndexOf(k_SeatOrder, wanted) >= 0 && !SeatTaken(wanted))
+                return wanted;
             foreach (int seat in k_SeatOrder)
-            {
-                bool taken = false;
-                foreach (var p in s_All)
-                    if (p != this && p.m_Seat.Value == seat)
-                        taken = true;
-                if (!taken) return seat;
-            }
+                if (!SeatTaken(seat))
+                    return seat;
             return 0;
+        }
+
+        bool SeatTaken(int seat)
+        {
+            foreach (var p in s_All)
+                if (p != this && p.m_Seat.Value == seat)
+                    return true;
+            return false;
         }
 
         void OnNameChanged(FixedString64Bytes previous, FixedString64Bytes current)
@@ -187,6 +202,7 @@ namespace TheMovies.Net
 
         void ApplyLocalSeat()
         {
+            if (m_Seat.Value >= 0) PreferredSeat = m_Seat.Value;
             if (m_Seat.Value < 0 || XRRig.Instance == null) return;
             var pose = CinemaEnvironment.SeatPose(m_Seat.Value);
             XRRig.Instance.SetSeat(pose.position, pose.rotation);

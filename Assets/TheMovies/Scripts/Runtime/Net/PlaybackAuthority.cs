@@ -183,6 +183,24 @@ namespace TheMovies.Net
             timeline = m_Timeline;
         }
 
+        /// <summary>
+        /// Takes over a movie from a session that broke away (host migration): keeps it running at
+        /// <paramref name="position"/> without reloading, until the new host's session continues it.
+        /// </summary>
+        public void Import(MediaDescriptor media, double position, bool playing)
+        {
+            m_AutoWait.Cancel();
+            m_LastVersion = Math.Max(m_LastVersion, media.Version);
+            m_Media = media;
+            m_Timeline = new PlaybackTimeline
+            {
+                Playing = playing && !media.IsEmpty,
+                AnchorMediaTime = Math.Max(0, position),
+                AnchorHostTime = HostNow,
+                Revision = m_Timeline.Revision + 1,
+            };
+        }
+
         public void Clear()
         {
             m_LastVersion = Math.Max(m_LastVersion, m_Media.Version);

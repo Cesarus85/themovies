@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -35,11 +37,17 @@ namespace TheMovies.Net
     /// Opens and joins cinemas. "Online" uses Unity Multiplayer Services (Relay, joined by a short room
     /// code, works across the internet without port forwarding). "LAN" connects directly by IP address.
     /// The host spawns the shared <see cref="CinemaSync"/> and a <see cref="NetworkPlayer"/> per participant.
+    /// Online cinemas survive the host leaving (host migration): the session makes another participant host,
+    /// who opens a new Relay connection; meanwhile everybody keeps watching on their own and then resyncs.
     /// </summary>
     public sealed class SessionManager : MonoBehaviour
     {
         public const int MaxParticipants = 4;
         public const ushort LanPort = 7777;
+
+        // A host that leaves on purpose is replaced within seconds; one whose headset crashed only once the
+        // session service notices (up to a minute or two).
+        const float k_MigrationTimeout = 150f;
 
         public static SessionManager Instance { get; private set; }
 
@@ -51,9 +59,11 @@ namespace TheMovies.Net
         NetworkManager m_Network;
         bool m_Hooked;
         bool m_LeavingOnPurpose;
+        bool m_Migrating;
+        float m_MigrationDeadline;
+        readonly Dictionary<ulong, int> m_RequestedSeats = new Dictionary<ulong, int>();
 #if THEMOVIES_MPS
         ISession m_Session;
-        bool m_SessionIsHost;
 #endif
 
         public ConnectionState State { get; private set; } = ConnectionState.Offline;
@@ -66,6 +76,9 @@ namespace TheMovies.Net
         public string Status { get; private set; } = string.Empty;
 
         public bool IsHost => m_Network != null && m_Network.IsHost;
+
+        /// <summary>The host went away and a new one is taking over (the movie keeps running locally).</summary>
+        public bool IsMigrating => m_Migrating;
 
         public static bool OnlineAvailable
         {
@@ -88,6 +101,16 @@ namespace TheMovies.Net
         void Awake()
         {
             Instance = this;
+            NetworkPlayer.RequestedSeatProvider = clientId => m_RequestedSeats.TryGetValue(clientId, out int seat) ? seat : -1;
+        }
+
+        void Update()
+        {
+            if (m_Migrating && Time.unscaledTime > m_MigrationDeadline)
+            {
+                m_Migrating = false;
+                HandleLost("Kein neuer Gastgeber gefunden – das Kino ist beendet.");
+            }
         }
 
         void Start() => Hook();
@@ -143,9 +166,8 @@ namespace TheMovies.Net
                     Name = "TheMovies-" + Guid.NewGuid().ToString("N").Substring(0, 8),
                     MaxPlayers = MaxParticipants,
                     IsPrivate = true,
-                }.WithRelayNetwork();
+                }.WithRelayNetwork().WithHostMigration(new MigrationData());
                 m_Session = await MultiplayerService.Instance.CreateSessionAsync(options);
-                m_SessionIsHost = true;
                 HookSession();
                 if (AbandonIfCancelled()) return;
                 RoomCode = m_Session.Code ?? string.Empty;
@@ -176,7 +198,6 @@ namespace TheMovies.Net
             {
                 await EnsureSignedIn();
                 m_Session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
-                m_SessionIsHost = false;
                 HookSession();
                 if (AbandonIfCancelled()) return;
                 RoomCode = code;
@@ -224,10 +245,15 @@ namespace TheMovies.Net
         public async void Leave()
         {
             if (State == ConnectionState.Offline) return;
+            bool othersStay = false;
+#if THEMOVIES_MPS
+            othersStay = m_Session != null && m_Session.IsHost && m_Session.PlayerCount > 1;
+#endif
             m_LeavingOnPurpose = true;
             await Shutdown();
             m_LeavingOnPurpose = false;
-            SetOffline("Kino verlassen.");
+            ForgetSeat();
+            SetOffline(othersStay ? "Kino verlassen – die anderen schauen mit neuem Gastgeber weiter." : "Kino verlassen.");
         }
 
         // ---------------- Internals ----------------
@@ -253,6 +279,8 @@ namespace TheMovies.Net
             }
             if (m_Network.IsListening)
                 m_Network.Shutdown();
+            m_RequestedSeats.Clear();
+            PrepareConnectionData();
             Kind = kind;
             RoomCode = string.Empty;
             State = ConnectionState.Connecting;
@@ -262,10 +290,60 @@ namespace TheMovies.Net
 
         void SetConnected()
         {
+            bool migrated = m_Migrating;
+            m_Migrating = false;
             State = ConnectionState.Connected;
+            if (migrated)
+                Debug.Log($"[TheMovies] Host migration done, this device is {(IsHost ? "the new host" : "connected to the new host")}.");
+            if (!IsHost) CinemaSync.ContinueNextSession(null);
             SetStatus(IsHost
-                ? (Kind == SessionKind.Online ? $"Kino offen. Raum-Code: {RoomCode}" : $"LAN-Kino offen auf {RoomCode}")
-                : "Verbunden.");
+                ? (migrated ? $"Du bist jetzt Gastgeber. Raum-Code: {RoomCode}"
+                    : Kind == SessionKind.Online ? $"Kino offen. Raum-Code: {RoomCode}" : $"LAN-Kino offen auf {RoomCode}")
+                : migrated ? "Weiter mit neuem Gastgeber." : "Verbunden.");
+        }
+
+        /// <summary>Tells the host which seat this device had (see <see cref="NetworkPlayer.PreferredSeat"/>).</summary>
+        void PrepareConnectionData()
+        {
+            if (m_Network != null)
+                m_Network.NetworkConfig.ConnectionData = new[] { (byte)(NetworkPlayer.PreferredSeat + 1) };
+        }
+
+        static void ForgetSeat()
+        {
+            NetworkPlayer.PreferredSeat = -1;
+            CinemaSync.ForgetLast();
+        }
+
+        /// <summary>
+        /// The connection to the host broke: in an online cinema the session picks a new host. Until the network is
+        /// back, everybody keeps watching on their own (from <see cref="CinemaSync.Last"/>). False if there is nothing
+        /// to wait for (LAN, never connected, leaving).
+        /// </summary>
+        bool TryWaitForNewHost()
+        {
+#if THEMOVIES_MPS
+            if (m_Migrating) return true;
+            if (Kind != SessionKind.Online || m_Session == null || m_LeavingOnPurpose || State != ConnectionState.Connected ||
+                m_Session.State != SessionState.Connected)
+                return false;
+            m_Migrating = true;
+            m_MigrationDeadline = Time.unscaledTime + k_MigrationTimeout;
+            var last = CinemaSync.Last;
+            if (last.Valid)
+            {
+                LocalAuthority.Instance.Import(last.Media, last.PositionAt(Time.realtimeSinceStartupAsDouble), last.Playing);
+                CinemaSync.ContinueNextSession(last.VoiceChannel);
+            }
+            m_RequestedSeats.Clear();
+            PrepareConnectionData();
+            State = ConnectionState.Connecting;
+            Debug.Log("[TheMovies] Host gone, waiting for the session to pick a new host.");
+            SetStatus("Der Gastgeber ist weg – ein neuer übernimmt das Kino …");
+            return true;
+#else
+            return false;
+#endif
         }
 
         void SetOffline(string message)
@@ -294,6 +372,7 @@ namespace TheMovies.Net
 
         async Task Shutdown()
         {
+            m_Migrating = false;
             if (m_Network != null && m_Network.IsListening)
                 m_Network.Shutdown();
 #if THEMOVIES_MPS
@@ -304,7 +383,8 @@ namespace TheMovies.Net
                 UnhookSession(session);
                 try
                 {
-                    if (m_SessionIsHost)
+                    // A host with company only leaves: the session makes someone else host (host migration).
+                    if (session.IsHost && session.PlayerCount <= 1)
                         await session.AsHost().DeleteAsync();
                     else
                         await session.LeaveAsync();
@@ -332,17 +412,119 @@ namespace TheMovies.Net
         {
             m_Session.RemovedFromSession += OnRemovedFromSession;
             m_Session.Deleted += OnSessionDeleted;
+            m_Session.SessionHostChanged += OnSessionHostChanged;
+            m_Session.SessionMigrated += OnSessionMigrated;
+            if (m_Session.Network != null) m_Session.Network.MigrationFailed += OnMigrationFailed;
         }
 
         void UnhookSession(ISession session)
         {
             session.RemovedFromSession -= OnRemovedFromSession;
             session.Deleted -= OnSessionDeleted;
+            session.SessionHostChanged -= OnSessionHostChanged;
+            session.SessionMigrated -= OnSessionMigrated;
+            if (session.Network != null) session.Network.MigrationFailed -= OnMigrationFailed;
         }
 
         void OnRemovedFromSession() => HandleLost("Du wurdest aus dem Kino entfernt.");
 
         void OnSessionDeleted() => HandleLost("Der Gastgeber hat das Kino geschlossen.");
+
+        void OnSessionHostChanged(string newHostId)
+        {
+            bool me = m_Session != null && m_Session.CurrentPlayer != null && newHostId == m_Session.CurrentPlayer.Id;
+            Debug.Log($"[TheMovies] Session host changed to {(me ? "this device" : newHostId)}.");
+            // Often arrives before the network notices that the old host is gone.
+            if (!TryWaitForNewHost()) return;
+            if (me) SetStatus("Du übernimmst das Kino als Gastgeber …");
+        }
+
+        void OnSessionMigrated()
+        {
+            Debug.Log("[TheMovies] Session migrated to the new host.");
+            if (m_Session != null && !string.IsNullOrEmpty(m_Session.Code)) RoomCode = m_Session.Code;
+            if (m_Migrating && m_Network.IsListening && (m_Network.IsHost || m_Network.IsConnectedClient)) SetConnected();
+            else Changed?.Invoke();
+        }
+
+        void OnMigrationFailed(SessionError error)
+        {
+            Debug.LogWarning($"[TheMovies] Host migration failed: {error}");
+            m_Migrating = false;
+            HandleLost("Der Gastgeber-Wechsel hat nicht geklappt – das Kino ist beendet.");
+        }
+
+        /// <summary>
+        /// Session state for a new host, uploaded by the host every few seconds. Only a fallback: participants keep
+        /// their own, more current copy (<see cref="CinemaSync.Last"/>), which the new host prefers.
+        /// </summary>
+        sealed class MigrationData : IMigrationDataHandler
+        {
+            const int k_Format = 1;
+
+            public byte[] Generate()
+            {
+                var last = CinemaSync.Last;
+                var m = last.Media;
+                using (var stream = new MemoryStream())
+                using (var w = new BinaryWriter(stream))
+                {
+                    w.Write(k_Format);
+                    w.Write(m.Version);
+                    w.Write(m.Key.ToString());
+                    w.Write(m.Title.ToString());
+                    w.Write(m.IsUrl);
+                    w.Write(m.Size);
+                    w.Write(m.Duration);
+                    w.Write(m.Format);
+                    w.Write(m.SwapEyes);
+                    w.Write(m.HostStream);
+                    w.Write(last.Valid ? last.PositionAt(Time.realtimeSinceStartupAsDouble) : 0.0);
+                    w.Write(last.Playing);
+                    w.Write(DateTime.UtcNow.Ticks);
+                    w.Write(last.VoiceChannel ?? string.Empty);
+                    w.Flush();
+                    return stream.ToArray();
+                }
+            }
+
+            public void Apply(byte[] data)
+            {
+                try
+                {
+                    using (var r = new BinaryReader(new MemoryStream(data)))
+                    {
+                        if (r.ReadInt32() != k_Format) return;
+                        var media = new MediaDescriptor
+                        {
+                            Version = r.ReadInt32(),
+                            Key = new Unity.Collections.FixedString512Bytes(r.ReadString()),
+                            Title = new Unity.Collections.FixedString128Bytes(r.ReadString()),
+                            IsUrl = r.ReadBoolean(),
+                            Size = r.ReadInt64(),
+                            Duration = r.ReadDouble(),
+                            Format = r.ReadByte(),
+                            SwapEyes = r.ReadBoolean(),
+                            HostStream = r.ReadBoolean(),
+                        };
+                        double position = r.ReadDouble();
+                        bool playing = r.ReadBoolean();
+                        var saved = new DateTime(r.ReadInt64(), DateTimeKind.Utc);
+                        string voice = r.ReadString();
+                        // This device's own copy (taken when the old host went away) is more current.
+                        if (!LocalAuthority.Instance.Media.IsEmpty) return;
+                        if (playing) position += Math.Max(0, (DateTime.UtcNow - saved).TotalSeconds);
+                        LocalAuthority.Instance.Import(media, position, playing);
+                        CinemaSync.ContinueNextSession(voice);
+                        Debug.Log("[TheMovies] Host migration: continuing from the old host's data.");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[TheMovies] Host migration data unreadable: {e.Message}");
+                }
+            }
+        }
 #endif
 
 #if THEMOVIES_UGS
@@ -409,6 +591,8 @@ namespace TheMovies.Net
         void ApproveConnection(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
             bool isSelf = request.ClientNetworkId == m_Network.LocalClientId;
+            var payload = request.Payload;
+            m_RequestedSeats[request.ClientNetworkId] = payload != null && payload.Length > 0 ? payload[0] - 1 : -1;
             int connected = m_Network.ConnectedClientsIds.Count;
             response.Approved = isSelf || connected < MaxParticipants;
             response.CreatePlayerObject = false;
@@ -455,6 +639,7 @@ namespace TheMovies.Net
             bool lostSelf = clientId == m_Network.LocalClientId || (!m_Network.IsServer && clientId == NetworkManager.ServerClientId);
             if (lostSelf && !m_LeavingOnPurpose)
             {
+                if (TryWaitForNewHost()) return;
                 string reason = m_Network.DisconnectReason;
                 HandleLost(string.IsNullOrEmpty(reason)
                     ? (State == ConnectionState.Connecting ? "Verbindung fehlgeschlagen." : "Verbindung zum Kino verloren.")
@@ -466,7 +651,7 @@ namespace TheMovies.Net
 
         void OnTransportFailure()
         {
-            if (!m_LeavingOnPurpose)
+            if (!m_LeavingOnPurpose && !TryWaitForNewHost())
                 HandleLost("Netzwerkfehler – Verbindung getrennt.");
         }
 
@@ -476,6 +661,7 @@ namespace TheMovies.Net
             m_LeavingOnPurpose = true;
             await Shutdown();
             m_LeavingOnPurpose = false;
+            ForgetSeat();
             SetOffline(message);
         }
 
