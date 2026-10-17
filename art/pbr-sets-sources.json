@@ -1,0 +1,283 @@
+{
+  "license": "CC0-1.0",
+  "powered_by": "Poly Haven",
+  "assets": {
+    "american_walnut_veneer": {
+      "authors": {
+        "Jenelle van Heerden": "All"
+      },
+      "metadata": "https://api.polyhaven.com/info/american_walnut_veneer",
+      "source": "https://polyhaven.com/a/american_walnut_veneer",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/american_walnut_veneer/american_walnut_veneer_diff_2k.png",
+          "md5": "02bf473f8fd5a93f0b248fa7a2e192b8",
+          "size": 21203722
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/american_walnut_veneer/american_walnut_veneer_nor_gl_2k.png",
+          "md5": "3a13b36029f7782e24d56b069d63410f",
+          "size": 19650355
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/american_walnut_veneer/american_walnut_veneer_rough_2k.png",
+          "md5": "54fad770f4e6a428d987521803a89f18",
+          "size": 7485486
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/american_walnut_veneer/american_walnut_veneer_ao_2k.png",
+          "md5": "81c3bf8df90bc6250309009d437bdab2",
+          "size": 7266738
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/american_walnut_veneer/american_walnut_veneer_arm_2k.png",
+          "md5": "eaa0c66ac7defb3242e07f07b8057c8c",
+          "size": 17278701
+        }
+      }
+    },
+    "olive_veneer": {
+      "authors": {
+        "Jenelle van Heerden": "All"
+      },
+      "metadata": "https://api.polyhaven.com/info/olive_veneer",
+      "source": "https://polyhaven.com/a/olive_veneer",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/olive_veneer/olive_veneer_diff_2k.png",
+          "md5": "ce4a6b7806d1a4a6a9b7256b77aa2d90",
+          "size": 20351344
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/olive_veneer/olive_veneer_nor_gl_2k.png",
+          "md5": "571483d04762e3f46db1c96bf3da09be",
+          "size": 17772876
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/olive_veneer/olive_veneer_rough_2k.png",
+          "md5": "b502b7892368629ad88bb87277ec4dae",
+          "size": 7216595
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/olive_veneer/olive_veneer_ao_2k.png",
+          "md5": "0ae854156e106845cd3349a548787b82",
+          "size": 6809121
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/olive_veneer/olive_veneer_arm_2k.png",
+          "md5": "d7c933ebdf8bf8001a76da4c5d005f0b",
+          "size": 16333742
+        }
+      }
+    },
+    "leather_white": {
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "metadata": "https://api.polyhaven.com/info/leather_white",
+      "source": "https://polyhaven.com/a/leather_white",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/leather_white/leather_white_diff_2k.png",
+          "md5": "d61e4c0dc5d586d07193cca9466a07c8",
+          "size": 8177379
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/leather_white/leather_white_nor_gl_2k.png",
+          "md5": "fe06491c88281d3b9a7bb1d0f70f8ecb",
+          "size": 7480079
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/leather_white/leather_white_rough_2k.png",
+          "md5": "8f994477455266e6689e1f9ce533cae0",
+          "size": 3008509
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/leather_white/leather_white_ao_2k.png",
+          "md5": "355b70dec9c41db69bb673299d9c1afa",
+          "size": 3253395
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/leather_white/leather_white_arm_2k.png",
+          "md5": "a17f783846e0afd90101e997af588d4e",
+          "size": 7874714
+        }
+      }
+    },
+    "white_plaster_02": {
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "metadata": "https://api.polyhaven.com/info/white_plaster_02",
+      "source": "https://polyhaven.com/a/white_plaster_02",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_plaster_02/white_plaster_02_diff_2k.png",
+          "md5": "29845f6a688650189dc29a66c9896a65",
+          "size": 26712959
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_plaster_02/white_plaster_02_nor_gl_2k.png",
+          "md5": "5ebaee84d0be9fce4e5047ab97d584ea",
+          "size": 24664332
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_plaster_02/white_plaster_02_rough_2k.png",
+          "md5": "3aa6655aa83e1d6ccd92eadc4e213b9a",
+          "size": 9074539
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_plaster_02/white_plaster_02_ao_2k.png",
+          "md5": "16a194cff4c6af334d8af77728c1905e",
+          "size": 9479790
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_plaster_02/white_plaster_02_arm_2k.png",
+          "md5": "9f9c452ef1824ae987a683b5336c8810",
+          "size": 18860869
+        }
+      }
+    },
+    "quatrefoil_jacquard_fabric": {
+      "authors": {
+        "colormass": "Photography",
+        "Rico Cilliers": "Processing"
+      },
+      "metadata": "https://api.polyhaven.com/info/quatrefoil_jacquard_fabric",
+      "source": "https://polyhaven.com/a/quatrefoil_jacquard_fabric",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/quatrefoil_jacquard_fabric/quatrefoil_jacquard_fabric_diff_2k.png",
+          "md5": "695c84dd3edabe4f8df1f9c957421ae0",
+          "size": 20406272
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/quatrefoil_jacquard_fabric/quatrefoil_jacquard_fabric_nor_gl_2k.png",
+          "md5": "31eb1da08cbeb895491083d3d99a435c",
+          "size": 23117886
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/quatrefoil_jacquard_fabric/quatrefoil_jacquard_fabric_rough_2k.png",
+          "md5": "0b6e7b0a3e6686564d3b3699512302a8",
+          "size": 8132342
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/quatrefoil_jacquard_fabric/quatrefoil_jacquard_fabric_arm_2k.png",
+          "md5": "8f2eba97430a6ae6319dad1869361ce2",
+          "size": 8454597
+        }
+      }
+    },
+    "granite_tile": {
+      "authors": {
+        "Charlotte Baglioni": "All"
+      },
+      "metadata": "https://api.polyhaven.com/info/granite_tile",
+      "source": "https://polyhaven.com/a/granite_tile",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/granite_tile/granite_tile_diff_2k.png",
+          "md5": "2d8f4192bdd5650ee6cbd08f288a5885",
+          "size": 22346946
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/granite_tile/granite_tile_nor_gl_2k.png",
+          "md5": "e5e72567393aa73c622857fd13f52e66",
+          "size": 20397425
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/granite_tile/granite_tile_rough_2k.png",
+          "md5": "8041773d6b0db3d8ec3e9fb3619ae620",
+          "size": 7504293
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/granite_tile/granite_tile_ao_2k.png",
+          "md5": "2555ff58c896a25dc2f81c03dc5f33b4",
+          "size": 6778057
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/granite_tile/granite_tile_arm_2k.png",
+          "md5": "e3730ef3710f340a86283a48693254ed",
+          "size": 16738519
+        }
+      }
+    },
+    "walnut_veneer": {
+      "authors": {
+        "Jenelle van Heerden": "All"
+      },
+      "metadata": "https://api.polyhaven.com/info/walnut_veneer",
+      "source": "https://polyhaven.com/a/walnut_veneer",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/walnut_veneer/walnut_veneer_diff_2k.png",
+          "md5": "99a674031f6ee3974d0d825b9af745a7",
+          "size": 20495792
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/walnut_veneer/walnut_veneer_nor_gl_2k.png",
+          "md5": "33df5375cbc7905d3defe813a5448cbf",
+          "size": 19426444
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/walnut_veneer/walnut_veneer_rough_2k.png",
+          "md5": "55802c6bbdd1f358414d3e759fe41688",
+          "size": 7321795
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/walnut_veneer/walnut_veneer_ao_2k.png",
+          "md5": "b1739a7568b4726bc1cd79032faf1370",
+          "size": 7040463
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/walnut_veneer/walnut_veneer_arm_2k.png",
+          "md5": "f29577bdfb335bc31a80bfc988dc08f7",
+          "size": 16864485
+        }
+      }
+    },
+    "rough_linen": {
+      "authors": {
+        "colormass": "Photography",
+        "Rico Cilliers": "Processing"
+      },
+      "metadata": "https://api.polyhaven.com/info/rough_linen",
+      "source": "https://polyhaven.com/a/rough_linen",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_linen/rough_linen_diff_2k.png",
+          "md5": "3545211c4b7a868187055232e7311bc0",
+          "size": 23034793
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_linen/rough_linen_nor_gl_2k.png",
+          "md5": "c790b11f591f898dbec1d75733159fb3",
+          "size": 22196908
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_linen/rough_linen_rough_2k.png",
+          "md5": "995eab4d5b920571255da3c4b143f2aa",
+          "size": 8211415
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_linen/rough_linen_ao_2k.png",
+          "md5": "49d076f798a5eaf49c69e23990f6a800",
+          "size": 8070747
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_linen/rough_linen_arm_2k.png",
+          "md5": "8ace7206e4eb7f71bd8e3f082fece735",
+          "size": 25594524
+        }
+      }
+    }
+  }
+}

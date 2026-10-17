@@ -54,6 +54,11 @@ def configure(room, scene):
         scene.cycles.device = 'GPU' if any(d.type == 'METAL' for d in prefs.devices) else 'CPU'
     except Exception:
         scene.cycles.device = 'CPU'
+    # The bake lights stand in for coves, sconces and fills: they light the room but must not show up as floating
+    # discs in mirror reflections (glass, polished floors) of the previews and the reflection panorama.
+    for o in scene.objects:
+        if o.type == 'LIGHT':
+            o.visible_glossy = False
     scene.view_settings.view_transform = 'Khronos PBR Neutral'
     scene.view_settings.look = 'None'
     scene.view_settings.exposure = 0
@@ -242,8 +247,17 @@ def _denoise(room, scene, image, stem):
     return pixels(path)[..., :3]
 
 
-def _bake(room, scene, obj, names, direction, stem):
+def _bake(room, scene, obj, names, direction, stem, transparent=()):
     metals = _metals_off(names)
+    # Photographic domes and backdrops must not shut out the sky or dominate the bounce light while baking.
+    swapped = []
+    for name in transparent:
+        tree = bpy.data.materials[name].node_tree
+        out = tree.nodes['Material Output']
+        old = [l.from_socket for l in out.inputs['Surface'].links]
+        node = tree.nodes.new('ShaderNodeBsdfTransparent')
+        tree.links.new(node.outputs[0], out.inputs['Surface'])
+        swapped.append((tree, out, node, old))
     _set_bake_normal(names, direction)
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
@@ -268,6 +282,10 @@ def _bake(room, scene, obj, names, direction, stem):
     bpy.data.images.remove(image)
     _restore_normals(names)
     _metals_on(metals)
+    for tree, out, node, old in swapped:
+        tree.nodes.remove(node)
+        for socket in old:
+            tree.links.new(socket, out.inputs['Surface'])
     obj.data.uv_layers.active = obj.data.uv_layers['UVMap']
     room.log(f'{stem}: {time.monotonic() - start:.0f}s, max {data.max():.3f}')
     return data
@@ -297,12 +315,12 @@ def encode_rgbm(data, path):
     png(path, np.concatenate((srgb(data / (multiplier * 8)), multiplier), axis=2))
 
 
-def bake_rnm(room, scene, obj):
+def bake_rnm(room, scene, obj, transparent=()):
     """Three RNM directions plus a flat bake; denoised, lightly blurred, normalized per texel to the flat bake, RGBM."""
     configure(room, scene)
     names = [m.name for m in obj.data.materials]
-    atlases = [_bake(room, scene, obj, names, d, f'rnm{i}') for i, d in enumerate(BASIS)]
-    flat = _bake(room, scene, obj, names, (0.0, 0.0, 1.0), 'flat')
+    atlases = [_bake(room, scene, obj, names, d, f'rnm{i}', transparent) for i, d in enumerate(BASIS)]
+    flat = _bake(room, scene, obj, names, (0.0, 0.0, 1.0), 'flat', transparent)
     sigma = 1.5 if room.n == 4096 else 1.0
     for atlas in atlases + [flat]:
         atlas[...] = blur(atlas, atlas.max(axis=2) > 1e-5, sigma)

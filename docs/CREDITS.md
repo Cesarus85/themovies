@@ -189,3 +189,18 @@ at runtime; those fonts are not part of this repository.
 | Orient-Express v2: velour_velvet | colormass (Photography), Rico Cilliers (Processing) | [Poly Haven](https://polyhaven.com/a/velour_velvet) | CC0-1.0 | 2K maps (diffuse, normal GL, roughness, AO); recoloured to the accepted palette, normal strength reduced, AO weakened, packed into BaseColor/Normal/ORM. |
 | Orient-Express v2: white_plaster_02 | Rob Tuytel (All) | [Poly Haven](https://polyhaven.com/a/white_plaster_02) | CC0-1.0 | 2K maps (diffuse, normal GL, roughness, AO); recoloured to the accepted palette, normal strength reduced, AO weakened, packed into BaseColor/Normal/ORM. |
 | Orient-Express v2: quatrefoil_jacquard_fabric | colormass (Photography), Rico Cilliers (Processing) | [Poly Haven](https://polyhaven.com/a/quatrefoil_jacquard_fabric) | CC0-1.0 | 2K maps (diffuse, normal GL, roughness, AO); recoloured to the accepted palette, normal strength reduced, AO weakened, packed into BaseColor/Normal/ORM. |
+
+## Photo texture sets of the v2 rooms (Jet, Space, Rooftop, …)
+
+Manifest with checksums: `art/pbr-sets-sources.json`.
+
+| Asset | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| american_walnut_veneer | Jenelle van Heerden (All) | [Poly Haven](https://polyhaven.com/a/american_walnut_veneer) | CC0-1.0 | 2K maps; recoloured to each room's accepted palette, normal strength and AO reduced, packed into BaseColor/Normal/ORM. |
+| olive_veneer | Jenelle van Heerden (All) | [Poly Haven](https://polyhaven.com/a/olive_veneer) | CC0-1.0 | 2K maps; recoloured to each room's accepted palette, normal strength and AO reduced, packed into BaseColor/Normal/ORM. |
+| leather_white | Rob Tuytel (All) | [Poly Haven](https://polyhaven.com/a/leather_white) | CC0-1.0 | 2K maps; recoloured to each room's accepted palette, normal strength and AO reduced, packed into BaseColor/Normal/ORM. |
+| white_plaster_02 | Rob Tuytel (All) | [Poly Haven](https://polyhaven.com/a/white_plaster_02) | CC0-1.0 | 2K maps; recoloured to each room's accepted palette, normal strength and AO reduced, packed into BaseColor/Normal/ORM. |
+| quatrefoil_jacquard_fabric | colormass (Photography), Rico Cilliers (Processing) | [Poly Haven](https://polyhaven.com/a/quatrefoil_jacquard_fabric) | CC0-1.0 | 2K maps; recoloured to each room's accepted palette, normal strength and AO reduced, packed into BaseColor/Normal/ORM. |
+| granite_tile | Charlotte Baglioni (All) | [Poly Haven](https://polyhaven.com/a/granite_tile) | CC0-1.0 | 2K maps; recoloured to each room's accepted palette, normal strength and AO reduced, packed into BaseColor/Normal/ORM. |
+| walnut_veneer | Jenelle van Heerden (All) | [Poly Haven](https://polyhaven.com/a/walnut_veneer) | CC0-1.0 | 2K maps; recoloured to each room's accepted palette, normal strength and AO reduced, packed into BaseColor/Normal/ORM. |
+| rough_linen | colormass (Photography), Rico Cilliers (Processing) | [Poly Haven](https://polyhaven.com/a/rough_linen) | CC0-1.0 | 2K maps; recoloured to each room's accepted palette, normal strength and AO reduced, packed into BaseColor/Normal/ORM. |
