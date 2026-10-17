@@ -102,7 +102,8 @@ def build(m,light):
             tube('Wood',[(x+dx,y-.25,.42),(x+dx,y-.25,.68),(x+dx,y+.28,.68),(x+dx,y+.28,.42)],.022)
             g.softbox(m['Velvet'],(x+dx,y+.025,.695),(.065,.61,.075),.5,seg=16,rings=8)
         # Piping and three small upholstery buttons, entirely below head envelope.
-        for dx in [-.15,0,.15]:g.sphere(m['Brass'],(x+dx,y-.202,.78),(.009,.006,.009),8,4)
+        # Half sunk into the pile of the back cushion (its front lies at y-.2128 there), not floating before it.
+        for dx in [-.15,0,.15]:g.sphere(m['Brass'],(x+dx,y-.2135,.78),(.009,.006,.009),8,4)
         tube('Brass',[(x-w/2+.025,y+.357,.47),(x+w/2-.025,y+.357,.47)],.005,6)
     # Join the two settee seats visually with one base and a continuous low back.
     box('Wood',(0,-3.08,.34),(1.66,.75,.08),.025,('bottom',))

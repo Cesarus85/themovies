@@ -1,0 +1,8 @@
+{
+  "OE_Silk_glow_flicker2": {
+    "emission": 2.0
+  },
+  "OE_Etched_glow": {
+    "emission": 1.2
+  }
+}

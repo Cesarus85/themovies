@@ -8,11 +8,12 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: OE_Ebony
-  m_Shader: {fileID: 4800000, guid: 9f6889c322fb44cf7968ff8f24ef05fc, type: 3}
+  m_Shader: {fileID: 4800000, guid: 64a436d11046849918c5448dcf275db6, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _TM_BAKED
+  - _TM_NORMALMAP
+  - _TM_ORM
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -32,14 +33,37 @@ Material:
         m_Texture: {fileID: 2800000, guid: 5a42daafbc896487cab6063b05369685, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _NormalTex:
+        m_Texture: {fileID: 2800000, guid: 64f46eacd55424661873818b864ba5ca, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ORMTex:
+        m_Texture: {fileID: 2800000, guid: ec380e0e50b8b4f74959df98fbcdfef6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM0:
+        m_Texture: {fileID: 2800000, guid: c0b00587930f0417bbf959eb2ae21665, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM1:
+        m_Texture: {fileID: 2800000, guid: 5165dbedcc7ad4bd099782330aab113e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM2:
+        m_Texture: {fileID: 2800000, guid: c2d44cbe4729d44f4af673f09751c0b3, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BakedDim: 0.04
     - _Blink: 0
     - _Emission: 0
+    - _Exposure: 1
     - _Flicker: 0
     - _LightScale: 2
+    - _Metallic: 0
     - _RoomLightAffect: 0
+    - _Roughness: 0.7
     - _ScreenGlow: 1
     - _Scroll: 0
     - _ScrollV: 0

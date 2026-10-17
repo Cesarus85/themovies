@@ -180,3 +180,12 @@ was downloaded for this motion pass.
 The TMP Essential Resources (shaders, settings) come from Unity's `com.unity.ugui` package under the Unity Companion
 License. Characters missing in Liberation Sans (e.g. Japanese titles) are drawn from the headset's own system fonts
 at runtime; those fonts are not part of this repository.
+
+## Orient-Express – photorealistic pipeline v2
+
+| Asset | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| Orient-Express v2: walnut_veneer | Jenelle van Heerden (All) | [Poly Haven](https://polyhaven.com/a/walnut_veneer) | CC0-1.0 | 2K maps (diffuse, normal GL, roughness, AO); recoloured to the accepted palette, normal strength reduced, AO weakened, packed into BaseColor/Normal/ORM. |
+| Orient-Express v2: velour_velvet | colormass (Photography), Rico Cilliers (Processing) | [Poly Haven](https://polyhaven.com/a/velour_velvet) | CC0-1.0 | 2K maps (diffuse, normal GL, roughness, AO); recoloured to the accepted palette, normal strength reduced, AO weakened, packed into BaseColor/Normal/ORM. |
+| Orient-Express v2: white_plaster_02 | Rob Tuytel (All) | [Poly Haven](https://polyhaven.com/a/white_plaster_02) | CC0-1.0 | 2K maps (diffuse, normal GL, roughness, AO); recoloured to the accepted palette, normal strength reduced, AO weakened, packed into BaseColor/Normal/ORM. |
+| Orient-Express v2: quatrefoil_jacquard_fabric | colormass (Photography), Rico Cilliers (Processing) | [Poly Haven](https://polyhaven.com/a/quatrefoil_jacquard_fabric) | CC0-1.0 | 2K maps (diffuse, normal GL, roughness, AO); recoloured to the accepted palette, normal strength reduced, AO weakened, packed into BaseColor/Normal/ORM. |
