@@ -353,7 +353,7 @@ namespace TheMovies.Net
             catch (Exception e)
             {
                 // Searched every few seconds while the main menu is open: report a failure only once.
-                if (!s_QueryFailureLogged) Debug.LogWarning($"[TheMovies] Looking for open cinemas failed: {e.Message}");
+                if (!s_QueryFailureLogged) Debug.LogWarning($"[TheMovies] Looking for open cinemas failed: {e.Message} {e.InnerException?.Message}");
                 s_QueryFailureLogged = true;
             }
 #else
