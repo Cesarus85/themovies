@@ -5,6 +5,7 @@ using System.Linq;
 using TheMovies.Core;
 using TheMovies.UI;
 using TheMovies.World;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -25,7 +26,7 @@ namespace TheMovies.Video
         ScreenController m_Screen;
         Func<double> m_TimeProvider;
         SubtitleTrack m_Track;
-        TextMesh m_Text;
+        TextMeshPro m_Text;
         MeshRenderer m_Background;
         string m_Shown;
         int m_LoadToken;
@@ -197,7 +198,7 @@ namespace TheMovies.Video
             // Size relative to the picture: about 5 % of its height per line, in the lower tenth.
             Vector2 screen = m_Screen.Size;
             float lineHeight = Mathf.Clamp(screen.y * 0.05f, 0.08f, 0.5f) * m_SizeScale;
-            m_Text.characterSize = lineHeight / (m_Text.fontSize * 0.1f);
+            UIFactory.SetTextHeight(m_Text, lineHeight);
             m_Text.text = wrapped;
 
             float width = longest * lineHeight * 0.52f + lineHeight;

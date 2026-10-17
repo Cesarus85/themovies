@@ -173,6 +173,18 @@ namespace TheMovies.UI
 
         // ---------------- Visibility & placement ----------------
 
+        // The headset sharpens the eye image while the menu is open (crisper text; off during the film).
+        void OnEnable() => SetSharpening(true);
+
+        void OnDisable() => SetSharpening(false);
+
+        static void SetSharpening(bool on)
+        {
+#if THEMOVIES_OPENXR
+            TheMovies.XR.SharpeningFeature.Enabled = on;
+#endif
+        }
+
         public void Show()
         {
             bool wasVisible = m_Visible && gameObject.activeSelf;
@@ -1004,7 +1016,7 @@ namespace TheMovies.UI
                     {
                         if (p.Seat != seat || line >= m_Participants.Length) continue;
                         var label = m_Participants[line++];
-                        label.Text = "● " + p.DisplayName + (p.IsOwner ? " (du)" : string.Empty) + (p.IsHostPlayer ? " ★" : string.Empty) +
+                        label.Text = "● " + p.DisplayName + (p.IsOwner ? " (du)" : string.Empty) + (p.IsHostPlayer ? " · Gastgeber" : string.Empty) +
                                      " – " + Describe(p.Status, p.IsOwner);
                         label.Color = Color.Lerp(p.Color, Color.white, 0.25f);
                     }

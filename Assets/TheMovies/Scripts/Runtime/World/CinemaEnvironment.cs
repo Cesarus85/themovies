@@ -486,7 +486,7 @@ namespace TheMovies.World
             var sign = new GameObject("Exit Sign").transform;
             sign.SetParent(m_HallRoot, false);
             sign.position = position;
-            // TextMesh is readable when looking along its +Z, so +Z points into the wall.
+            // Text is readable when looking along its +Z, so +Z points into the wall.
             sign.rotation = Quaternion.LookRotation(wallDirection, Vector3.up);
             var mat = Lit("Exit", Texture2D.whiteTexture, emission: 1.8f);
             mat.SetFloat("_ScreenGlow", 0f);

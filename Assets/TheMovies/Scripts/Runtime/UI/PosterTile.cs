@@ -1,5 +1,6 @@
 using System;
 using TheMovies.Core;
+using TMPro;
 using UnityEngine;
 
 namespace TheMovies.UI
@@ -28,9 +29,9 @@ namespace TheMovies.UI
         readonly MeshRenderer m_Poster;
         readonly MeshRenderer m_Placeholder;
         readonly MeshRenderer m_PlaceholderIcon;
-        readonly TextMesh m_PlaceholderTitle;
-        readonly TextMesh m_Title;
-        readonly TextMesh m_Details;
+        readonly TextMeshPro m_PlaceholderTitle;
+        readonly TextMeshPro m_Title;
+        readonly TextMeshPro m_Details;
         readonly MeshRenderer m_ProgressBack;
         readonly MeshRenderer m_ProgressFill;
         readonly MaterialPropertyBlock m_Block = new MaterialPropertyBlock();

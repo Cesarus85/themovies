@@ -170,3 +170,13 @@ export, including their local rotation basis. Cinema and Orient Express effects
 change material/texture names only; the binary FBX numeric properties are preserved.
 Jet has no modeled visible wing and receives no new effect. No new external asset
 was downloaded for this motion pass.
+
+## Menu font / Menü-Schrift
+
+| Asset | Author | Source | License | Modified |
+| --- | --- | --- | --- | --- |
+| Liberation Sans Regular | Red Hat, Inc. (Liberation Fonts) | Shipped with Unity's TMP Essential Resources: `Assets/TextMesh Pro/Fonts/LiberationSans.ttf` (license text next to it) | SIL Open Font License 1.1 | Not modified; rendered into a signed distance field atlas (`Resources/TheMovies/MenuFont.asset`, see `Editor/Setup/FontSetup.cs`). |
+
+The TMP Essential Resources (shaders, settings) come from Unity's `com.unity.ugui` package under the Unity Companion
+License. Characters missing in Liberation Sans (e.g. Japanese titles) are drawn from the headset's own system fonts
+at runtime; those fonts are not part of this repository.

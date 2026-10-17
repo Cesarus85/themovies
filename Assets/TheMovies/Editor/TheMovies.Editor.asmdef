@@ -5,7 +5,8 @@
         "TheMovies.Core",
         "TheMovies.Runtime",
         "Unity.Netcode.Runtime",
-        "Unity.Networking.Transport"
+        "Unity.Networking.Transport",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

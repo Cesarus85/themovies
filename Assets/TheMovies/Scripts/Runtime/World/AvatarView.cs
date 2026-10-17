@@ -1,5 +1,6 @@
 using TheMovies.Net;
 using TheMovies.UI;
+using TMPro;
 using UnityEngine;
 
 namespace TheMovies.World
@@ -14,7 +15,7 @@ namespace TheMovies.World
         Transform m_Left;
         Transform m_Right;
         Transform m_NameTag;
-        TextMesh m_Name;
+        TextMeshPro m_Name;
         MeshRenderer m_HeadRenderer;
         MeshRenderer m_Visor;
         MeshRenderer m_BodyRenderer;

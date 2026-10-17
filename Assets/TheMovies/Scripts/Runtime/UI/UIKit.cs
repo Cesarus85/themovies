@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TheMovies.Core;
+using TMPro;
 using UnityEngine;
 
 namespace TheMovies.UI
@@ -91,13 +92,12 @@ namespace TheMovies.UI
     /// <summary>Creates the meshes, materials and text objects the 3D menu is built from.</summary>
     public static class UIFactory
     {
-        // TextMesh: one line is roughly fontSize * characterSize * 0.1 world units tall.
-        const int k_FontSize = 96;
-        const float k_TextMeshUnitScale = 0.1f;
+        // TextMeshPro (3D text): font size 10 is an em of one world unit.
+        const float k_FontSizePerMeter = 10f;
+        const string k_FontAsset = "TheMovies/MenuFont";
 
-        static Font s_Font;
+        static TMP_FontAsset s_Font;
         static Mesh s_Quad;
-        static Material s_TextMaterial;
         static Material s_PanelMaterial;
         static Material s_WidgetMaterial;
         static Material s_OverlayMaterial;
@@ -106,25 +106,30 @@ namespace TheMovies.UI
 
         static readonly int k_ColorId = Shader.PropertyToID("_Color");
 
-        public static Font Font
+        /// <summary>
+        /// The menu font: a signed distance field font (TextMeshPro), sharp at every size and distance, created by
+        /// The Movies → Menü-Schrift erzeugen (Editor/Setup/FontSetup.cs). Dynamic: characters that are not prepared in
+        /// the atlas are added from the font file when first shown; characters the font lacks come from system fonts.
+        /// </summary>
+        public static TMP_FontAsset Font
         {
             get
             {
                 if (s_Font == null)
                 {
-                    s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                    s_Font = Resources.Load<TMP_FontAsset>(k_FontAsset);
                     if (s_Font == null)
-                        s_Font = Font.CreateDynamicFontFromOSFont("Arial", k_FontSize);
-                    Font.textureRebuilt += OnFontTextureRebuilt;
+                    {
+                        Debug.LogError("[TheMovies] Menu font Resources/" + k_FontAsset + " missing: The Movies → Menü-Schrift erzeugen.");
+                        s_Font = TMP_Settings.defaultFontAsset;
+                    }
+                    else
+                    {
+                        SystemFonts.AddFallbacks(s_Font);
+                    }
                 }
                 return s_Font;
             }
-        }
-
-        static void OnFontTextureRebuilt(Font font)
-        {
-            if (font == s_Font && s_TextMaterial != null)
-                s_TextMaterial.mainTexture = font.material.mainTexture;
         }
 
         /// <summary>1x1 quad centered on the origin, visible from -Z (the side facing the user), white vertex colors.</summary>
@@ -238,22 +243,6 @@ namespace TheMovies.UI
         /// <summary>Icons, slider fills and knobs, drawn on top of widgets.</summary>
         public static Material OverlayMaterial => UIMaterial(ref s_OverlayMaterial, 2995);
 
-        public static Material TextMaterial
-        {
-            get
-            {
-                if (s_TextMaterial == null)
-                {
-                    s_TextMaterial = new Material(FindShader("TheMovies/Text"))
-                    {
-                        mainTexture = Font.material.mainTexture,
-                        renderQueue = 3000,
-                    };
-                }
-                return s_TextMaterial;
-            }
-        }
-
         public static void SetColor(Renderer renderer, Color color)
         {
             if (renderer == null) return;
@@ -297,25 +286,36 @@ namespace TheMovies.UI
             return CreateMesh(parent, name, localPosition, RoundedRect(size, radius, gradient), color, material);
         }
 
-        public static TextMesh CreateText(Transform parent, string text, Vector3 localPosition, float height,
+        /// <summary>
+        /// Text at <paramref name="localPosition"/>, <paramref name="height"/> being the font size (em) in meters;
+        /// <paramref name="anchor"/> says which point of the text sits there. No wrapping: lines break at '\n' only.
+        /// </summary>
+        public static TextMeshPro CreateText(Transform parent, string text, Vector3 localPosition, float height,
             TextAnchor anchor = TextAnchor.MiddleCenter, Color? color = null)
         {
-            var go = CreateEmpty(parent, "Text", localPosition);
-            var tm = go.AddComponent<TextMesh>();
+            // A zero-sized rect: the alignment then decides on which side of the point the text runs.
+            var go = new GameObject("Text", typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.localPosition = localPosition;
+            rect.sizeDelta = Vector2.zero;
+            var tm = go.AddComponent<TextMeshPro>();
             tm.font = Font;
-            tm.fontSize = k_FontSize;
-            tm.characterSize = height / (k_FontSize * k_TextMeshUnitScale);
-            tm.anchor = anchor;
+            SetTextHeight(tm, height);
             tm.alignment = AlignmentFor(anchor);
+            tm.textWrappingMode = TextWrappingModes.NoWrap;
+            tm.overflowMode = TextOverflowModes.Overflow;
             tm.richText = false;
             tm.color = color ?? UIStyle.Text;
             tm.text = text ?? string.Empty;
-            var mr = go.GetComponent<MeshRenderer>();
-            mr.sharedMaterial = TextMaterial;
+            var mr = tm.renderer;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
             return tm;
         }
+
+        /// <summary>Changes the font size (em) of a text from <see cref="CreateText"/> to <paramref name="height"/> meters.</summary>
+        public static void SetTextHeight(TMP_Text text, float height) => text.fontSize = height * k_FontSizePerMeter;
 
         /// <summary>
         /// Width of each character at the given text height, from the font's real glyph advances (for fitting text into
@@ -326,29 +326,33 @@ namespace TheMovies.UI
             var font = Font;
             float fallback = height * 0.55f;
             if (font == null) return c => fallback;
-            font.RequestCharactersInTexture((text ?? string.Empty) + "…", k_FontSize, FontStyle.Normal);
-            return c => font.GetCharacterInfo(c, out CharacterInfo info, k_FontSize, FontStyle.Normal) && info.advance > 0
-                ? info.advance * height / k_FontSize
-                : fallback;
+            SystemFonts.Prepare(font, (text ?? string.Empty) + "…");
+            return c => SystemFonts.TryGetAdvance(font, c, out float advance) && advance > 0f ? advance * height : fallback;
         }
 
-        /// <summary>Rough width of a text line for layout (the built-in font averages about half the line height per character).</summary>
-        public static float EstimateTextWidth(string text, float height) => (text?.Length ?? 0) * height * 0.5f;
+        /// <summary>Width of a text line at the given font size (from the glyph advances).</summary>
+        public static float EstimateTextWidth(string text, float height)
+        {
+            if (string.IsNullOrEmpty(text)) return 0f;
+            var width = CharWidth(text, height);
+            float sum = 0f;
+            foreach (char c in text) sum += width(c);
+            return sum;
+        }
 
-        static TextAlignment AlignmentFor(TextAnchor anchor)
+        static TextAlignmentOptions AlignmentFor(TextAnchor anchor)
         {
             switch (anchor)
             {
-                case TextAnchor.UpperLeft:
-                case TextAnchor.MiddleLeft:
-                case TextAnchor.LowerLeft:
-                    return TextAlignment.Left;
-                case TextAnchor.UpperRight:
-                case TextAnchor.MiddleRight:
-                case TextAnchor.LowerRight:
-                    return TextAlignment.Right;
-                default:
-                    return TextAlignment.Center;
+                case TextAnchor.UpperLeft: return TextAlignmentOptions.TopLeft;
+                case TextAnchor.UpperCenter: return TextAlignmentOptions.Top;
+                case TextAnchor.UpperRight: return TextAlignmentOptions.TopRight;
+                case TextAnchor.MiddleLeft: return TextAlignmentOptions.Left;
+                case TextAnchor.MiddleRight: return TextAlignmentOptions.Right;
+                case TextAnchor.LowerLeft: return TextAlignmentOptions.BottomLeft;
+                case TextAnchor.LowerCenter: return TextAlignmentOptions.Bottom;
+                case TextAnchor.LowerRight: return TextAlignmentOptions.BottomRight;
+                default: return TextAlignmentOptions.Center;
             }
         }
     }
@@ -555,7 +559,7 @@ namespace TheMovies.UI
     /// <summary>Single line of text that shortens itself to a maximum length.</summary>
     public sealed class UILabel
     {
-        readonly TextMesh m_Text;
+        readonly TextMeshPro m_Text;
         readonly int m_MaxChars;
         string m_Raw = string.Empty;
 
@@ -613,7 +617,7 @@ namespace TheMovies.UI
         public event Action Clicked;
 
         MeshRenderer m_Background;
-        TextMesh m_Label;
+        TextMeshPro m_Label;
         MeshRenderer m_Icon;
         Vector2 m_Size;
         float m_TextHeight;

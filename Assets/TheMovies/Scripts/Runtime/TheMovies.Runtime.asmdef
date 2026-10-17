@@ -17,7 +17,8 @@
         "Unity.XR.OpenXR",
         "Unity.InferenceEngine",
         "Unity.XR.Hands",
-        "Ktx"
+        "Ktx",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

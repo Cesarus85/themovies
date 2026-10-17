@@ -25,6 +25,7 @@ namespace TheMovies.EditorTools
             "PassthroughFeature", // The Movies: own passthrough (XR_FB_passthrough)
             "RenderModelFeature", // The Movies: the headset's controller models (XR_FB_render_model)
             "MicrogestureFeature", // The Movies: thumb swipes to turn (XR_META_hand_tracking_microgestures)
+            "SharpeningFeature", // The Movies: compositor sharpening while a menu is open (XR_FB_composition_layer_settings)
             "OculusTouchControllerProfile",
             "MetaQuestTouchPlusControllerProfile",
             "MetaQuestTouchProControllerProfile",
