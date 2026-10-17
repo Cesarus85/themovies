@@ -45,7 +45,12 @@ namespace TheMovies.UI
         // Main page
         UILabel m_MainName;
         UILabel m_MainStatus;
-        UIButton m_HostOnline, m_JoinOnline, m_HostLan, m_JoinLan, m_SoloButton, m_ContinueButton;
+        UIButton m_HostOnline, m_JoinAny, m_HostLan, m_SoloButton, m_ContinueButton;
+        const int k_OpenRows = 3;
+        readonly UIButton[] m_OpenRows = new UIButton[k_OpenRows];
+        readonly CinemaListing[] m_OpenItems = new CinemaListing[k_OpenRows];
+        UILabel m_OpenEmpty, m_OpenInfo;
+        UIButton m_VisibilityButton, m_ListTitleButton;
 
         // Keyboard page
         UILabel m_KeyTitle;
@@ -60,7 +65,6 @@ namespace TheMovies.UI
 
         // Session page
         UILabel m_RoomLabel;
-        UILabel m_VoiceLabel;
         UILabel m_TitleLabel;
         UILabel m_InfoLabel;
         UILabel m_ProblemLabel;
@@ -175,7 +179,11 @@ namespace TheMovies.UI
         // The headset sharpens the eye image while the menu is open (crisper text; off during the film).
         void OnEnable() => SetSharpening(true);
 
-        void OnDisable() => SetSharpening(false);
+        void OnDisable()
+        {
+            SetSharpening(false);
+            if (CinemaFinder.Instance != null) CinemaFinder.Instance.Searching = false;
+        }
 
         static void SetSharpening(bool on)
         {
@@ -346,28 +354,55 @@ namespace TheMovies.UI
         GameObject BuildMainPage()
         {
             var p = Page("Main Page");
-            Label(p, "THE MOVIES", 0, 0.24f, 0.055f, 0, TextAnchor.MiddleCenter, UIStyle.Accent);
-            Label(p, "Gemeinsam Kino schauen – mit bis zu 4 Personen", 0, 0.192f, 0.02f, 0, TextAnchor.MiddleCenter, UIStyle.TextDim);
-            Divider(p, 0.163f);
+            Label(p, "THE MOVIES", k_Left, 0.305f, 0.034f, 0, TextAnchor.MiddleLeft, UIStyle.Accent);
+            m_MainName = Label(p, string.Empty, 0.215f, 0.305f, 0.019f, 28, TextAnchor.MiddleRight);
+            Button(p, "Name ändern", 0.335f, 0.305f, 0.19f, 0.045f, EditName, 0.017f);
+            Divider(p, 0.272f);
 
-            m_MainName = Label(p, string.Empty, k_Left, 0.125f, 0.026f, 40);
-            Button(p, "Name ändern", 0.33f, 0.125f, 0.2f, 0.055f, EditName, 0.02f);
+            // Open cinemas of others: one click, no code (LAN ones in the same network, online ones via Unity).
+            Label(p, "Offene Kinos", k_Left, 0.243f, 0.019f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
+            m_OpenInfo = Label(p, string.Empty, k_Right, 0.243f, 0.0145f, 60, TextAnchor.MiddleRight, UIStyle.TextDim);
+            for (int i = 0; i < k_OpenRows; i++)
+            {
+                int index = i;
+                m_OpenRows[i] = Button(p, string.Empty, 0, 0.192f - i * 0.058f, k_Width - 0.06f, 0.05f, () => JoinListed(m_OpenItems[index]), 0.018f);
+            }
+            m_OpenEmpty = Label(p, string.Empty, 0, 0.134f, 0.016f, 90, TextAnchor.MiddleCenter, UIStyle.TextDim);
+            Divider(p, 0.04f);
 
-            Label(p, "Über das Internet (Raum-Code)", k_Left, 0.06f, 0.019f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
-            m_HostOnline = Button(p, "Kino eröffnen", -0.217f, 0.005f, 0.42f, 0.075f, () => m_App.Sessions.HostOnline(), style: ButtonStyle.Primary);
-            m_JoinOnline = Button(p, "Mit Code beitreten", 0.217f, 0.005f, 0.42f, 0.075f, EnterRoomCode);
+            const float w = 0.28f, gap = 0.01f;
+            m_HostOnline = Button(p, "Kino eröffnen", -(w + gap), -0.015f, w, 0.07f, () => m_App.Sessions.HostOnline(), 0.021f, style: ButtonStyle.Primary);
+            m_HostLan = Button(p, "LAN-Kino eröffnen", 0f, -0.015f, w, 0.07f, () => m_App.Sessions.HostLan(), 0.02f);
+            m_JoinAny = Button(p, "Mit Code / IP beitreten", w + gap, -0.015f, w, 0.07f, EnterRoomCode, 0.02f);
+            Label(p, "Neue Kinos sind privat – öffnen kannst du sie im Kino oben neben dem Raum-Code.", 0, -0.072f, 0.0145f, 0,
+                TextAnchor.MiddleCenter, UIStyle.TextDim);
 
-            Label(p, "Im selben WLAN (ohne Unity-Dienste)", k_Left, -0.065f, 0.019f, 0, TextAnchor.MiddleLeft, UIStyle.TextDim);
-            m_HostLan = Button(p, "LAN-Kino eröffnen", -0.217f, -0.115f, 0.42f, 0.06f, () => m_App.Sessions.HostLan(), 0.021f);
-            m_JoinLan = Button(p, "Per IP beitreten", 0.217f, -0.115f, 0.42f, 0.06f, EnterLanHost, 0.021f);
+            m_SoloButton = Button(p, "Allein schauen", -(w + gap), -0.135f, w, 0.058f, StartSolo, 0.02f);
+            Button(p, "Einstellungen", 0f, -0.135f, w, 0.058f, () => OpenSettings(m_MainPage), 0.02f, UIIcon.Settings);
+            Button(p, "Menü ausblenden", w + gap, -0.135f, w, 0.058f, Hide, 0.02f, style: ButtonStyle.Subtle);
 
-            m_SoloButton = Button(p, "Allein schauen", -0.29f, -0.195f, 0.275f, 0.06f, StartSolo, 0.021f);
-            Button(p, "Einstellungen", 0f, -0.195f, 0.275f, 0.06f, () => OpenSettings(m_MainPage), 0.021f, UIIcon.Settings);
-            Button(p, "Menü ausblenden", 0.29f, -0.195f, 0.275f, 0.06f, Hide, 0.021f, style: ButtonStyle.Subtle);
-
-            m_ContinueButton = Button(p, "Weiterschauen", 0f, -0.265f, 0.855f, 0.055f, ContinueLast, 0.019f, style: ButtonStyle.Primary);
-            m_MainStatus = Label(p, string.Empty, 0, -0.322f, 0.018f, 70, TextAnchor.MiddleCenter, UIStyle.TextDim);
+            m_ContinueButton = Button(p, "Weiterschauen", 0f, -0.215f, k_Width - 0.06f, 0.055f, ContinueLast, 0.019f, style: ButtonStyle.Primary);
+            m_MainStatus = Label(p, string.Empty, 0, -0.3f, 0.017f, 80, TextAnchor.MiddleCenter, UIStyle.TextDim);
             return p;
+        }
+
+        void JoinListed(CinemaListing listing)
+        {
+            if (listing == null || m_App.Sessions.State != ConnectionState.Offline) return;
+            string label = "dem Kino von " + listing.HostName;
+            if (listing.Kind == ListingKind.Lan) m_App.Sessions.JoinLan(listing.Id);
+            else m_App.Sessions.JoinOnlineById(listing.Id, label);
+        }
+
+        static string Describe(CinemaListing listing)
+        {
+            var text = new StringBuilder();
+            text.Append("Kino von ").Append(TextUtil.Ellipsize(listing.HostName, 20));
+            if (listing.Room.Length > 0) text.Append("  ·  ").Append(listing.Room);
+            text.Append("  ·  ").Append(listing.Players).Append('/').Append(listing.MaxPlayers);
+            text.Append("  ·  ").Append(listing.Kind == ListingKind.Lan ? "WLAN" : "Internet");
+            if (listing.Title.Length > 0) text.Append("  ·  läuft: ").Append(TextUtil.Ellipsize(listing.Title, 30));
+            return text.ToString();
         }
 
         GameObject BuildKeyboardPage()
@@ -413,7 +448,10 @@ namespace TheMovies.UI
         {
             var p = Page("Session Page", 0.045f);
             m_RoomLabel = Label(p, string.Empty, k_Left, 0.268f, 0.024f, 30, TextAnchor.MiddleLeft, UIStyle.Accent);
-            m_VoiceLabel = Label(p, string.Empty, k_Right, 0.268f, 0.015f, 40, TextAnchor.MiddleRight, UIStyle.TextDim);
+            // Host: make the cinema findable in the "Offene Kinos" list and decide whether the movie shows there.
+            m_VisibilityButton = Button(p, "Kino: privat", 0.195f, 0.268f, 0.16f, 0.038f, () => m_App.Sessions.SetOpen(!m_App.Sessions.IsOpen), 0.015f);
+            m_ListTitleButton = Button(p, "Filmtitel: aus", 0.355f, 0.268f, 0.15f, 0.038f,
+                () => m_App.Sessions.SetShowTitle(!m_App.Sessions.ShowTitle), 0.015f);
             Divider(p, 0.24f);
 
             m_TitleLabel = Label(p, string.Empty, k_Left, 0.2f, 0.03f, 26);
@@ -637,38 +675,22 @@ namespace TheMovies.UI
         {
             OpenKeyboard(new KeyboardRequest
             {
-                Title = "Raum-Code eingeben",
-                Hint = "Den Code zeigt der Gastgeber oben in seinem Menü an.",
+                Title = "Raum-Code oder IP-Adresse",
+                Hint = "Steht beim Gastgeber oben im Kino: Raum-Code (Internet) oder IP-Adresse (WLAN, z. B. 192.168.0.23).",
                 Initial = m_App.Settings.LastRoomCode,
-                MaxLength = 12,
+                MaxLength = 40,
                 AllowLowercase = false,
                 AllowSpace = false,
-                Accepts = c => (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'),
-                Submit = code =>
+                Accepts = c => (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '-',
+                Submit = input =>
                 {
-                    m_App.Settings.LastRoomCode = TextUtil.NormalizeRoomCode(code);
+                    // A dot means an address in the local network, otherwise it is a room code.
+                    bool lan = input.IndexOf('.') >= 0;
+                    if (lan) m_App.Settings.LastLanHost = input;
+                    m_App.Settings.LastRoomCode = lan ? input : TextUtil.NormalizeRoomCode(input);
                     m_App.Settings.Save();
-                    m_App.Sessions.JoinOnline(code);
-                },
-            });
-        }
-
-        void EnterLanHost()
-        {
-            OpenKeyboard(new KeyboardRequest
-            {
-                Title = "IP-Adresse des Gastgebers",
-                Hint = "Steht beim Gastgeber oben im Menü, z. B. 192.168.0.23",
-                Initial = m_App.Settings.LastLanHost,
-                MaxLength = 40,
-                AllowLowercase = true,
-                AllowSpace = false,
-                Accepts = c => char.IsLetterOrDigit(c) && c < 128 || c == '.' || c == '-',
-                Submit = host =>
-                {
-                    m_App.Settings.LastLanHost = host;
-                    m_App.Settings.Save();
-                    m_App.Sessions.JoinLan(host);
+                    if (lan) m_App.Sessions.JoinLan(input.ToLowerInvariant());
+                    else m_App.Sessions.JoinOnline(input);
                 },
             });
         }
@@ -813,6 +835,12 @@ namespace TheMovies.UI
                 float scale = Mathf.Lerp(0.9f, 1f, eased);
                 transform.localScale = new Vector3(scale, scale, scale);
             }
+            if (CinemaFinder.Instance != null)
+            {
+                bool searching = m_CurrentPage == m_MainPage;
+                if (searching && !CinemaFinder.Instance.Searching) CinemaFinder.Instance.Refresh();
+                CinemaFinder.Instance.Searching = searching;
+            }
             // 15 updates per second are plenty and keep string garbage low; a dragged slider updates every frame.
             if (Time.unscaledTime >= m_NextRefresh || m_Seek.IsDragging)
             {
@@ -897,11 +925,11 @@ namespace TheMovies.UI
         {
             var sessions = m_App.Sessions;
             bool idle = sessions.State == ConnectionState.Offline;
-            m_MainName.Text = "Dein Name: " + m_App.Settings.Name;
+            m_MainName.Text = "Du: " + m_App.Settings.Name;
             m_HostOnline.Interactable = idle && SessionManager.OnlineAvailable;
-            m_JoinOnline.Interactable = idle && SessionManager.OnlineAvailable;
+            m_JoinAny.Interactable = idle;
             m_HostLan.Interactable = idle;
-            m_JoinLan.Interactable = idle;
+            RefreshOpenCinemas(idle);
             m_SoloButton.Interactable = idle;
             m_SoloButton.Label = LocalAuthority.Instance.Media.IsEmpty ? "Allein schauen" : "Weiter allein schauen";
             var last = m_App.Media.Recent.Latest;
@@ -927,6 +955,27 @@ namespace TheMovies.UI
             m_MainStatus.Color = sessions.Status.Length > 0 && idle && sessions.Status.Contains("fehl") ? UIStyle.Error : UIStyle.TextDim;
         }
 
+        void RefreshOpenCinemas(bool idle)
+        {
+            var finder = CinemaFinder.Instance;
+            var listings = finder != null ? finder.Listings : null;
+            int count = listings != null ? listings.Count : 0;
+            for (int i = 0; i < k_OpenRows; i++)
+            {
+                var listing = i < count ? listings[i] : null;
+                m_OpenItems[i] = listing;
+                m_OpenRows[i].gameObject.SetActive(listing != null);
+                if (listing == null) continue;
+                m_OpenRows[i].Label = Describe(listing);
+                m_OpenRows[i].Interactable = idle && !listing.IsFull;
+            }
+            m_OpenEmpty.Visible = count == 0;
+            m_OpenEmpty.Text = finder != null && finder.StillLooking && SessionManager.OnlineAvailable
+                ? "Suche offene Kinos …"
+                : "Gerade ist kein offenes Kino zu finden.";
+            m_OpenInfo.Text = count > k_OpenRows ? $"{count - k_OpenRows} weitere – zuerst die im WLAN" : "im WLAN und im Internet";
+        }
+
         void RefreshSession()
         {
             var sessions = m_App.Sessions;
@@ -943,7 +992,13 @@ namespace TheMovies.UI
             else
                 m_RoomLabel.Text = (sessions.IsHost ? "LAN-IP: " : "LAN: ") + sessions.RoomCode;
 
-            m_VoiceLabel.Text = networked ? VoiceChat.Status : string.Empty;
+            bool hosting = networked && sessions.IsHost && sessions.State == ConnectionState.Connected;
+            m_VisibilityButton.gameObject.SetActive(hosting);
+            m_ListTitleButton.gameObject.SetActive(hosting && sessions.IsOpen);
+            m_VisibilityButton.Label = sessions.IsOpen ? "Kino: offen" : "Kino: privat";
+            m_VisibilityButton.Highlighted = sessions.IsOpen;
+            m_ListTitleButton.Label = sessions.ShowTitle ? "Filmtitel: an" : "Filmtitel: aus";
+            m_ListTitleButton.Highlighted = sessions.ShowTitle;
 
             // Movie info
             if (media.IsEmpty)
@@ -1009,7 +1064,8 @@ namespace TheMovies.UI
                 ? $"Sync {cmd.Drift * 1000:+0;-0;0} ms · Ping {auth.RoundTrip * 1000:0} ms  ·  "
                 : string.Empty;
             m_SeatButton.Interactable = !MixedReality.Enabled;
-            m_SessionStatus.Text = sync + "Menü: B / Y  ·  Verschieben: Leiste unten greifen, Stick vor/zurück für Abstand";
+            string voice = networked ? VoiceChat.Status + "  ·  " : string.Empty;
+            m_SessionStatus.Text = voice + sync + "Menü: B / Y  ·  Verschieben: Leiste unten greifen, Stick für Abstand";
         }
 
         void RefreshParticipants(bool networked)

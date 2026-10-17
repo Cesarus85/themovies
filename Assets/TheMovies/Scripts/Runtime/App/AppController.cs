@@ -86,6 +86,17 @@ namespace TheMovies.App
             Subtitles.Placement = Settings.SubtitlePlacement;
             VoiceChat.PushToTalk = Settings.PushToTalk;
 
+            if (m_Sessions != null)
+            {
+                CinemaFinder.Create(m_Sessions);
+                // What an open cinema shows in the others' list (the movie only if the host allows it).
+                m_Sessions.ListingProvider = () => new SessionManager.ListingInfo
+                {
+                    HostName = Settings.Name,
+                    Room = MixedReality.Enabled ? "Mixed Reality" : CinemaEnvironment.RoomNames[(int)Room],
+                    Title = Playback.Current.Media.IsEmpty ? string.Empty : Playback.Current.Media.Title.ToString(),
+                };
+            }
             Menu = MenuUI.Create(this);
 
             NetworkLibrary.Create();

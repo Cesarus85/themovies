@@ -77,6 +77,29 @@ namespace TheMovies.Net
 
         public bool IsHost => m_Network != null && m_Network.IsHost;
 
+        /// <summary>
+        /// The cinema appears in the "Offene Kinos" list (online) or answers searches in the local network (LAN).
+        /// New cinemas are private: only by code, IP address or invitation.
+        /// </summary>
+        public bool IsOpen { get; private set; }
+
+        /// <summary>The list shows what is playing (only if open; off for every new cinema).</summary>
+        public bool ShowTitle { get; private set; }
+
+        /// <summary>What an open cinema tells the others: host name, room and (if shown) the movie.</summary>
+        public struct ListingInfo
+        {
+            public string HostName;
+            public string Room;
+            public string Title;
+        }
+
+        /// <summary>Set by the app; read by the host of an open cinema.</summary>
+        public Func<ListingInfo> ListingProvider;
+
+        /// <summary>Players in this cinema (for the LAN answer).</summary>
+        public int PlayerCount => m_Network != null && m_Network.IsServer ? m_Network.ConnectedClientsIds.Count : 0;
+
         /// <summary>The host went away and a new one is taking over (the movie keeps running locally).</summary>
         public bool IsMigrating => m_Migrating;
 
@@ -111,6 +134,53 @@ namespace TheMovies.Net
                 m_Migrating = false;
                 HandleLost("Kein neuer Gastgeber gefunden – das Kino ist beendet.");
             }
+#if THEMOVIES_MPS
+            if (Time.unscaledTime >= m_NextListingUpdate)
+            {
+                m_NextListingUpdate = Time.unscaledTime + 3f;
+                UpdateOnlineListing();
+            }
+#endif
+        }
+
+        /// <summary>Makes the cinema findable in the list (or private again). Host only.</summary>
+        public async void SetOpen(bool open)
+        {
+            if (!IsHost || State != ConnectionState.Connected || open == IsOpen) return;
+            IsOpen = open;
+            if (!open) ShowTitle = false;
+            Changed?.Invoke();
+#if THEMOVIES_MPS
+            if (Kind == SessionKind.Online && m_Session != null && m_Session.IsHost)
+            {
+                try
+                {
+                    var host = m_Session.AsHost();
+                    host.IsPrivate = !open;
+                    ApplyListing(host, true);
+                    await host.SavePropertiesAsync();
+                    Debug.Log($"[TheMovies] Cinema is now {(open ? "open" : "private")}.");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[TheMovies] Changing the cinema's visibility failed: {e.Message}");
+                    IsOpen = !open;
+                    SetStatus("Sichtbarkeit konnte nicht geändert werden.");
+                }
+            }
+#else
+            await Task.Yield();
+#endif
+        }
+
+        public void SetShowTitle(bool show)
+        {
+            if (!IsHost || (show && !IsOpen) || show == ShowTitle) return;
+            ShowTitle = show;
+            Changed?.Invoke();
+#if THEMOVIES_MPS
+            m_NextListingUpdate = 0;
+#endif
         }
 
         void Start() => Hook();
@@ -166,6 +236,11 @@ namespace TheMovies.Net
                     Name = "TheMovies-" + Guid.NewGuid().ToString("N").Substring(0, 8),
                     MaxPlayers = MaxParticipants,
                     IsPrivate = true,
+                    SessionProperties = new Dictionary<string, SessionProperty>
+                    {
+                        // Indexed, so the list only shows cinemas of compatible app versions.
+                        [k_PropProtocol] = new SessionProperty(k_ListingProtocol, VisibilityPropertyOptions.Public, PropertyIndex.String1),
+                    },
                 }.WithRelayNetwork().WithHostMigration(new MigrationData());
                 m_Session = await MultiplayerService.Instance.CreateSessionAsync(options);
                 HookSession();
@@ -212,6 +287,79 @@ namespace TheMovies.Net
             await Task.Yield();
             Fail("Online-Modus nicht verfügbar: Paket 'Multiplayer Services' fehlt.", null);
 #endif
+        }
+
+        /// <summary>Joins a cinema from the "Offene Kinos" list (online, no code needed).</summary>
+        public async void JoinOnlineById(string sessionId, string label)
+        {
+            if (!BeginConnecting(SessionKind.Online, $"Trete {label} bei …")) return;
+#if THEMOVIES_MPS && THEMOVIES_UGS
+            try
+            {
+                await EnsureSignedIn();
+                m_Session = await MultiplayerService.Instance.JoinSessionByIdAsync(sessionId);
+                HookSession();
+                if (AbandonIfCancelled()) return;
+                RoomCode = m_Session.Code ?? string.Empty;
+                if (m_Network.IsConnectedClient) SetConnected();
+            }
+            catch (Exception e)
+            {
+                Fail("Beitritt fehlgeschlagen – das Kino ist vielleicht schon voll oder geschlossen", e);
+            }
+#else
+            await Task.Yield();
+            Fail("Online-Modus nicht verfügbar: Paket 'Multiplayer Services' fehlt.", null);
+#endif
+        }
+
+        static bool s_QueryFailureLogged;
+
+        /// <summary>Open online cinemas of other people (empty without Unity Services). Never throws.</summary>
+        public async Task<List<CinemaListing>> QueryOpenCinemas()
+        {
+            var result = new List<CinemaListing>();
+#if THEMOVIES_MPS && THEMOVIES_UGS
+            try
+            {
+                await EnsureSignedIn();
+                var options = new QuerySessionsOptions
+                {
+                    Count = 20,
+                    FilterOptions = new List<FilterOption>
+                    {
+                        new FilterOption(FilterField.AvailableSlots, "0", FilterOperation.Greater),
+                        new FilterOption(FilterField.StringIndex1, k_ListingProtocol, FilterOperation.Equal),
+                    },
+                };
+                var found = await MultiplayerService.Instance.QuerySessionsAsync(options);
+                string own = m_Session?.Id;
+                foreach (var info in found.Sessions)
+                {
+                    if (info.Id == own) continue;
+                    result.Add(new CinemaListing
+                    {
+                        Kind = ListingKind.Online,
+                        Id = info.Id,
+                        HostName = Property(info.Properties, k_PropHost, "Gast"),
+                        Room = Property(info.Properties, k_PropRoom, string.Empty),
+                        Title = Property(info.Properties, k_PropTitle, string.Empty),
+                        Players = info.MaxPlayers - info.AvailableSlots,
+                        MaxPlayers = info.MaxPlayers,
+                        SeenAt = Time.realtimeSinceStartupAsDouble,
+                    });
+                }
+            }
+            catch (Exception e)
+            {
+                // Searched every few seconds while the main menu is open: report a failure only once.
+                if (!s_QueryFailureLogged) Debug.LogWarning($"[TheMovies] Looking for open cinemas failed: {e.Message}");
+                s_QueryFailureLogged = true;
+            }
+#else
+            await Task.Yield();
+#endif
+            return result;
         }
 
         public void HostLan()
@@ -281,6 +429,8 @@ namespace TheMovies.Net
                 m_Network.Shutdown();
             m_RequestedSeats.Clear();
             PrepareConnectionData();
+            IsOpen = false;
+            ShowTitle = false;
             Kind = kind;
             RoomCode = string.Empty;
             State = ConnectionState.Connecting;
@@ -443,6 +593,14 @@ namespace TheMovies.Net
         {
             Debug.Log("[TheMovies] Session migrated to the new host.");
             if (m_Session != null && !string.IsNullOrEmpty(m_Session.Code)) RoomCode = m_Session.Code;
+            if (m_Session != null && m_Session.IsHost)
+            {
+                // The cinema stays as open as it was; the movie title only if the new host shows it again.
+                IsOpen = !m_Session.IsPrivate;
+                ShowTitle = false;
+                m_PushedListing = null;
+                m_NextListingUpdate = 0;
+            }
             if (m_Migrating && m_Network.IsListening && (m_Network.IsHost || m_Network.IsConnectedClient)) SetConnected();
             else Changed?.Invoke();
         }
@@ -452,6 +610,60 @@ namespace TheMovies.Net
             Debug.LogWarning($"[TheMovies] Host migration failed: {error}");
             m_Migrating = false;
             HandleLost("Der Gastgeber-Wechsel hat nicht geklappt – das Kino ist beendet.");
+        }
+
+        const string k_ListingProtocol = "tm1";
+        const string k_PropProtocol = "proto";
+        const string k_PropHost = "host";
+        const string k_PropRoom = "room";
+        const string k_PropTitle = "title";
+
+        float m_NextListingUpdate;
+        string m_PushedListing;
+        bool m_PushingListing;
+
+        static string Property(IReadOnlyDictionary<string, SessionProperty> properties, string key, string fallback) =>
+            properties != null && properties.TryGetValue(key, out var p) && !string.IsNullOrEmpty(p?.Value) ? p.Value : fallback;
+
+        /// <summary>Host of an open online cinema: keeps name, room and (if shown) title in the list up to date.</summary>
+        async void UpdateOnlineListing()
+        {
+            if (m_PushingListing || Kind != SessionKind.Online || State != ConnectionState.Connected || !IsOpen ||
+                m_Session == null || !m_Session.IsHost)
+                return;
+            var host = m_Session.AsHost();
+            if (!ApplyListing(host, false)) return;
+            m_PushingListing = true;
+            try
+            {
+                await host.SavePropertiesAsync();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[TheMovies] Updating the cinema list entry failed: {e.Message}");
+                m_PushedListing = null;
+            }
+            m_PushingListing = false;
+        }
+
+        /// <summary>Puts the listing into the session properties; false if nothing changed.</summary>
+        bool ApplyListing(IHostSession host, bool force)
+        {
+            var info = ListingProvider?.Invoke() ?? default;
+            string title = ShowTitle ? info.Title ?? string.Empty : string.Empty;
+            string key = info.HostName + "\n" + info.Room + "\n" + title;
+            if (!force && key == m_PushedListing) return false;
+            m_PushedListing = key;
+            host.SetProperty(k_PropHost, new SessionProperty(Limit(info.HostName, 40), VisibilityPropertyOptions.Public));
+            host.SetProperty(k_PropRoom, new SessionProperty(Limit(info.Room, 40), VisibilityPropertyOptions.Public));
+            host.SetProperty(k_PropTitle, new SessionProperty(Limit(title, 80), VisibilityPropertyOptions.Public));
+            return true;
+        }
+
+        static string Limit(string value, int length)
+        {
+            value = value ?? string.Empty;
+            return value.Length > length ? value.Substring(0, length) : value;
         }
 
         /// <summary>

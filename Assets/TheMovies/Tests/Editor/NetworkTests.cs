@@ -527,4 +527,43 @@ namespace TheMovies.Tests
             Assert.IsNull(streamer.WaitForBlock(0, 100));
         }
     }
+
+    public class LanDiscoveryTests
+    {
+        [Test]
+        public void AnswerRoundTrip()
+        {
+            byte[] answer = LanDiscovery.Answer("Stefan", "Weltraum-Lounge", 2, 4, "Der Pate");
+            var listing = LanDiscovery.ParseAnswer(answer, answer.Length, "192.168.0.23");
+            Assert.NotNull(listing);
+            Assert.AreEqual(ListingKind.Lan, listing.Kind);
+            Assert.AreEqual("192.168.0.23", listing.Id);
+            Assert.AreEqual("Stefan", listing.HostName);
+            Assert.AreEqual("Weltraum-Lounge", listing.Room);
+            Assert.AreEqual(2, listing.Players);
+            Assert.AreEqual(4, listing.MaxPlayers);
+            Assert.AreEqual("Der Pate", listing.Title);
+            Assert.IsFalse(listing.IsFull);
+        }
+
+        [Test]
+        public void NoTitleAndLineBreaksInNames()
+        {
+            byte[] answer = LanDiscovery.Answer("Zeile1\nZeile2", "Kino", 4, 4, null);
+            var listing = LanDiscovery.ParseAnswer(answer, answer.Length, "10.0.0.2");
+            Assert.AreEqual("Zeile1 Zeile2", listing.HostName);
+            Assert.AreEqual(string.Empty, listing.Title);
+            Assert.IsTrue(listing.IsFull);
+        }
+
+        [Test]
+        public void QueryIsRecognizedAndNoAnswer()
+        {
+            byte[] query = LanDiscovery.Query();
+            Assert.IsTrue(LanDiscovery.IsQuery(query, query.Length));
+            Assert.IsNull(LanDiscovery.ParseAnswer(query, query.Length, "10.0.0.2"));
+            byte[] noise = Encoding.UTF8.GetBytes("TheMovies!1\nnur\nzwei");
+            Assert.IsNull(LanDiscovery.ParseAnswer(noise, noise.Length, "10.0.0.2"));
+        }
+    }
 }
