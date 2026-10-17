@@ -718,6 +718,15 @@ Metal), eingefärbt/kombiniert nach Bedarf. Nichts davon wird nachträglich „g
   (Normal-Map-Knoten auf „UVMap“, Farbe = b·0,5+0,5; die eigenen Normal Maps sind beim Bake aus):
   - b0 = ( √(2/3), 0, 1/√3 )  b1 = ( −1/√6, 1/√2, 1/√3 )  b2 = ( −1/√6, −1/√2, 1/√3 )
   - (x = Tangente/U, y = Bitangente/V, z = Normale). Die App gewichtet w_i = max(0, n·b_i)², normiert auf Σ = 1.
+- **Normierung auf den flachen Bake:** zusätzlich ein vierter Bake mit konstanter Normale (0, 0, 1). Die drei
+  Richtungsatlanten werden pro Texel so skaliert, dass ihr Mittel (= flache Normale in der App) diesem Bake entspricht
+  (Faktor über den hellsten Kanal, begrenzt auf 0,25–4). Ohne das wären direkt beleuchtete Flächen um bis zu 42 %
+  zu dunkel (Licht senkrecht von oben trifft jede Basis unter 54,7°). Nur die drei RNM-Dateien werden exportiert.
+- **Metalle als Nichtmetalle backen** (Metallic beim Bake 0): sonst ist ihr Lichtatlas schwarz – die App braucht das
+  Licht dort für die Glanzverdeckung.
+- **Flächen zeigen in den Raum:** gebacken wird die Seite, in die die Normale zeigt; Wände mit verkehrter Normale
+  bleiben im Atlas dunkel, auch wenn Cycles-Vorschauen (die beide Seiten rendern) sie hell zeigen. Das Prüfskript
+  vergleicht deshalb Stichproben des dekodierten Atlas mit Erwartungswerten.
 - **Kodierung RGBM, Bereich 8:** lineares HDR-Licht L → M = max(L)/8, auf 1/255 aufgerundet, mindestens 1/255;
   RGB = (L / (M·8)) **sRGB-kodiert**, A = M (linear). PNG RGBA 8 Bit. Die App liest RGB als sRGB-Textur
   (Hardware linearisiert) und rechnet L = RGB · A · 8.
@@ -730,6 +739,7 @@ Metal), eingefärbt/kombiniert nach Bedarf. Nichts davon wird nachträglich „g
 - Empty `ReflectionProbe` an einer Stelle mit gutem Überblick (etwa Kopfhöhe in Raummitte). **Seine Skalierung
   (X/Y/Z, in Metern) ist die halbe Größe des achsparallelen Projektionsquaders** um das Empty, der den Raum
   möglichst gut umschließt (bei langen Räumen wie dem Zugwagen: der ganze Wagen). Nicht drehen.
+- Panoramakamera mit **Rotation (90°, 0°, 0°)** (Blickmitte = +Y, oben = +Z); die App dreht passend dazu.
 - `Textures/<Modell>_Reflection.exr`: Cycles-Panorama (equirektangular 2048 × 1024, 32-Bit- oder Half-Float-EXR,
   linear, ohne Tonwertkurve) aus der Position des Empties, Saallicht an, Kulissen sichtbar wie gebacken.
 
