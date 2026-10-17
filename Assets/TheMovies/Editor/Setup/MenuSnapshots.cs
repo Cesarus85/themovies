@@ -14,6 +14,8 @@ namespace TheMovies.EditorTools
     /// front with its own camera. Not a sharpness check – the headset shows the text at far fewer pixels.
     /// Command line (needs a graphics device, so without -nographics):
     /// Unity -batchmode -projectPath . -executeMethod TheMovies.EditorTools.MenuSnapshots.CaptureBatch
+    /// CaptureRoomBatch instead photographs a room (environment variable THEMOVIES_ROOM, e.g. "PbrTest") from Seat2 at
+    /// eye height looking at the screen, 90° wide, house lights on and dimmed – the same view as the Blender previews.
     /// </summary>
     [InitializeOnLoad]
     public static class MenuSnapshots
@@ -35,6 +37,14 @@ namespace TheMovies.EditorTools
 
         public static void CaptureBatch() => Begin(true);
 
+        public static void CaptureRoomBatch()
+        {
+            SessionState.SetString(k_RoomKey, System.Environment.GetEnvironmentVariable("THEMOVIES_ROOM") ?? "PbrTest");
+            Begin(true);
+        }
+
+        const string k_RoomKey = "TheMovies.MenuSnapshots.Room";
+
         static void Begin(bool exitWhenDone)
         {
             EditorSceneManager.OpenScene(ProjectSetup.ScenePath);
@@ -54,6 +64,7 @@ namespace TheMovies.EditorTools
             else if (change == PlayModeStateChange.EnteredEditMode)
             {
                 SessionState.EraseInt(k_StateKey);
+                SessionState.EraseString(k_RoomKey);
                 if (state == 2) EditorApplication.Exit(0);
             }
         }
@@ -64,6 +75,15 @@ namespace TheMovies.EditorTools
             EditorApplication.update -= WaitAndCapture;
             try
             {
+                string room = SessionState.GetString(k_RoomKey, string.Empty);
+                if (room.Length > 0)
+                {
+                    // The room needs a moment: house lights fade, the model is built on first use.
+                    if (!PrepareRoom(room)) { EditorApplication.isPlaying = false; return; }
+                    s_StartAt = EditorApplication.timeSinceStartup + 3.0;
+                    EditorApplication.update += CaptureRoomLater;
+                    return;
+                }
                 Capture();
             }
             catch (System.Exception e)
@@ -71,6 +91,73 @@ namespace TheMovies.EditorTools
                 Debug.LogException(e);
             }
             EditorApplication.isPlaying = false;
+        }
+
+        static TheMovies.App.AppController s_App;
+
+        static bool PrepareRoom(string roomName)
+        {
+            s_App = Object.FindAnyObjectByType<TheMovies.App.AppController>();
+            if (s_App == null || !System.Enum.TryParse(roomName, true, out TheMovies.World.CinemaEnvironment.Room room))
+            {
+                Debug.LogError($"[TheMovies] Room snapshot: no app or unknown room '{roomName}'.");
+                return false;
+            }
+            s_App.SetRoom(room);
+            s_App.SetLightMode(TheMovies.Video.LightMode.On);
+            s_App.Menu.Hide();
+            return true;
+        }
+
+        static int s_RoomStep;
+
+        static void CaptureRoomLater()
+        {
+            if (EditorApplication.timeSinceStartup < s_StartAt) return;
+            try
+            {
+                string room = SessionState.GetString(k_RoomKey, "room");
+                string suffix = s_RoomStep == 0 ? "lights-on" : "dimmed";
+                CaptureRoom(Path.Combine(k_OutputFolder, $"room-{room.ToLowerInvariant()}-seat2-{suffix}.png"));
+                if (s_RoomStep == 0)
+                {
+                    s_RoomStep = 1;
+                    s_App.SetLightMode(TheMovies.Video.LightMode.Off);
+                    s_StartAt = EditorApplication.timeSinceStartup + 3.0;
+                    return;
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogException(e);
+            }
+            EditorApplication.update -= CaptureRoomLater;
+            s_RoomStep = 0;
+            EditorApplication.isPlaying = false;
+        }
+
+        /// <summary>Seat2 (x −0.375), 1.25 m eye height, looking +Z, 90° horizontal field of view, 16:9.</summary>
+        static void CaptureRoom(string path)
+        {
+            Directory.CreateDirectory(k_OutputFolder);
+            const int width = 1920, height = 1080;
+            var camera = new GameObject("Room Snapshot Camera").AddComponent<Camera>();
+            camera.enabled = false;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = Color.black;
+            camera.nearClipPlane = 0.02f;
+            camera.farClipPlane = 3000f;
+            camera.aspect = (float)width / height;
+            camera.fieldOfView = 2f * Mathf.Atan(Mathf.Tan(45f * Mathf.Deg2Rad) / camera.aspect) * Mathf.Rad2Deg;
+            var seat = TheMovies.World.CinemaEnvironment.SeatPose(1);
+            camera.transform.SetPositionAndRotation(seat.position + Vector3.up * 1.25f, Quaternion.LookRotation(Vector3.forward, Vector3.up));
+            var target = new RenderTexture(width, height, 24) { antiAliasing = 8 };
+            camera.targetTexture = target;
+            camera.Render();
+            Save(target, path);
+            Object.DestroyImmediate(camera.gameObject);
+            target.Release();
+            Debug.Log($"[TheMovies] Room snapshot saved to {Path.GetFullPath(path)}.");
         }
 
         static void Capture()

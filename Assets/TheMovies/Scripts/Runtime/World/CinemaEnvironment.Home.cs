@@ -20,9 +20,12 @@ namespace TheMovies.World
             Space = 3,
             OrientExpress = 4,
             Jet = 5,
+
+            /// <summary>Calibration room of the photorealistic pipeline, only while its model is in the build.</summary>
+            PbrTest = 6,
         }
 
-        public static readonly string[] RoomNames = { "Kino", "Heimkino", "Dachterrasse", "Weltraum-Lounge", "Orient-Express", "Präsidentenjet" };
+        public static readonly string[] RoomNames = { "Kino", "Heimkino", "Dachterrasse", "Weltraum-Lounge", "Orient-Express", "Präsidentenjet", "PBR-Test" };
 
         /// <summary>
         /// Rooms that exist only as a model (no built-in version): prefab under Resources and where the screen hangs if the
@@ -39,6 +42,7 @@ namespace TheMovies.World
                 { Room.OrientExpress, ("TheMovies/CustomOrientExpress", new ScreenPlacement(new Vector3(0, 0.9f, 6f), 0.3f, 1.5f)) },
                 // Presidential jet: screen on the front bulkhead of the conference cabin.
                 { Room.Jet, ("TheMovies/CustomJet", new ScreenPlacement(new Vector3(0, 0.9f, 5f), 0.35f, 1.8f)) },
+                { Room.PbrTest, ("TheMovies/CustomPbrTest", new ScreenPlacement(new Vector3(0, 0.9f, 4f), 0.3f, 1.35f)) },
             };
 
         sealed class ModelRoom
@@ -162,6 +166,9 @@ namespace TheMovies.World
                 for (; count < list.Length && count < 4; count++) fires[count] = list[count];
             Shader.SetGlobalVectorArray(k_FireLight, fires);
             Shader.SetGlobalFloat(k_FireCount, count);
+            // Photorealistic rooms (pipeline v2) reflect themselves.
+            var reflection = root != null ? root.GetComponentInChildren<RoomReflection>(true) : null;
+            if (reflection == null || !reflection.Apply()) RoomReflection.Clear();
         }
 
         /// <summary>The living room: the model from Resources/TheMovies/CustomHome if there is one, else the built-in one.</summary>

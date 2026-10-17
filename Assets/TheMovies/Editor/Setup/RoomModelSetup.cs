@@ -43,7 +43,15 @@ namespace TheMovies.EditorTools
         static readonly RoomKind k_Space = new RoomKind { Folder = "Space", Model = "Space", Prefab = "CustomSpace", Title = "Weltraum-Lounge" };
         static readonly RoomKind k_Orient = new RoomKind { Folder = "OrientExpress", Model = "OrientExpress", Prefab = "CustomOrientExpress", Title = "Orient-Express" };
         static readonly RoomKind k_Jet = new RoomKind { Folder = "Jet", Model = "Jet", Prefab = "CustomJet", Title = "Präsidentenjet" };
-        static readonly RoomKind[] k_All = { k_Cinema, k_Home, k_Rooftop, k_Space, k_Orient, k_Jet };
+        static readonly RoomKind k_PbrTest = new RoomKind { Folder = "PbrTest", Model = "PbrTest", Prefab = "CustomPbrTest", Title = "PBR-Test" };
+        static readonly RoomKind[] k_All = { k_Cinema, k_Home, k_Rooftop, k_Space, k_Orient, k_Jet, k_PbrTest };
+
+        /// <summary>Photorealistic pipeline v2 (ART-BRIEF section 15): directional light atlases and the room's reflection.</summary>
+        sealed class RoomV2
+        {
+            public Texture2D[] Rnm;
+            public Cubemap Reflection;
+        }
 
         [MenuItem("The Movies/Raum-Modell aufbereiten/Kinosaal (Art/Cinema)", priority = 50)]
         static void PrepareCinemaMenu() => Report(Prepare(k_Cinema));
@@ -132,7 +140,18 @@ namespace TheMovies.EditorTools
                 return new Result { Ok = false, Text = $"{kind.Title}: {modelPath} ließ sich nicht laden." };
 
             textures.TryGetValue(modelName + "_Light", out var lightTexture);
-            if (lightTexture == null)
+            RoomV2 v2 = null;
+            if (textures.TryGetValue(modelName + "_RNM0", out var rnm0) && textures.TryGetValue(modelName + "_RNM1", out var rnm1) &&
+                textures.TryGetValue(modelName + "_RNM2", out var rnm2))
+            {
+                v2 = new RoomV2
+                {
+                    Rnm = new[] { rnm0, rnm1, rnm2 },
+                    Reflection = AssetDatabase.LoadAssetAtPath<Cubemap>(folder + "/Textures/" + modelName + "_Reflection.exr"),
+                };
+                if (v2.Reflection == null) warnings.Add($"Pipeline v2 ohne Textures/{modelName}_Reflection.exr – keine Spiegelungen");
+            }
+            else if (lightTexture == null)
                 warnings.Add($"kein eingebackenes Licht (Textures/{modelName}_Light.png) – der Raum wird nur vom Leinwandschein und einem Grundlicht beleuchtet");
 
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(model);
@@ -148,7 +167,7 @@ namespace TheMovies.EditorTools
                 foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
                 {
                     var mesh = renderer is SkinnedMeshRenderer skinned ? skinned.sharedMesh : renderer.GetComponent<MeshFilter>()?.sharedMesh;
-                    bool baked = lightTexture != null && mesh != null && HasUv2(mesh);
+                    bool baked = (lightTexture != null || v2 != null) && mesh != null && HasUv2(mesh);
                     if (mesh != null)
                     {
                         for (int s = 0; s < mesh.subMeshCount; s++) triangles += (int)mesh.GetIndexCount(s) / 3;
@@ -158,7 +177,7 @@ namespace TheMovies.EditorTools
                     var source = renderer.sharedMaterials;
                     var converted = new Material[source.Length];
                     for (int i = 0; i < source.Length; i++)
-                        converted[i] = Convert(source[i], baked, lightTexture, textures, folder, materials);
+                        converted[i] = Convert(source[i], baked, lightTexture, v2, textures, folder, materials);
                     renderer.sharedMaterials = converted;
                     renderer.shadowCastingMode = ShadowCastingMode.Off;
                     renderer.receiveShadows = false;
@@ -183,9 +202,16 @@ namespace TheMovies.EditorTools
                         warnings.Add($"Sitz-Abstand {spacing:0.00} m statt {CinemaEnvironment.SeatSpacing} m – Avatare der anderen sitzen dann nicht genau");
                 }
 
+                if (v2 != null)
+                {
+                    var reflection = instance.AddComponent<RoomReflection>();
+                    reflection.Map = v2.Reflection;
+                    if (!markers.ContainsKey("ReflectionProbe")) warnings.Add("Pipeline v2 ohne Marker „ReflectionProbe“ – keine Spiegelungen");
+                }
+
                 if (triangles > k_MaxTriangles) warnings.Add($"{triangles:N0} Dreiecke – mehr als die {k_MaxTriangles:N0} fürs Budget auf der Quest");
                 if (materials.Count > k_MaxMaterials) warnings.Add($"{materials.Count} Materialien – mehr als {k_MaxMaterials} (Draw Calls)");
-                if (withoutUv2 > 0 && lightTexture != null) warnings.Add($"{withoutUv2} Meshes ohne zweite UV-Ebene – dort kein eingebackenes Licht");
+                if (withoutUv2 > 0 && (lightTexture != null || v2 != null)) warnings.Add($"{withoutUv2} Meshes ohne zweite UV-Ebene – dort kein eingebackenes Licht");
 
                 Directory.CreateDirectory(k_ResourcesFolder);
                 if (problems.Count == 0)
@@ -196,7 +222,7 @@ namespace TheMovies.EditorTools
 
                 log.Append(kind.Title).Append(": ").Append(problems.Count == 0 ? "fertig → " + PrefabPath(kind) : "NICHT übernommen").Append('\n');
                 log.Append($"{triangles:N0} Dreiecke, {meshes.Count} Meshes, {materials.Count} Materialien, {textures.Count} Texturen, " +
-                           $"eingebackenes Licht: {(lightTexture != null ? lightTexture.width + "²" : "nein")}, Sitz-Marker: {seats}/4");
+                           $"eingebackenes Licht: {(v2 != null ? "v2 (RNM " + v2.Rnm[0].width + "², Spiegelung " + (v2.Reflection != null ? "ja" : "nein") + ")" : lightTexture != null ? lightTexture.width + "²" : "nein")}, Sitz-Marker: {seats}/4");
                 foreach (string p in problems) log.Append("\nFEHLER: ").Append(p);
                 foreach (string w in warnings) log.Append("\nHinweis: ").Append(w);
                 return new Result { Ok = problems.Count == 0, Text = log.ToString() };
@@ -230,7 +256,7 @@ namespace TheMovies.EditorTools
         /// messing/chrome/metal (highlights), emit/glow/bulb/leucht (glows, dims with the house lights, no baked light),
         /// unlit (glows, does not dim – e.g. a starry sky or an exit sign).
         /// </summary>
-        static Material Convert(Material source, bool baked, Texture2D lightTexture, Dictionary<string, Texture2D> textures,
+        static Material Convert(Material source, bool baked, Texture2D lightTexture, RoomV2 v2, Dictionary<string, Texture2D> textures,
             string folder, Dictionary<string, Material> done)
         {
             string name = source != null ? source.name : "Default";
@@ -271,6 +297,8 @@ namespace TheMovies.EditorTools
                 return Planet(material, texture, textures, name, done, key);
             bool unlit = n.Contains("unlit");
             bool emissive = unlit || n.Contains("emit") || n.Contains("glow") || n.Contains("bulb") || n.Contains("leucht");
+            if (v2 != null && !unlit)
+                return Physical(material, texture, n, emissive, baked ? v2 : null, textures, name, done, key);
             material.SetFloat("_Sheen", n.Contains("velvet") || n.Contains("samt") ? 0.8f : 0f);
             material.SetFloat("_Specular", n.Contains("gold") || n.Contains("brass") || n.Contains("messing") || n.Contains("chrome") || n.Contains("metal") ? 0.5f : 0f);
             material.SetFloat("_Emission", emissive ? 1.2f : 0f);
@@ -290,6 +318,50 @@ namespace TheMovies.EditorTools
             material.SetFloat("_BakedDim", 0.04f); // house lights off (0 % / during the movie): nearly dark, the screen lights the room
             if (useBaked) material.EnableKeyword("_TM_BAKED");
             else material.DisableKeyword("_TM_BAKED");
+            EditorUtility.SetDirty(material);
+            done[key] = material;
+            return material;
+        }
+
+        /// <summary>
+        /// Pipeline v2: RoomPBR (or RoomGlass for "glass") with the material's normal and AO/roughness/metal maps
+        /// (Textures/&lt;Material&gt;_Normal, _ORM), the room's three directional light atlases and the keyword effects.
+        /// </summary>
+        static Material Physical(Material material, Texture baseColor, string n, bool emissive, RoomV2 v2,
+            Dictionary<string, Texture2D> textures, string name, Dictionary<string, Material> done, string key)
+        {
+            bool glass = n.Contains("glass");
+            bool metal = n.Contains("gold") || n.Contains("brass") || n.Contains("messing") || n.Contains("chrome") || n.Contains("metal");
+            material.shader = Shader.Find(glass ? "TheMovies/RoomGlass" : "TheMovies/RoomPBR");
+            material.shaderKeywords = new string[0];
+            material.mainTexture = baseColor;
+            material.mainTextureScale = Vector2.one;
+            textures.TryGetValue(name + "_Normal", out var normal);
+            textures.TryGetValue(name + "_ORM", out var orm);
+            if (!glass)
+            {
+                material.SetTexture("_NormalTex", normal);
+                if (normal != null) material.EnableKeyword("_TM_NORMALMAP");
+            }
+            material.SetTexture("_ORMTex", orm);
+            if (orm != null) material.EnableKeyword("_TM_ORM");
+            material.SetFloat("_Roughness", glass ? 0.05f : metal ? 0.3f : 0.7f);
+            if (!glass) material.SetFloat("_Metallic", metal ? 1f : 0f);
+            for (int i = 0; i < 3; i++)
+                material.SetTexture("_RNM" + i, v2 != null && !emissive ? v2.Rnm[i] : null);
+            material.SetFloat("_BakedDim", 0.04f);
+            material.SetFloat("_Exposure", 1f);
+            if (!glass)
+            {
+                material.SetFloat("_Sheen", n.Contains("velvet") || n.Contains("samt") ? 0.6f : 0f);
+                // Lamp shades and bulbs: HDR glow, tone mapped like everything else.
+                material.SetFloat("_Emission", emissive ? 4f : 0f);
+                material.SetFloat("_RoomLightAffect", emissive ? 1f : 0f);
+                material.SetFloat("_ScreenGlow", emissive ? 0f : 1f);
+                material.SetFloat("_Flicker", Mathf.Clamp01((NumberAfter(n, "flicker") ?? 0) / 100f));
+                material.SetFloat("_Blink", (NumberAfter(n, "blink") ?? 0) / 10f);
+            }
+            material.renderQueue = -1;
             EditorUtility.SetDirty(material);
             done[key] = material;
             return material;
@@ -346,6 +418,8 @@ namespace TheMovies.EditorTools
             Set(importer.generateSecondaryUV, false, v => importer.generateSecondaryUV = v); // UV2 comes from Blender
             Set(importer.meshCompression, ModelImporterMeshCompression.Off, v => importer.meshCompression = v); // UV2 precision
             Set(importer.importNormals, ModelImporterNormals.Import, v => importer.importNormals = v);
+            // Normal maps (pipeline v2) were baked with MikkTSpace tangents of the first UV set, as Unity computes them.
+            Set(importer.importTangents, ModelImporterTangents.CalculateMikk, v => importer.importTangents = v);
             Set(importer.importBlendShapes, false, v => importer.importBlendShapes = v);
             Set(importer.importCameras, false, v => importer.importCameras = v);
             Set(importer.importLights, false, v => importer.importLights = v);
@@ -356,6 +430,34 @@ namespace TheMovies.EditorTools
             if (changed) importer.SaveAndReimport();
         }
 
+        /// <summary>
+        /// The room's reflection panorama (pipeline v2): an HDR latitude-longitude EXR from Blender, imported as a cubemap
+        /// whose mipmaps are convolved for glossy reflections (rougher surfaces read blurrier mips).
+        /// </summary>
+        static void ConfigureReflection(string path)
+        {
+            if (!(AssetImporter.GetAtPath(path) is TextureImporter importer)) return;
+            importer.textureType = TextureImporterType.Default;
+            importer.textureShape = TextureImporterShape.TextureCube;
+            var settings = new TextureImporterSettings();
+            importer.ReadTextureSettings(settings);
+            settings.generateCubemap = TextureImporterGenerateCubemap.Cylindrical;
+            settings.cubemapConvolution = TextureImporterCubemapConvolution.Specular;
+            importer.SetTextureSettings(settings);
+            importer.sRGBTexture = false;
+            importer.mipmapEnabled = true;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.filterMode = FilterMode.Trilinear;
+            importer.maxTextureSize = 2048;
+            importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            var android = importer.GetPlatformTextureSettings("Android");
+            android.overridden = true;
+            android.maxTextureSize = 2048;
+            android.format = TextureImporterFormat.ASTC_HDR_6x6;
+            importer.SetPlatformTextureSettings(android);
+            importer.SaveAndReimport();
+        }
+
         /// <summary>Import settings for the room's textures; returns them by file name (without extension).</summary>
         static Dictionary<string, Texture2D> ConfigureTextures(string folder, string modelName)
         {
@@ -364,17 +466,27 @@ namespace TheMovies.EditorTools
             foreach (string file in Directory.GetFiles(folder))
             {
                 string ext = Path.GetExtension(file).ToLowerInvariant();
+                if (ext == ".exr" && file.EndsWith("_Reflection.exr", StringComparison.OrdinalIgnoreCase))
+                {
+                    ConfigureReflection(file.Replace('\\', '/'));
+                    continue;
+                }
                 if (ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".tga") continue;
                 string path = file.Replace('\\', '/');
                 string name = Path.GetFileNameWithoutExtension(path);
                 if (AssetImporter.GetAtPath(path) is TextureImporter importer)
                 {
-                    bool light = name.EndsWith("_Light", StringComparison.OrdinalIgnoreCase);
+                    // Pipeline v2: normal maps and AO/roughness/metal are data (linear), the RNM light atlases are RGBM
+                    // with sRGB-encoded color (alpha stays linear).
+                    bool normalMap = name.EndsWith("_Normal", StringComparison.OrdinalIgnoreCase);
+                    bool orm = name.EndsWith("_ORM", StringComparison.OrdinalIgnoreCase);
+                    bool rnm = name.Length > 5 && name.Substring(name.Length - 5, 4).Equals("_RNM", StringComparison.OrdinalIgnoreCase);
+                    bool light = rnm || name.EndsWith("_Light", StringComparison.OrdinalIgnoreCase);
                     // Surrounding panoramas (sky, far city) cover up to 360°: 2048 would be blurry (~6 px per degree).
                     bool panorama = name.IndexOf("Panorama", StringComparison.OrdinalIgnoreCase) >= 0 ||
                                     name.IndexOf("Planet", StringComparison.OrdinalIgnoreCase) >= 0;
-                    importer.textureType = TextureImporterType.Default;
-                    importer.sRGBTexture = true; // base color and baked light (saved with Blender's "Standard" view) are sRGB
+                    importer.textureType = normalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
+                    importer.sRGBTexture = !normalMap && !orm; // base color and baked light (Blender "Standard" view, RGBM color) are sRGB
                     importer.mipmapEnabled = true;
                     importer.anisoLevel = light ? 1 : 4;
                     importer.wrapMode = light ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
@@ -385,7 +497,7 @@ namespace TheMovies.EditorTools
                     android.overridden = true;
                     android.maxTextureSize = importer.maxTextureSize;
                     // Light: smooth gradients need the finer blocks; base colors are fine with 6×6.
-                    android.format = light ? TextureImporterFormat.ASTC_4x4 : TextureImporterFormat.ASTC_6x6;
+                    android.format = light || normalMap ? TextureImporterFormat.ASTC_4x4 : TextureImporterFormat.ASTC_6x6;
                     importer.SetPlatformTextureSettings(android);
                     importer.SaveAndReimport();
                 }
