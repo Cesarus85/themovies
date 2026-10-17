@@ -72,16 +72,17 @@ Legende: ✅ fertig und auf der Quest bestätigt · 🚧 in Arbeit · 🧪 umges
 
 | Status | # | Thema | Notizen |
 | --- | --- | --- | --- |
-| 📋 | 11 | Lobby ohne Code | Freunde über Meta-Konto einladen (Meta Platform SDK: Group Presence, Destinations) – erfordert eine registrierte App im Meta-Entwicklerportal |
+| 🧪 | 11a | Offene Kinos | Liste im Hauptmenü: offene Online-Kinos (Session-Liste der Multiplayer Services) und LAN-Kinos im selben WLAN (Broadcast-Suche), ein Klick zum Beitreten. Neue Kinos sind privat; der Gastgeber öffnet sie im Kino, Filmtitel nur auf Wunsch. Code und IP in einem Beitreten-Knopf. |
+| 📋 | 11b | Freunde einladen | Über das Meta-Konto (Meta Platform SDK: Group Presence, Destinations) – erfordert App-ID, Data-Use-Freigaben und einen Testkanal im Meta-Entwicklerportal |
 | 💡 | – | Veröffentlichung | Meta Horizon Store (Release Channel), App-Icon, Splash-Screen, Signierung |
 | 💡 | – | Automatische Builds | GameCI/GitHub Actions mit Unity-Lizenz, APK als Release-Artefakt |
 
 ## Qualität & technische Schulden
 
 - **Auf der Quest messen:** Durchsatz des Host-Streamings über Relay vs. LAN, Genauigkeit und Dauer von Sprüngen im VideoPlayer, Bildrate im neuen Saal (Ziel: stabile 72/90 Hz, OVR Metrics Tool).
-- **Schärfere Schrift:** Menü und Untertitel auf TextMeshPro (SDF) umstellen.
+- 🧪 **Schärfere Schrift:** TextMeshPro mit SDF-Atlas (Liberation Sans) für Menü, Untertitel und Namen, Compositor-Schärfen bei offenem Menü (`XR_FB_composition_layer_settings`). Falls nötig als nächster Schritt: Menü als eigene Compositor-Ebene.
 - **Netzwerk-Tests im Editor:** Multiplayer Play Mode + Unity Test Runner für Join/Leave, Host-Wechsel, Streaming.
 - **Eigener Player, Ausbau:** SMB als direkte ExoPlayer-DataSource, Wiedergabe als OpenXR-Composition-Layer (Android Surface) – siehe [docs/PLAYER.md](docs/PLAYER.md).
 - **NAS auf der Quest messen:** Durchsatz SMB/WebDAV über WLAN mit 4K-Remux (Ziel ≥ 15 MB/s), ggf. mehrere Lese-Anfragen parallel.
 - **SMB 3.1.1 + Verschlüsselung:** Pre-Auth-Integrity und AES-GCM, damit auch „Verschlüsselung erzwingen“ funktioniert.
-- **Host-Wechsel:** Wenn der Gastgeber geht, übernimmt ein anderer Teilnehmer statt das Kino zu schließen.
+- 🧪 **Host-Wechsel (online):** Geht der Gastgeber, macht die Session einen anderen zum Gastgeber (Host-Migration der Multiplayer Services); der Film läuft bei allen weiter, Plätze und Sprachkanal bleiben. Offen: LAN-Kinos, Filme, die nur als Stream vom alten Gastgeber kamen.
