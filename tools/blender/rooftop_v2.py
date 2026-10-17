@@ -49,7 +49,7 @@ panorama(ROOT, TEX / 'Rooftop_Panorama_unlit_BaseColor.png')
 sets = Sets(['teak_veneer', 'white_plaster_02', 'rough_linen', 'quatrefoil_jacquard_fabric'])
 n = 1024
 c, nm, r, ao = sets.load('teak_veneer', 2048)
-save(TEX, 'Rooftop_Teak', recolour(c, (.30, .20, .11), 1.3), scale_normal(nm, .6), ao, .42 + .2 * r, n=2048)
+save(TEX, 'Rooftop_Teak', recolour(c, (.19, .11, .055), 1.1), scale_normal(nm, .6), ao, .40 + .2 * r, n=2048)
 c, nm, r, ao = sets.load('white_plaster_02', n)
 save(TEX, 'Rooftop_Lime_Plaster', recolour(c, (.62, .58, .48), .8), scale_normal(nm, .45), ao, .85 + .1 * r)
 save(TEX, 'Rooftop_Limestone', recolour(c, (.46, .45, .38), 1.2), scale_normal(nm, .7), ao, .70 + .15 * r)

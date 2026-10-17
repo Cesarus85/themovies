@@ -313,6 +313,78 @@
           "size": 17464838
         }
       }
+    },
+    "herringbone_parquet": {
+      "authors": {
+        "Jenelle van Heerden": "Processing",
+        "Sergej Majboroda": "Photography"
+      },
+      "metadata": "https://api.polyhaven.com/info/herringbone_parquet",
+      "source": "https://polyhaven.com/a/herringbone_parquet",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/herringbone_parquet/herringbone_parquet_diff_2k.png",
+          "md5": "4d30228a259f54d9217b373715e0aedb",
+          "size": 21385327
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/herringbone_parquet/herringbone_parquet_nor_gl_2k.png",
+          "md5": "592dcdc7741f13765bf7bd18398f3312",
+          "size": 18984465
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/herringbone_parquet/herringbone_parquet_rough_2k.png",
+          "md5": "417c9fc63d42dadb388745f90ff74a48",
+          "size": 9468276
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/herringbone_parquet/herringbone_parquet_ao_2k.png",
+          "md5": "5137bc8bb75141c44602a2cd18847c4b",
+          "size": 6801090
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/herringbone_parquet/herringbone_parquet_arm_2k.png",
+          "md5": "f1d6b7684f1cb998a831f46fac0abef4",
+          "size": 16502136
+        }
+      }
+    },
+    "velour_velvet": {
+      "authors": {
+        "colormass": "Photography",
+        "Rico Cilliers": "Processing"
+      },
+      "metadata": "https://api.polyhaven.com/info/velour_velvet",
+      "source": "https://polyhaven.com/a/velour_velvet",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/velour_velvet/velour_velvet_diff_2k.png",
+          "md5": "84c69c2fd92dca982776617045fe859d",
+          "size": 21380151
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/velour_velvet/velour_velvet_nor_gl_2k.png",
+          "md5": "ebf7891b4ae987bd2f42d5b0ca58db9f",
+          "size": 19952714
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/velour_velvet/velour_velvet_rough_2k.png",
+          "md5": "65453d5ad910e6c5b363af07203d267b",
+          "size": 7726844
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/velour_velvet/velour_velvet_ao_2k.png",
+          "md5": "36fddfc4ba7512270fe03b6e2f34851b",
+          "size": 7151196
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/velour_velvet/velour_velvet_arm_2k.png",
+          "md5": "0b12d1d8bac8a6af6b637520b79ecbdc",
+          "size": 25449619
+        }
+      }
     }
   }
 }
