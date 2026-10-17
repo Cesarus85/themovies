@@ -385,6 +385,43 @@
           "size": 25449619
         }
       }
+    },
+    "dark_wood": {
+      "authors": {
+        "Dario Barresi": "Baking",
+        "Dimitrios Savva": "Photography",
+        "Rico Cilliers": "Tiling"
+      },
+      "metadata": "https://api.polyhaven.com/info/dark_wood",
+      "source": "https://polyhaven.com/a/dark_wood",
+      "license": "CC0-1.0",
+      "maps": {
+        "Diffuse": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/dark_wood/dark_wood_diff_2k.png",
+          "md5": "2ee776ee90dc522dc9949f992e2b199c",
+          "size": 21249991
+        },
+        "nor_gl": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/dark_wood/dark_wood_nor_gl_2k.png",
+          "md5": "444b2544dc7b49206c02216fc58fb792",
+          "size": 18635244
+        },
+        "Rough": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/dark_wood/dark_wood_rough_2k.png",
+          "md5": "d095415eab5475a9176e878c41de0567",
+          "size": 9798329
+        },
+        "AO": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/dark_wood/dark_wood_ao_2k.png",
+          "md5": "feb98068ac3ae16f5e2b8410ec7aaa93",
+          "size": 6896575
+        },
+        "arm": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/dark_wood/dark_wood_arm_2k.png",
+          "md5": "5025524bd1c6746ac83e7c4f4bbcacfe",
+          "size": 16354635
+        }
+      }
     }
   }
 }

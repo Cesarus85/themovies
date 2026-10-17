@@ -7,12 +7,12 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Home_Mineral_Atlas
-  m_Shader: {fileID: 4800000, guid: 9f6889c322fb44cf7968ff8f24ef05fc, type: 3}
+  m_Name: Home_Window_glass
+  m_Shader: {fileID: 4800000, guid: 3d1854df3a739450989b65e9c72a4b32, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _TM_BAKED
+  - _TM_ORM
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -25,11 +25,27 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _LightTex:
-        m_Texture: {fileID: 2800000, guid: 5fd250c5db0e24c60a061be22c3c0142, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 212384d250c3b42ad9cbfec0a8266d09, type: 3}
+        m_Texture: {fileID: 2800000, guid: ac286959c62e948148cebf82e586d5e1, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ORMTex:
+        m_Texture: {fileID: 2800000, guid: 800dbeb981cfa433e944d504445acaaa, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM0:
+        m_Texture: {fileID: 2800000, guid: 9497565e188234af0bb611c72df9c57c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM1:
+        m_Texture: {fileID: 2800000, guid: 7488faf80b539400ebcce409aad84e69, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RNM2:
+        m_Texture: {fileID: 2800000, guid: a05ce1aae434a4f2ba45927459152265, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -37,9 +53,12 @@ Material:
     - _BakedDim: 0.04
     - _Blink: 0
     - _Emission: 0
+    - _Exposure: 1
     - _Flicker: 0
     - _LightScale: 2
+    - _Reflectivity: 1
     - _RoomLightAffect: 0
+    - _Roughness: 0.05
     - _ScreenGlow: 1
     - _Scroll: 0
     - _ScrollV: 0

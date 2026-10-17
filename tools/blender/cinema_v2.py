@@ -55,6 +55,7 @@ def fetch(asset,model=False):
 
 
 
+def aim(o,target):o.rotation_euler=(Vector(target)-o.location).to_track_quat('-Z','Y').to_euler()
 def light(name,loc,power,color=(1,.78,.51),size=2,target=None):
     d=bpy.data.lights.new(name,'AREA' if target else 'POINT');d.energy=power*.28;d.color=color
     if target:d.shape='DISK';d.size=size

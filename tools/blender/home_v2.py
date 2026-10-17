@@ -49,11 +49,11 @@ panorama(fetch(ROOT, 'solitude_night'), TEX / 'Home_Night_unlit_BaseColor.png')
 sets = Sets(['walnut_veneer', 'herringbone_parquet', 'white_plaster_02', 'velour_velvet', 'quatrefoil_jacquard_fabric', 'rough_linen'])
 n = 1024
 c, nm, r, ao = sets.load('walnut_veneer', 2048)
-save(TEX, 'Home_Walnut', recolour(c, (.17, .085, .038), 1.2), scale_normal(nm, .4), ao, .26 + .2 * r, n=2048)
+save(TEX, 'Home_Walnut', recolour(c, (.13, .065, .029), 1.2), scale_normal(nm, .4), ao, .26 + .2 * r, n=2048)
 c, nm, r, ao = sets.load('herringbone_parquet', 2048)
 save(TEX, 'Home_Parquet', recolour(c, (.42, .30, .19), 1.1), scale_normal(nm, .6), ao, .28 + .25 * r, n=2048)
 c, nm, r, ao = sets.load('white_plaster_02', n)
-save(TEX, 'Home_Warm_Plaster', recolour(c, (.58, .53, .42), .5), scale_normal(nm, .25), ao, .85 + .1 * r)
+save(TEX, 'Home_Warm_Plaster', recolour(c, (.58, .53, .42), .15), scale_normal(nm, .15), 1.0, .9)
 save(TEX, 'Home_Limestone', recolour(c, (.52, .48, .40), 1.4), scale_normal(nm, .8), ao, .65 + .2 * r)
 save(TEX, 'Home_Charcoal', pixels(TEX / 'Home_Charcoal_BaseColor.png', (n, n))[..., :3], scale_normal(nm, .9), ao, .9)
 c, nm, r, ao = sets.load('velour_velvet', n)
@@ -69,6 +69,8 @@ save(TEX, 'Home_Embers_glow', pixels(TEX / 'Home_Embers_glow_BaseColor.png', (n,
 polished_metal(TEX, 'Home_Brass', (.80, .64, .36), .24)
 window_glass(TEX, 'Home_Window_glass')
 room.log('Texture sets prepared')
+if '--textures-only' in ARGS:
+    sys.exit(0)  # material maps only; bake and reflection stay
 
 # ---------------- Scene ----------------
 

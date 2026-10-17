@@ -1,0 +1,11 @@
+{
+  "Home_Linen_emit": {
+    "emission": 0.6
+  },
+  "Home_Candle_emit_flicker15": {
+    "emission": 1.5
+  },
+  "Home_Fire_glow_flicker30": {
+    "emission": 2.2
+  }
+}
